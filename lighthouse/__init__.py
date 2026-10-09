@@ -55,7 +55,6 @@ class LIGHTHOUSE_PG_settings(bpy.types.PropertyGroup):
         description="Multiply light power by this value",
         default=1.0,
         min=0.0,
-        soft_max=10.0,
     )
     scale_scope: bpy.props.EnumProperty(name="Scope", description="Which lights to scale", items=SCOPE_ITEMS)
     preset: bpy.props.EnumProperty(name="Preset", description="Light setup to apply to selected lights", items=preset_items)
@@ -133,13 +132,14 @@ class LIGHTHOUSE_OT_scale_lights(bpy.types.Operator):
 
 
 class LIGHTHOUSE_OT_step_exposure(bpy.types.Operator):
-    """Double (+1 EV) or halve (-1 EV) the power of the lights in scope.
+    """Multiply the power of the lights in scope by 2 to the power of the EV steps:
+    +1 EV doubles it, -1 EV halves it, fractions give finer steps.
     On keyframed lights, every power keyframe is scaled"""
     bl_idname = "lighthouse.step_exposure"
     bl_label = "Step Light Exposure"
     bl_options = {'REGISTER', 'UNDO'}
 
-    steps: bpy.props.IntProperty(name="Steps", description="EV steps: +1 doubles power, -1 halves it", default=1)
+    steps: bpy.props.FloatProperty(name="Steps", description="EV steps: +1 doubles power, -1 halves it", default=1.0)
     scope: bpy.props.EnumProperty(name="Scope", items=SCOPE_ITEMS)
 
     def execute(self, context):
@@ -226,6 +226,51 @@ class LIGHTHOUSE_OT_shared_light_info(bpy.types.Operator):
         return {'CANCELLED'}
 
 
+EV_STEPS = ((-1.0, "−1"), (-0.5, "−½"), (-0.25, "−¼"), (0.25, "+¼"), (0.5, "+½"), (1.0, "+1"))
+
+
+class LIGHTHOUSE_PT_intensity(bpy.types.Panel):
+    bl_label = "Intensity"
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = 'UI'
+    bl_category = "Lights"
+
+    def draw(self, context):
+        settings = context.window_manager.lighthouse
+        self.layout.row(align=True).prop(settings, "scale_scope", expand=True)
+        row = self.layout.row(align=True)
+        row.prop(settings, "scale_factor")
+        op = row.operator(LIGHTHOUSE_OT_scale_lights.bl_idname, text="Apply")
+        op.factor = settings.scale_factor
+        op.scope = settings.scale_scope
+        row = self.layout.row(align=True)
+        row.label(text="EV")
+        for steps, text in EV_STEPS:
+            op = row.operator(LIGHTHOUSE_OT_step_exposure.bl_idname, text=text)
+            op.steps = steps
+            op.scope = settings.scale_scope
+
+
+class LIGHTHOUSE_PT_presets(bpy.types.Panel):
+    bl_label = "Presets"
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = 'UI'
+    bl_category = "Lights"
+
+    def draw_header(self, context):
+        settings = context.window_manager.lighthouse
+        row = self.layout.row(align=True)
+        row.prop(settings, "preset", text="")
+        row.operator(LIGHTHOUSE_OT_apply_preset.bl_idname, text="Apply").preset = settings.preset
+
+    def draw(self, context):
+        settings = context.window_manager.lighthouse
+        row = self.layout.row(align=True)
+        row.operator(LIGHTHOUSE_OT_save_preset.bl_idname, text="Save", icon='ADD')
+        if settings.preset not in BUILTIN_PRESETS:
+            row.operator(LIGHTHOUSE_OT_delete_preset.bl_idname, text="Delete", icon='REMOVE').preset = settings.preset
+
+
 class LIGHTHOUSE_PT_lights(bpy.types.Panel):
     bl_label = "Lights"
     bl_space_type = 'VIEW_3D'
@@ -234,8 +279,6 @@ class LIGHTHOUSE_PT_lights(bpy.types.Panel):
 
     def draw(self, context):
         filters = context.window_manager.lighthouse
-        self.draw_intensity(filters)
-        self.draw_presets(filters)
         self.layout.prop(filters, "name_filter", text="", icon='VIEWZOOM')
         self.layout.row(align=True).prop(filters, "type_filter", expand=True)
 
@@ -291,31 +334,6 @@ class LIGHTHOUSE_PT_lights(bpy.types.Panel):
         for path in detail_properties(light, engine):
             box.prop(*detail_target(light, path))
 
-    def draw_presets(self, settings):
-        box = self.layout.box()
-        box.label(text="Presets", icon='PRESET')
-        row = box.row(align=True)
-        row.prop(settings, "preset", text="")
-        row.operator(LIGHTHOUSE_OT_apply_preset.bl_idname, text="Apply").preset = settings.preset
-        row.operator(LIGHTHOUSE_OT_save_preset.bl_idname, text="", icon='ADD')
-        if settings.preset not in BUILTIN_PRESETS:
-            row.operator(LIGHTHOUSE_OT_delete_preset.bl_idname, text="", icon='REMOVE').preset = settings.preset
-
-    def draw_intensity(self, settings):
-        box = self.layout.box()
-        box.label(text="Intensity", icon='LIGHT')
-        box.row(align=True).prop(settings, "scale_scope", expand=True)
-        row = box.row(align=True)
-        row.prop(settings, "scale_factor", slider=True)
-        op = row.operator(LIGHTHOUSE_OT_scale_lights.bl_idname, text="Apply")
-        op.factor = settings.scale_factor
-        op.scope = settings.scale_scope
-        row = box.row(align=True)
-        for steps, text in ((-1, "-1 EV"), (1, "+1 EV")):
-            op = row.operator(LIGHTHOUSE_OT_step_exposure.bl_idname, text=text)
-            op.steps = steps
-            op.scope = settings.scale_scope
-
 
 classes = (
     LIGHTHOUSE_PG_settings,
@@ -328,6 +346,8 @@ classes = (
     LIGHTHOUSE_OT_save_preset,
     LIGHTHOUSE_OT_delete_preset,
     LIGHTHOUSE_OT_shared_light_info,
+    LIGHTHOUSE_PT_intensity,
+    LIGHTHOUSE_PT_presets,
     LIGHTHOUSE_PT_lights,
 )
 

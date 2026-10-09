@@ -75,14 +75,23 @@ def test_keyframes_on_other_properties_are_left_unchanged():
 
 def test_ev_steps_scale_keyframes():
     keys = run_in_blender(KEYFRAMED + """
-        bpy.ops.lighthouse.step_exposure(steps=1, scope='ALL')
+        bpy.ops.lighthouse.step_exposure(steps=1.0, scope='ALL')
         brighter = keys()
-        bpy.ops.lighthouse.step_exposure(steps=-1, scope='ALL')
-        bpy.ops.lighthouse.step_exposure(steps=-1, scope='ALL')
+        bpy.ops.lighthouse.step_exposure(steps=-1.0, scope='ALL')
+        bpy.ops.lighthouse.step_exposure(steps=-1.0, scope='ALL')
         report([brighter, keys()])
     """)
 
     assert keys == [[200, 600], [50, 150]]
+
+
+def test_quarter_ev_step_scales_keyframes():
+    keys = run_in_blender(KEYFRAMED + """
+        bpy.ops.lighthouse.step_exposure(steps=0.25, scope='ALL')
+        report(keys())
+    """)
+
+    assert keys == [pytest.approx(118.9207, abs=1e-3), pytest.approx(356.7621, abs=1e-3)]
 
 
 def test_scaling_reports_how_many_lights_were_keyframed():
@@ -90,7 +99,7 @@ def test_scaling_reports_how_many_lights_were_keyframed():
         for name in ("B", "C", "D"):
             add_light(name)
         bpy.ops.lighthouse.scale_lights(factor=0.5, scope='ALL')
-        bpy.ops.lighthouse.step_exposure(steps=1, scope='ALL')
+        bpy.ops.lighthouse.step_exposure(steps=1.0, scope='ALL')
         report(None)
     """)
 

@@ -147,3 +147,20 @@ User presets are read from disk every time the dropdown or `apply_preset` needs 
 **Blender API quirks**
 - No `files` permission: presets live in `extension_path_user()`, Blender's own per-extension folder, and the permission is meant for access outside Blender.
 - `RenderSettings.engine`'s `enum_items` lists only `BLENDER_EEVEE` in `--background` scripts, but setting `'CYCLES'` still works.
+
+## v2 task 01: three panels and finer intensity steps
+
+**Components**
+- `lighthouse/__init__.py`: the single `LIGHTHOUSE_PT_lights` panel is split into three top-level panels in the Lights tab, registered in this order: `LIGHTHOUSE_PT_intensity`, `LIGHTHOUSE_PT_presets`, `LIGHTHOUSE_PT_lights`. `LIGHTHOUSE_PT_lights` keeps its idname and holds the search, type filter and list.
+- `LIGHTHOUSE_PT_presets.draw_header()` draws the preset dropdown and Apply. The body holds Save and, for user presets only, Delete.
+- `LIGHTHOUSE_PT_intensity` draws the scope, the factor as a plain number field with Apply, and an EV row built from `EV_STEPS` (−1, −½, −¼, +¼, +½, +1).
+- `LIGHTHOUSE_OT_step_exposure.steps` is a `FloatProperty`. The factor property has no `soft_max`.
+
+**Data flow**
+All three panels read `WindowManager.lighthouse`. EV buttons pass their float `steps` to `step_exposure`, which calls `scale_lights(lights, 2 ** steps)`, so fractional steps scale power keyframes exactly like the factor does. Neither path touches `Light.exposure`.
+
+**Blender API quirks**
+- With no `bl_parent_id` and no `bl_order`, registration order is the default panel order. Blender stores each panel's open/closed flag and drag position in the screen layout, so both are saved with the .blend file without any addon code.
+- `draw_header()` runs even while the panel is collapsed, which is what lets presets be applied from a collapsed Presets panel. Drawing still can't run in `--background`, so the header and layout are checked by hand.
+- Passing a float to an `IntProperty` operator argument raises `TypeError` ("expected an int type, not float"). A `FloatProperty` accepts ints, so old `steps=1` callers keep working.
+- A `FloatProperty` with no `soft_max` gets `soft_max == hard_max` (FLT_MAX when no `max` is set), so dragging the field isn't capped. Dropping `slider=True` removes the slider bar.
