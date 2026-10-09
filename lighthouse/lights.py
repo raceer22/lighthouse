@@ -130,6 +130,8 @@ def power_unit(light):
 # Added after Blender 4.2: exposure in 4.4, temperature in 5.0. Shown only when the light has them.
 NEWER_DETAILS = ("exposure", "use_temperature", "temperature")
 SOFT_SIZE = {'POINT': "shadow_soft_size", 'SPOT': "shadow_soft_size", 'SUN': "angle"}
+# Labels matching Blender's own light panel where they differ from the RNA name
+DETAIL_LABELS = {"shadow_soft_size": "Radius", "use_shadow": "Use Shadow"}
 SHARED_DETAILS = ("specular_factor", "diffuse_factor", "volume_factor", "use_shadow")
 CYCLES_DETAILS = ("cycles.max_bounces", "cycles.use_multiple_importance_sampling", "cycles.is_caustics_light")
 

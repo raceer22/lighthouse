@@ -2,7 +2,7 @@
 # Licensed under the GNU General Public License v3 or later (GPL-3.0-or-later)
 import bpy
 
-from .lights import GroupEntry, color_control, detail_properties, detail_target, details_open, group_lights, group_soloed, indent_level, is_read_only, light_info_tooltip, light_objects, list_entries, move_lights, move_summary, power_unit, row_state, scale_lights, scale_summary, toggle_details, toggle_solo_group, toggle_solo_light
+from .lights import DETAIL_LABELS, GroupEntry, color_control, detail_properties, detail_target, details_open, group_lights, group_soloed, indent_level, is_read_only, light_info_tooltip, light_objects, list_entries, move_lights, move_summary, power_unit, row_state, scale_lights, scale_summary, toggle_details, toggle_solo_group, toggle_solo_light
 from pathlib import Path
 
 from .presets import BUILTIN_PRESETS, apply_preset, delete_user_preset, preset_from_light, preset_summary, save_user_preset, user_presets
@@ -567,9 +567,9 @@ class LIGHTHOUSE_PT_presets(bpy.types.Panel):
         row.prop(settings, "preset", text="")
         row.operator(LIGHTHOUSE_OT_apply_preset.bl_idname, text="Apply").preset = settings.preset
         row = self.layout.row(align=True)
-        row.operator(LIGHTHOUSE_OT_save_preset.bl_idname, text="Save", icon='ADD')
+        row.operator(LIGHTHOUSE_OT_save_preset.bl_idname, text="Save")
         if settings.preset not in BUILTIN_PRESETS:
-            row.operator(LIGHTHOUSE_OT_delete_preset.bl_idname, text="Delete", icon='REMOVE').preset = settings.preset
+            row.operator(LIGHTHOUSE_OT_delete_preset.bl_idname, text="Delete").preset = settings.preset
 
 
 INDENT_STEP = 1.5
@@ -701,7 +701,8 @@ class LIGHTHOUSE_PT_lights(bpy.types.Panel):
         box.use_property_split = True
         box.prop(obj, "name")
         for path in detail_properties(light, engine):
-            box.prop(*detail_target(light, path))
+            label = DETAIL_LABELS.get(path)
+            box.prop(*detail_target(light, path), **({"text": label} if label else {}))
 
 
 classes = (
