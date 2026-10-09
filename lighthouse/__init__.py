@@ -2,7 +2,7 @@
 # Licensed under the GNU General Public License v3 or later (GPL-3.0-or-later)
 import bpy
 
-from .lights import GroupEntry, detail_properties, detail_target, group_lights, indent_level, is_read_only, light_info_tooltip, light_objects, list_entries, move_lights, move_summary, power_unit, row_state, scale_lights, scale_summary, toggle_solo
+from .lights import GroupEntry, detail_properties, detail_target, group_lights, group_soloed, indent_level, is_read_only, light_info_tooltip, light_objects, list_entries, move_lights, move_summary, power_unit, row_state, scale_lights, scale_summary, toggle_solo_group, toggle_solo_light
 from pathlib import Path
 
 from .presets import BUILTIN_PRESETS, apply_preset, delete_user_preset, preset_from_light, preset_summary, save_user_preset, user_presets
@@ -65,6 +65,27 @@ class LIGHTHOUSE_PG_settings(bpy.types.PropertyGroup):
     preset: bpy.props.EnumProperty(name="Preset", description="Light setup to apply to selected lights", items=preset_items)
 
 
+class LIGHTHOUSE_PG_solo_object(bpy.types.PropertyGroup):
+    object: bpy.props.PointerProperty(type=bpy.types.Object)
+    hide_render: bpy.props.BoolProperty()
+    hide_viewport: bpy.props.BoolProperty()
+
+
+class LIGHTHOUSE_PG_solo_collection(bpy.types.PropertyGroup):
+    collection: bpy.props.PointerProperty(type=bpy.types.Collection)
+    hide_render: bpy.props.BoolProperty()
+    hide_viewport: bpy.props.BoolProperty()
+
+
+class LIGHTHOUSE_PG_solo(bpy.types.PropertyGroup):
+    """The scene's solo target and the visibility flags to restore on un-solo."""
+    active: bpy.props.BoolProperty()
+    light: bpy.props.PointerProperty(type=bpy.types.Object)
+    group: bpy.props.PointerProperty(type=bpy.types.Collection)
+    objects: bpy.props.CollectionProperty(type=LIGHTHOUSE_PG_solo_object)
+    collections: bpy.props.CollectionProperty(type=LIGHTHOUSE_PG_solo_collection)
+
+
 class LIGHTHOUSE_OT_select_light(bpy.types.Operator):
     """Select this light only and make it active"""
     bl_idname = "lighthouse.select_light"
@@ -114,7 +135,7 @@ class LIGHTHOUSE_OT_solo_light(bpy.types.Operator):
         obj = context.view_layer.objects.get(self.name)
         if obj is None:
             return {'CANCELLED'}
-        toggle_solo(context.scene, context.view_layer, obj)
+        toggle_solo_light(context.scene.lighthouse_solo, context.view_layer, obj)
         return {'FINISHED'}
 
 
@@ -212,6 +233,23 @@ class LIGHTHOUSE_OT_hide_group(bpy.types.Operator):
             return {'CANCELLED'}
         hide = not (collection.hide_render and collection.hide_viewport)
         collection.hide_render = collection.hide_viewport = hide
+        return {'FINISHED'}
+
+
+class LIGHTHOUSE_OT_solo_group(bpy.types.Operator):
+    """Show only the lights in this collection and its sub-collections,
+    or restore every light's and collection's visibility if it is already soloed"""
+    bl_idname = "lighthouse.solo_group"
+    bl_label = "Solo Group"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    name: bpy.props.StringProperty()
+
+    def execute(self, context):
+        collection = bpy.data.collections.get(self.name)
+        if collection is None:
+            return {'CANCELLED'}
+        toggle_solo_group(context.scene.lighthouse_solo, context.view_layer, collection)
         return {'FINISHED'}
 
 
@@ -407,11 +445,11 @@ class LIGHTHOUSE_PT_lights(bpy.types.Panel):
         entries = list_entries(context.view_layer, filters.name_filter, filters.type_filter, filters.grouped)
         for entry in entries:
             if isinstance(entry, GroupEntry):
-                self.draw_group(entry)
+                self.draw_group(context, entry)
             else:
                 self.draw_light(context, entry)
 
-    def draw_group(self, entry):
+    def draw_group(self, context, entry):
         collection = entry.collection
         row = self.layout.row(align=True)
         indent(row, entry.depth)
@@ -431,6 +469,13 @@ class LIGHTHOUSE_PT_lights(bpy.types.Panel):
             text="",
             icon='HIDE_ON' if hidden else 'HIDE_OFF',
             depress=hidden,
+        ).name = collection.name
+        soloed = group_soloed(context.scene, collection)
+        actions.operator(
+            LIGHTHOUSE_OT_solo_group.bl_idname,
+            text="",
+            icon='SOLO_ON' if soloed else 'SOLO_OFF',
+            depress=soloed,
         ).name = collection.name
 
     def draw_light(self, context, entry):
@@ -492,6 +537,9 @@ class LIGHTHOUSE_PT_lights(bpy.types.Panel):
 
 classes = (
     LIGHTHOUSE_PG_settings,
+    LIGHTHOUSE_PG_solo_object,
+    LIGHTHOUSE_PG_solo_collection,
+    LIGHTHOUSE_PG_solo,
     LIGHTHOUSE_OT_select_light,
     LIGHTHOUSE_OT_mute_light,
     LIGHTHOUSE_OT_solo_light,
@@ -500,6 +548,7 @@ classes = (
     LIGHTHOUSE_OT_select_group,
     LIGHTHOUSE_OT_move_to_group,
     LIGHTHOUSE_OT_hide_group,
+    LIGHTHOUSE_OT_solo_group,
     LIGHTHOUSE_OT_scale_lights,
     LIGHTHOUSE_OT_step_exposure,
     LIGHTHOUSE_OT_apply_preset,
@@ -516,6 +565,7 @@ def register():
     for cls in classes:
         bpy.utils.register_class(cls)
     bpy.types.WindowManager.lighthouse = bpy.props.PointerProperty(type=LIGHTHOUSE_PG_settings)
+    bpy.types.Scene.lighthouse_solo = bpy.props.PointerProperty(type=LIGHTHOUSE_PG_solo)
     bpy.types.Object.lighthouse_expanded = bpy.props.BoolProperty(
         name="Show Details",
         description="Show this light's shadow, influence and render engine settings",
@@ -529,6 +579,7 @@ def register():
 def unregister():
     del bpy.types.Collection.lighthouse_collapsed
     del bpy.types.Object.lighthouse_expanded
+    del bpy.types.Scene.lighthouse_solo
     del bpy.types.WindowManager.lighthouse
     for cls in reversed(classes):
         bpy.utils.unregister_class(cls)

@@ -206,3 +206,20 @@ All three panels read `WindowManager.lighthouse`. EV buttons pass their float `s
 - In background mode an operator's `{'ERROR'}` report is raised to the caller as `RuntimeError`, so tests catch it. `{'INFO'}` reports only go to stdout (`info_reports()`).
 - Linking a local object into a library collection raises "Collection 'X' is linked", which is why `move_to_group` checks the target first.
 - `Collection.objects.unlink()` works on a scene's master collection (`scene.collection`), so the Scene Collection is unlinked from like any other.
+
+## v2 task 04: pointer-based solo
+
+**Components**
+- `lighthouse/__init__.py`: `Scene.lighthouse_solo`, a `PointerProperty` to `LIGHTHOUSE_PG_solo` (`active`, `light` Object pointer, `group` Collection pointer, and `objects` / `collections` CollectionProperties of `LIGHTHOUSE_PG_solo_object` / `LIGHTHOUSE_PG_solo_collection`, each a pointer plus `hide_render` / `hide_viewport`). It replaces the v1 JSON in `scene["lighthouse_solo"]` and `SOLO_KEY`. An old JSON value is left in place and ignored. The new `LIGHTHOUSE_OT_solo_group` (`UNDO`, collection `name`) is drawn at the end of the group header's action sub-row, after Hide.
+- `lighthouse/lights.py`: `toggle_solo_light(solo, view_layer, obj)` and `toggle_solo_group(solo, view_layer, collection)` take the property group, not the scene. Both call `_solo(solo, view_layer, shown, collections)` or, when their target is already soloed, `_unsolo(solo)`. `_collection_paths(view_layer, wanted)` walks the non-excluded layer collection tree and returns each accepted collection with its ancestors. `group_soloed(scene, collection)` and `row_state().soloed` compare pointers for the header and row `depress=`.
+
+**Data flow**
+A light solo unhides the collections in `obj.users_collection` plus their ancestors. A group solo shows `collection.all_objects` and unhides the group, its `children_recursive` and its ancestors. `_solo` clears the snapshot only when `active` is off. It then adds every light, and every collection it is about to unhide, that has no snapshot item yet, records the flags, unhides the collections and sets every light's flags to "shown only if in `shown`". Switching target never removes items, so un-solo goes back to the state before the first solo, and collections unhidden for an earlier target stay unhidden until then. `_unsolo` writes back every item whose pointer is still set, then clears both lists, both target pointers and `active`. Renames don't matter, because nothing is looked up by name after the operator resolves its target.
+
+**Blender API quirks**
+- A Python `PointerProperty` to an ID **adds a real user**. Soloing A in a two-light scene takes A from 1 user to 3 (collection + `light` + snapshot item) and B from 1 to 2. Clearing the snapshot drops them again.
+- `bpy.data.objects.remove()` / `bpy.data.collections.remove()` set every pointer to the removed ID to `None`, so un-solo skips them.
+- `bpy.ops.object.delete()` (viewport Delete) during solo unlinks the light from the scene but **does not** free it, because the snapshot's user keeps it in `bpy.data` and its pointer stays set. Un-solo restores the flags on that orphan, which does no harm, and clearing the snapshot leaves it with 0 users, so it is purged on save. The outliner's Delete can't be run headless, so whether it sets the pointer to `None` or orphans the light like `object.delete` is unverified. Either way un-solo works.
+- `object.delete` acts on `selected_objects`, and solo hides the other lights in the viewport, so they can't be selected by `select_set()`. Probes have to pass `temp_override(selected_objects=[...])`.
+- Comparing ID pointers with `==` and putting them in sets works, because wrappers for the same ID compare and hash equal.
+- Factory startup has a default "Collection", so tests that compare every collection remove it first.

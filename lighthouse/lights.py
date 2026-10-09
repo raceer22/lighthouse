@@ -1,4 +1,3 @@
-import json
 from collections import Counter
 from typing import NamedTuple
 
@@ -198,43 +197,96 @@ def row_state(obj, view_layer, scene=None):
         read_only=is_read_only(light),
         shared=light.users > 1,
         muted=obj.hide_render and obj.hide_viewport,
-        soloed=scene is not None and soloed_light_name(scene) == obj.name,
+        soloed=scene is not None and scene.lighthouse_solo.active and scene.lighthouse_solo.light == obj,
     )
 
 
-SOLO_KEY = "lighthouse_solo"
+def group_soloed(scene, collection):
+    """True when the collection is the scene's soloed group (its header's solo icon is pressed)."""
+    solo = scene.lighthouse_solo
+    return solo.active and solo.group == collection
 
 
-def soloed_light_name(scene):
-    """Name of the light soloed in this scene, or None."""
-    saved = scene.get(SOLO_KEY)
-    return None if saved is None else json.loads(saved)["light"]
+def toggle_solo_light(solo, view_layer, obj):
+    """Solo a light: show it and hide every other light, unhiding the collections that hold it
+    and their ancestors. Pressing it again on the soloed light restores the snapshot (see _solo)."""
+    if solo.active and solo.light == obj:
+        _unsolo(solo)
+        return
+    holders = set(obj.users_collection)
+    _solo(solo, view_layer, [obj], _collection_paths(view_layer, lambda c: c in holders))
+    solo.light = obj
 
 
-def toggle_solo(scene, view_layer, obj):
-    """Solo a light: snapshot every light's visibility on the scene, then hide all others.
-    Soloing another light while soloing switches to it and keeps the first snapshot,
-    adding only lights created since then.
-    Pressing it again on the soloed light restores the snapshot exactly and clears it."""
-    saved = scene.get(SOLO_KEY)
+def toggle_solo_group(solo, view_layer, collection):
+    """Solo a group: show every light in the collection and its sub-collections and hide every
+    other light, unhiding the collection, its sub-collections and its ancestors. Pressing it again
+    on the soloed group restores the snapshot (see _solo)."""
+    if solo.active and solo.group == collection:
+        _unsolo(solo)
+        return
+    inside = {collection, *collection.children_recursive}
+    shown = set(collection.all_objects)
+    _solo(solo, view_layer, shown, _collection_paths(view_layer, lambda c: c in inside))
+    solo.group = collection
+
+
+def _solo(solo, view_layer, shown, collections):
+    """Show the given lights, hide every other light and unhide the given collections.
+    The first solo snapshots every light's flags; a collection's flags are snapshotted the
+    first time solo unhides it. Switching target keeps the snapshot and only adds new items."""
+    if not solo.active:
+        solo.objects.clear()
+        solo.collections.clear()
+        solo.active = True
+    solo.light = solo.group = None
     lights = light_objects(view_layer)
-    if saved is None:
-        solo = {"light": obj.name, "flags": {o.name: [o.hide_render, o.hide_viewport] for o in lights}}
-    else:
-        solo = json.loads(saved)
-        if solo["light"] == obj.name:
-            for name, (render, viewport) in solo["flags"].items():
-                light = view_layer.objects.get(name)
-                if light is not None:
-                    light.hide_render, light.hide_viewport = render, viewport
-            del scene[SOLO_KEY]
-            return
-        solo["light"] = obj.name
-        for o in lights:
-            solo["flags"].setdefault(o.name, [o.hide_render, o.hide_viewport])
-    scene[SOLO_KEY] = json.dumps(solo)
-    for other in lights:
-        other.hide_render = other.hide_viewport = other != obj
+    saved = {item.object for item in solo.objects}
+    for obj in lights:
+        if obj not in saved:
+            item = solo.objects.add()
+            item.object, item.hide_render, item.hide_viewport = obj, obj.hide_render, obj.hide_viewport
+    saved = {item.collection for item in solo.collections}
+    for collection in collections:
+        if collection not in saved:
+            item = solo.collections.add()
+            item.collection = collection
+            item.hide_render, item.hide_viewport = collection.hide_render, collection.hide_viewport
+        collection.hide_render = collection.hide_viewport = False
+    for obj in lights:
+        obj.hide_render = obj.hide_viewport = obj not in shown
+
+
+def _unsolo(solo):
+    """Restore every snapshotted light and collection still around, then clear the snapshot."""
+    for item in solo.objects:
+        if item.object is not None:
+            item.object.hide_render, item.object.hide_viewport = item.hide_render, item.hide_viewport
+    for item in solo.collections:
+        if item.collection is not None:
+            item.collection.hide_render, item.collection.hide_viewport = item.hide_render, item.hide_viewport
+    solo.objects.clear()
+    solo.collections.clear()
+    solo.light = solo.group = None
+    solo.active = False
+
+
+def _collection_paths(view_layer, wanted):
+    """The collections in the view layer tree (excluded ones left out) that wanted() accepts,
+    with all their ancestors, each once."""
+    found = {}
+
+    def walk(layer_collection, path):
+        for child in layer_collection.children:
+            if child.exclude:
+                continue
+            here = path + [child.collection]
+            if wanted(child.collection):
+                found.update(dict.fromkeys(here))
+            walk(child, here)
+
+    walk(view_layer.layer_collection, [])
+    return list(found)
 
 
 def scale_lights(lights, factor):
