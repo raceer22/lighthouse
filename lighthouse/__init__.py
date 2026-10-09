@@ -1,3 +1,5 @@
+# Copyright (C) 2026 raceer22
+# Licensed under the GNU General Public License v3 or later (GPL-3.0-or-later)
 import bpy
 
 from .lights import detail_properties, detail_target, light_objects, listed_lights, power_unit, row_state, scale_lights, scale_summary, toggle_solo
@@ -19,7 +21,6 @@ _preset_items = []
 
 def preset_items(self, context):
     """Built-in presets, then user presets marked with a user icon."""
-    # Blender doesn't keep the strings of dynamic enum items alive, so the list must outlive this call.
     _preset_items[:] = [
         (key, preset.label, "User preset" if key not in BUILTIN_PRESETS else "", 'USER' if key not in BUILTIN_PRESETS else 'NONE', number)
         for number, (key, preset) in enumerate(all_presets().items())
