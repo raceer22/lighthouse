@@ -1,7 +1,10 @@
 import bpy
 
 from .lights import light_objects, listed_lights, power_unit, row_state, scale_lights, scale_summary, toggle_solo
+from .presets import BUILTIN_PRESETS, apply_preset, preset_summary
 
+
+PRESET_ITEMS = [(key, preset.label, "") for key, preset in BUILTIN_PRESETS.items()]
 
 SCOPE_ITEMS = (
     ('ALL', "All Lights", "Every light in the view layer, whatever the list filters show"),
@@ -34,6 +37,7 @@ class LIGHTHOUSE_PG_settings(bpy.types.PropertyGroup):
         soft_max=10.0,
     )
     scale_scope: bpy.props.EnumProperty(name="Scope", description="Which lights to scale", items=SCOPE_ITEMS)
+    preset: bpy.props.EnumProperty(name="Preset", description="Light setup to apply to selected lights", items=PRESET_ITEMS)
 
 
 class LIGHTHOUSE_OT_select_light(bpy.types.Operator):
@@ -125,6 +129,22 @@ class LIGHTHOUSE_OT_step_exposure(bpy.types.Operator):
         return {'FINISHED'}
 
 
+class LIGHTHOUSE_OT_apply_preset(bpy.types.Operator):
+    """Set power, color and soft size of the selected lights from a preset.
+    Lights of a type the preset doesn't suit are skipped"""
+    bl_idname = "lighthouse.apply_preset"
+    bl_label = "Apply Light Preset"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    preset: bpy.props.EnumProperty(name="Preset", items=PRESET_ITEMS)
+
+    def execute(self, context):
+        lights = [obj for obj in light_objects(context.view_layer) if obj.select_get()]
+        preset = BUILTIN_PRESETS[self.preset]
+        self.report({'INFO'}, preset_summary(preset, *apply_preset(lights, preset)))
+        return {'FINISHED'}
+
+
 class LIGHTHOUSE_OT_shared_light_info(bpy.types.Operator):
     """This light's data is shared with other objects: editing it changes all of them"""
     bl_idname = "lighthouse.shared_light_info"
@@ -144,6 +164,7 @@ class LIGHTHOUSE_PT_lights(bpy.types.Panel):
     def draw(self, context):
         filters = context.window_manager.lighthouse
         self.draw_intensity(filters)
+        self.draw_presets(filters)
         self.layout.prop(filters, "name_filter", text="", icon='VIEWZOOM')
         self.layout.row(align=True).prop(filters, "type_filter", expand=True)
 
@@ -182,6 +203,13 @@ class LIGHTHOUSE_PT_lights(bpy.types.Panel):
             )
             op.name = obj.name
 
+    def draw_presets(self, settings):
+        box = self.layout.box()
+        box.label(text="Presets", icon='PRESET')
+        row = box.row(align=True)
+        row.prop(settings, "preset", text="")
+        row.operator(LIGHTHOUSE_OT_apply_preset.bl_idname, text="Apply").preset = settings.preset
+
     def draw_intensity(self, settings):
         box = self.layout.box()
         box.label(text="Intensity", icon='LIGHT')
@@ -205,6 +233,7 @@ classes = (
     LIGHTHOUSE_OT_solo_light,
     LIGHTHOUSE_OT_scale_lights,
     LIGHTHOUSE_OT_step_exposure,
+    LIGHTHOUSE_OT_apply_preset,
     LIGHTHOUSE_OT_shared_light_info,
     LIGHTHOUSE_PT_lights,
 )
