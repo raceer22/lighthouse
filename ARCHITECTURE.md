@@ -182,3 +182,27 @@ All three panels read `WindowManager.lighthouse`. EV buttons pass their float `s
 - An operator's `description(cls, context, properties)` classmethod gets the properties set on that button, so a single no-op operator can show a different tooltip on each row.
 - The test prelude's `empty_scene()` removes objects but keeps the factory `Collection`, an empty collection that `list_entries()` must drop.
 - `row.separator(factor=...)` in an aligned row gives a horizontal gap. Its exact width can only be checked in the GUI.
+
+## v2 task 03: group header actions
+
+**Components**
+- `lighthouse/lights.py`: `_collection_entries()` now returns its lights as a dict used as an ordered set (list order) instead of a `set`. A child whose collection `is_collapsed()` still gets its `GroupEntry` with the full count, but its child entries are dropped. `is_collapsed()` reads `lighthouse_collapsed` with a `False` default so `list_entries()` still works when the add-on isn't registered (the v2 task 02 tests call it that way).
+- `group_lights(view_layer, collection, type_filter)` finds the collection's (non-excluded) layer collection with `_find_layer_collection()` and returns the same lights its header counts, in list order, ignoring collapse.
+- `move_lights(objects, collection)` links each object into the target and unlinks it from every other `users_collection` entry, the Scene Collection included. It skips `is_read_only()` objects and returns `(moved, skipped)`. `move_summary()` builds the Info report. `is_read_only()` now takes any ID (light data, object or collection).
+- `row_state().dimmed` is `obj.hide_render or not obj.visible_get(view_layer=...)`. `visible_get` covers the object's viewport flag, its eye toggle and hidden or excluded collections. `hide_render` stays because `visible_get` ignores it. `muted` still only reads the object's own flags.
+- `lighthouse/__init__.py`: `Collection.lighthouse_collapsed` (BoolProperty, removed in `unregister()`). Operators, all taking a collection `name`:
+  - `toggle_group` and `collapse_all_groups` have `bl_options = {'INTERNAL'}`, with no `UNDO`. Collapse all sets the flag on every collection in `view_layer.layer_collection.collection.children_recursive`.
+  - `select_group` (`UNDO`): `invoke()` copies `event.shift` into `extend`. When it replaces the selection, it deselects everything and makes `lights[0]` active unless the active object is already one of the group's lights.
+  - `move_to_group` (`UNDO`) refuses a read-only target with an `ERROR` report before touching anything.
+  - `hide_group` (`UNDO`) toggles the collection's `hide_render` and `hide_viewport` together, like mute.
+- `LIGHTHOUSE_PT_lights.draw_group()` draws: disclosure triangle (`toggle_group`, no emboss), `Name (N)` label, then an aligned sub-row with Select, Move selected here, Hide (`depress=` when both flags are on). Task 04's Solo goes at the end of that sub-row. The Collapse All button sits next to the group toggle, only while grouped and not searching.
+
+**Data flow**
+`draw()` → `list_entries()` honours `lighthouse_collapsed` on each `Collection`. Header buttons pass `collection.name` to their operators, which look the collection up in `bpy.data.collections`. `select_group` reads the panel's type filter from `context.window_manager.lighthouse` and calls `group_lights()`, so it selects exactly the lights the header counts. `move_to_group` acts on every selected light object in the view layer, whatever the filters show. Hiding a group changes only collection flags. The rows of its lights then become dimmed through `visible_get()`, and their muted state and solo snapshot are untouched.
+
+**Blender API quirks**
+- A `bpy.props` property registered on an ID type (`Collection`) is stored in that ID's properties, so it is saved in the .blend with no extra work. Setting it from an operator without `UNDO` pushes no undo step. A `prop()` button on ID data would push one, which is why the triangle is an operator.
+- `visible_get(view_layer=...)` reflects a collection's `hide_viewport` right after the change. No `view_layer.update()` is needed in tests.
+- In background mode an operator's `{'ERROR'}` report is raised to the caller as `RuntimeError`, so tests catch it. `{'INFO'}` reports only go to stdout (`info_reports()`).
+- Linking a local object into a library collection raises "Collection 'X' is linked", which is why `move_to_group` checks the target first.
+- `Collection.objects.unlink()` works on a scene's master collection (`scene.collection`), so the Scene Collection is unlinked from like any other.

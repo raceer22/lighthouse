@@ -42,7 +42,8 @@ class LightEntry(NamedTuple):
 def list_entries(view_layer, name_filter="", type_filter='ALL', grouped=True):
     """The rows the Lights panel draws, in order: collections nested as in the outliner
     (only those on the path to a listed light), each followed by its sub-collections then its
-    lights sorted by name ignoring case. Scene Collection lights come last, with no header.
+    lights sorted by name ignoring case. A collapsed collection keeps its header and count but
+    nothing below it. Scene Collection lights come last, with no header.
     When not grouped, or while searching, it is the flat listed_lights() order with no headers."""
     if not grouped or name_filter:
         return [LightEntry(obj, 0, 0) for obj in listed_lights(view_layer, name_filter, type_filter)]
@@ -55,21 +56,52 @@ def list_entries(view_layer, name_filter="", type_filter='ALL', grouped=True):
     ]
 
 
+def group_lights(view_layer, collection, type_filter='ALL'):
+    """The listed lights in a collection and its sub-collections, each once, in list order.
+    The same lights its header counts."""
+    layer_collection = _find_layer_collection(view_layer.layer_collection, collection)
+    if layer_collection is None:
+        return []
+    listed = set(listed_lights(view_layer, type_filter=type_filter))
+    return list(_collection_entries(layer_collection, listed, 0)[1])
+
+
+def _find_layer_collection(layer_collection, collection):
+    for child in layer_collection.children:
+        if child.exclude:
+            continue
+        if child.collection == collection:
+            return child
+        found = _find_layer_collection(child, collection)
+        if found is not None:
+            return found
+    return None
+
+
 def _collection_entries(layer_collection, listed, depth):
-    """The entries inside a layer collection, at the given depth, and the set of listed lights they hold."""
-    entries, lights = [], set()
+    """The entries inside a layer collection, at the given depth, and the listed lights they hold
+    (a dict used as an ordered set, in list order)."""
+    entries, lights = [], {}
     for child in layer_collection.children:
         if child.exclude:
             continue
         child_entries, child_lights = _collection_entries(child, listed, depth + 1)
         if child_lights:
-            entries += [GroupEntry(child.collection, depth, len(child_lights)), *child_entries]
+            entries.append(GroupEntry(child.collection, depth, len(child_lights)))
+            if not is_collapsed(child.collection):
+                entries += child_entries
             lights |= child_lights
     own = sorted((obj for obj in layer_collection.collection.objects if obj in listed),
                  key=lambda obj: obj.name.casefold())
     entries += [LightEntry(obj, depth, 0) for obj in own]
-    lights.update(own)
+    lights |= dict.fromkeys(own)
     return entries, lights
+
+
+def is_collapsed(collection):
+    """True when the collection is collapsed in the list. False while the add-on's property is
+    unregistered."""
+    return getattr(collection, "lighthouse_collapsed", False)
 
 
 MAX_INDENT = 3
@@ -128,20 +160,41 @@ def _has_path(light, path):
     return True
 
 
-def is_read_only(light):
-    """True when light data comes from a library or a non-editable (system) override."""
-    override = light.override_library
-    return light.library is not None or (override is not None and override.is_system_override)
+def is_read_only(id_data):
+    """True when an ID (light data, object, collection) comes from a library or a non-editable (system) override."""
+    override = id_data.override_library
+    return id_data.library is not None or (override is not None and override.is_system_override)
+
+
+def move_lights(objects, collection):
+    """Link each object into the collection and unlink it from every other one, the Scene
+    Collection included. Read-only (library or system override) objects are skipped.
+    Returns how many were moved and how many skipped."""
+    movable = [obj for obj in objects if not is_read_only(obj)]
+    for obj in movable:
+        if collection not in obj.users_collection:
+            collection.objects.link(obj)
+        for owner in list(obj.users_collection):
+            if owner != collection:
+                owner.objects.unlink(obj)
+    return len(movable), len(objects) - len(movable)
+
+
+def move_summary(moved, skipped, collection_name):
+    """Status bar message after moving, e.g. "Moved 3 lights to Key, skipped 1 read-only"."""
+    message = f"Moved {moved} light{'' if moved == 1 else 's'} to {collection_name}"
+    return message + (f", skipped {skipped} read-only" if skipped else "")
 
 
 def row_state(obj, view_layer, scene=None):
-    """How a light's row is drawn: dimmed when hidden in the viewport, the render or the view layer;
-    read-only when its light data comes from a library or a non-editable (system) override;
-    shared when other objects use the same light data; muted when hidden in both the viewport
-    and the render; soloed when it is the scene's soloed light."""
+    """How a light's row is drawn: dimmed when hidden in the render or not visible in the view layer
+    (its own flags, or a hidden or excluded collection); read-only when its light data comes from a
+    library or a non-editable (system) override; shared when other objects use the same light data;
+    muted when its own flags hide it in both the viewport and the render; soloed when it is the
+    scene's soloed light."""
     light = obj.data
     return RowState(
-        dimmed=obj.hide_viewport or obj.hide_render or obj.hide_get(view_layer=view_layer),
+        dimmed=obj.hide_render or not obj.visible_get(view_layer=view_layer),
         read_only=is_read_only(light),
         shared=light.users > 1,
         muted=obj.hide_render and obj.hide_viewport,

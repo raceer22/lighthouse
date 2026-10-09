@@ -2,7 +2,7 @@
 # Licensed under the GNU General Public License v3 or later (GPL-3.0-or-later)
 import bpy
 
-from .lights import GroupEntry, detail_properties, detail_target, indent_level, light_info_tooltip, light_objects, list_entries, power_unit, row_state, scale_lights, scale_summary, toggle_solo
+from .lights import GroupEntry, detail_properties, detail_target, group_lights, indent_level, is_read_only, light_info_tooltip, light_objects, list_entries, move_lights, move_summary, power_unit, row_state, scale_lights, scale_summary, toggle_solo
 from pathlib import Path
 
 from .presets import BUILTIN_PRESETS, apply_preset, delete_user_preset, preset_from_light, preset_summary, save_user_preset, user_presets
@@ -115,6 +115,103 @@ class LIGHTHOUSE_OT_solo_light(bpy.types.Operator):
         if obj is None:
             return {'CANCELLED'}
         toggle_solo(context.scene, context.view_layer, obj)
+        return {'FINISHED'}
+
+
+class LIGHTHOUSE_OT_toggle_group(bpy.types.Operator):
+    """Collapse or expand this collection in the list"""
+    bl_idname = "lighthouse.toggle_group"
+    bl_label = "Toggle Group"
+    bl_options = {'INTERNAL'}
+
+    name: bpy.props.StringProperty()
+
+    def execute(self, context):
+        collection = bpy.data.collections.get(self.name)
+        if collection is None:
+            return {'CANCELLED'}
+        collection.lighthouse_collapsed = not collection.lighthouse_collapsed
+        return {'FINISHED'}
+
+
+class LIGHTHOUSE_OT_collapse_all_groups(bpy.types.Operator):
+    """Collapse every collection in the list"""
+    bl_idname = "lighthouse.collapse_all_groups"
+    bl_label = "Collapse All Groups"
+    bl_options = {'INTERNAL'}
+
+    def execute(self, context):
+        for collection in context.view_layer.layer_collection.collection.children_recursive:
+            collection.lighthouse_collapsed = True
+        return {'FINISHED'}
+
+
+class LIGHTHOUSE_OT_select_group(bpy.types.Operator):
+    """Select the listed lights in this collection and its sub-collections.
+    Shift+click to add them to the selection"""
+    bl_idname = "lighthouse.select_group"
+    bl_label = "Select Group"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    name: bpy.props.StringProperty()
+    extend: bpy.props.BoolProperty(name="Extend", description="Add to the selection instead of replacing it")
+
+    def invoke(self, context, event):
+        self.extend = event.shift
+        return self.execute(context)
+
+    def execute(self, context):
+        collection = bpy.data.collections.get(self.name)
+        if collection is None:
+            return {'CANCELLED'}
+        layer = context.view_layer
+        lights = group_lights(layer, collection, context.window_manager.lighthouse.type_filter)
+        if not self.extend:
+            for other in layer.objects:
+                other.select_set(False)
+            if lights and layer.objects.active not in lights:
+                layer.objects.active = lights[0]
+        for obj in lights:
+            obj.select_set(True)
+        return {'FINISHED'}
+
+
+class LIGHTHOUSE_OT_move_to_group(bpy.types.Operator):
+    """Move the selected lights into this collection, out of every other one.
+    Read-only (library) lights are skipped"""
+    bl_idname = "lighthouse.move_to_group"
+    bl_label = "Move Selected Lights Here"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    name: bpy.props.StringProperty()
+
+    def execute(self, context):
+        collection = bpy.data.collections.get(self.name)
+        if collection is None:
+            return {'CANCELLED'}
+        if is_read_only(collection):
+            self.report({'ERROR'}, f"{collection.name} is read-only (linked from a library)")
+            return {'CANCELLED'}
+        lights = [obj for obj in light_objects(context.view_layer) if obj.select_get()]
+        self.report({'INFO'}, move_summary(*move_lights(lights, collection), collection.name))
+        return {'FINISHED'}
+
+
+class LIGHTHOUSE_OT_hide_group(bpy.types.Operator):
+    """Hide or show this collection in the viewport and in renders.
+    The lights' own visibility is kept"""
+    bl_idname = "lighthouse.hide_group"
+    bl_label = "Hide Group"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    name: bpy.props.StringProperty()
+
+    def execute(self, context):
+        collection = bpy.data.collections.get(self.name)
+        if collection is None:
+            return {'CANCELLED'}
+        hide = not (collection.hide_render and collection.hide_viewport)
+        collection.hide_render = collection.hide_viewport = hide
         return {'FINISHED'}
 
 
@@ -303,6 +400,8 @@ class LIGHTHOUSE_PT_lights(bpy.types.Panel):
         row = self.layout.row(align=True)
         row.prop(filters, "name_filter", text="", icon='VIEWZOOM')
         row.prop(filters, "grouped", text="", icon='OUTLINER')
+        if filters.grouped and not filters.name_filter:
+            row.operator(LIGHTHOUSE_OT_collapse_all_groups.bl_idname, text="", icon='FULLSCREEN_EXIT')
         self.layout.row(align=True).prop(filters, "type_filter", expand=True)
 
         entries = list_entries(context.view_layer, filters.name_filter, filters.type_filter, filters.grouped)
@@ -313,9 +412,26 @@ class LIGHTHOUSE_PT_lights(bpy.types.Panel):
                 self.draw_light(context, entry)
 
     def draw_group(self, entry):
+        collection = entry.collection
         row = self.layout.row(align=True)
         indent(row, entry.depth)
-        row.label(text=f"{entry.collection.name} ({entry.count})", icon='OUTLINER_COLLECTION')
+        row.operator(
+            LIGHTHOUSE_OT_toggle_group.bl_idname,
+            text="",
+            icon='DISCLOSURE_TRI_RIGHT' if collection.lighthouse_collapsed else 'DISCLOSURE_TRI_DOWN',
+            emboss=False,
+        ).name = collection.name
+        row.label(text=f"{collection.name} ({entry.count})", icon='OUTLINER_COLLECTION')
+        actions = row.row(align=True)
+        actions.operator(LIGHTHOUSE_OT_select_group.bl_idname, text="", icon='RESTRICT_SELECT_OFF').name = collection.name
+        actions.operator(LIGHTHOUSE_OT_move_to_group.bl_idname, text="", icon='IMPORT').name = collection.name
+        hidden = collection.hide_render and collection.hide_viewport
+        actions.operator(
+            LIGHTHOUSE_OT_hide_group.bl_idname,
+            text="",
+            icon='HIDE_ON' if hidden else 'HIDE_OFF',
+            depress=hidden,
+        ).name = collection.name
 
     def draw_light(self, context, entry):
         obj = entry.obj
@@ -379,6 +495,11 @@ classes = (
     LIGHTHOUSE_OT_select_light,
     LIGHTHOUSE_OT_mute_light,
     LIGHTHOUSE_OT_solo_light,
+    LIGHTHOUSE_OT_toggle_group,
+    LIGHTHOUSE_OT_collapse_all_groups,
+    LIGHTHOUSE_OT_select_group,
+    LIGHTHOUSE_OT_move_to_group,
+    LIGHTHOUSE_OT_hide_group,
     LIGHTHOUSE_OT_scale_lights,
     LIGHTHOUSE_OT_step_exposure,
     LIGHTHOUSE_OT_apply_preset,
@@ -399,9 +520,14 @@ def register():
         name="Show Details",
         description="Show this light's shadow, influence and render engine settings",
     )
+    bpy.types.Collection.lighthouse_collapsed = bpy.props.BoolProperty(
+        name="Collapsed",
+        description="Hide this collection's lights and sub-collections in the Lights list",
+    )
 
 
 def unregister():
+    del bpy.types.Collection.lighthouse_collapsed
     del bpy.types.Object.lighthouse_expanded
     del bpy.types.WindowManager.lighthouse
     for cls in reversed(classes):
