@@ -1,10 +1,30 @@
 import bpy
 
 from .lights import light_objects, listed_lights, power_unit, row_state, scale_lights, scale_summary, toggle_solo
-from .presets import BUILTIN_PRESETS, apply_preset, preset_summary
+from pathlib import Path
+
+from .presets import BUILTIN_PRESETS, apply_preset, delete_user_preset, preset_from_light, preset_summary, save_user_preset, user_presets
 
 
-PRESET_ITEMS = [(key, preset.label, "") for key, preset in BUILTIN_PRESETS.items()]
+def presets_folder():
+    return Path(bpy.utils.extension_path_user(__package__, create=True))
+
+
+def all_presets():
+    return BUILTIN_PRESETS | user_presets(presets_folder())
+
+
+_preset_items = []
+
+
+def preset_items(self, context):
+    """Built-in presets, then user presets marked with a user icon."""
+    # Blender doesn't keep the strings of dynamic enum items alive, so the list must outlive this call.
+    _preset_items[:] = [
+        (key, preset.label, "User preset" if key not in BUILTIN_PRESETS else "", 'USER' if key not in BUILTIN_PRESETS else 'NONE', number)
+        for number, (key, preset) in enumerate(all_presets().items())
+    ]
+    return _preset_items
 
 SCOPE_ITEMS = (
     ('ALL', "All Lights", "Every light in the view layer, whatever the list filters show"),
@@ -37,7 +57,7 @@ class LIGHTHOUSE_PG_settings(bpy.types.PropertyGroup):
         soft_max=10.0,
     )
     scale_scope: bpy.props.EnumProperty(name="Scope", description="Which lights to scale", items=SCOPE_ITEMS)
-    preset: bpy.props.EnumProperty(name="Preset", description="Light setup to apply to selected lights", items=PRESET_ITEMS)
+    preset: bpy.props.EnumProperty(name="Preset", description="Light setup to apply to selected lights", items=preset_items)
 
 
 class LIGHTHOUSE_OT_select_light(bpy.types.Operator):
@@ -136,12 +156,62 @@ class LIGHTHOUSE_OT_apply_preset(bpy.types.Operator):
     bl_label = "Apply Light Preset"
     bl_options = {'REGISTER', 'UNDO'}
 
-    preset: bpy.props.EnumProperty(name="Preset", items=PRESET_ITEMS)
+    preset: bpy.props.EnumProperty(name="Preset", items=preset_items)
 
     def execute(self, context):
         lights = [obj for obj in light_objects(context.view_layer) if obj.select_get()]
-        preset = BUILTIN_PRESETS[self.preset]
+        preset = all_presets()[self.preset]
         self.report({'INFO'}, preset_summary(preset, *apply_preset(lights, preset)))
+        return {'FINISHED'}
+
+
+class LIGHTHOUSE_OT_save_preset(bpy.types.Operator):
+    """Save the active light's power, color and soft size as a preset available in every file"""
+    bl_idname = "lighthouse.save_preset"
+    bl_label = "Save Light Preset"
+
+    name: bpy.props.StringProperty(name="Name", description="Preset name")
+
+    @classmethod
+    def poll(cls, context):
+        return context.active_object is not None and context.active_object.type == 'LIGHT'
+
+    def invoke(self, context, event):
+        return context.window_manager.invoke_props_dialog(self)
+
+    def execute(self, context):
+        name = self.name.strip()
+        if not name:
+            self.report({'ERROR'}, "Preset name can't be empty")
+            return {'CANCELLED'}
+        if name.lower() in {preset.label.lower() for preset in BUILTIN_PRESETS.values()}:
+            self.report({'ERROR'}, f'"{name}" is a built-in preset. Choose another name')
+            return {'CANCELLED'}
+        save_user_preset(presets_folder(), preset_from_light(context.active_object.data, name))
+        self.report({'INFO'}, f"Saved preset {name}")
+        return {'FINISHED'}
+
+
+def user_preset_items(self, context):
+    _user_preset_items[:] = [(key, preset.label, "") for key, preset in user_presets(presets_folder()).items()]
+    return _user_preset_items
+
+
+_user_preset_items = []
+
+
+class LIGHTHOUSE_OT_delete_preset(bpy.types.Operator):
+    """Delete this user preset from every file. Built-in presets can't be deleted"""
+    bl_idname = "lighthouse.delete_preset"
+    bl_label = "Delete Light Preset"
+
+    preset: bpy.props.EnumProperty(name="Preset", items=user_preset_items)
+
+    def invoke(self, context, event):
+        return context.window_manager.invoke_confirm(self, event)
+
+    def execute(self, context):
+        delete_user_preset(presets_folder(), self.preset)
         return {'FINISHED'}
 
 
@@ -209,6 +279,9 @@ class LIGHTHOUSE_PT_lights(bpy.types.Panel):
         row = box.row(align=True)
         row.prop(settings, "preset", text="")
         row.operator(LIGHTHOUSE_OT_apply_preset.bl_idname, text="Apply").preset = settings.preset
+        row.operator(LIGHTHOUSE_OT_save_preset.bl_idname, text="", icon='ADD')
+        if settings.preset not in BUILTIN_PRESETS:
+            row.operator(LIGHTHOUSE_OT_delete_preset.bl_idname, text="", icon='REMOVE').preset = settings.preset
 
     def draw_intensity(self, settings):
         box = self.layout.box()
@@ -234,6 +307,8 @@ classes = (
     LIGHTHOUSE_OT_scale_lights,
     LIGHTHOUSE_OT_step_exposure,
     LIGHTHOUSE_OT_apply_preset,
+    LIGHTHOUSE_OT_save_preset,
+    LIGHTHOUSE_OT_delete_preset,
     LIGHTHOUSE_OT_shared_light_info,
     LIGHTHOUSE_PT_lights,
 )

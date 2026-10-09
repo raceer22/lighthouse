@@ -98,3 +98,20 @@ One button press is one operator call, so it makes one undo step. Power is in W,
 
 **Blender API quirks**
 - As in tasks 05 and 06, undo can't be tested in `--background`. Check by hand that one Ctrl+Z after an EV button restores every light.
+
+## Task 10: user presets
+
+**Components**
+- `lighthouse/presets.py`: `preset_from_light(light, label)` reads power, color and soft size back as a radius (area `size / 2`, sun `angle`, otherwise `shadow_soft_size`). A sun gives a sun-only preset, and any other type gives a point/spot/area preset. `save_user_preset()` writes `<label>.json` (characters outside `\w`, `-` and space become `_`). `user_presets(folder)` reads every `*.json`, keyed `USER:<file stem>` and sorted by label, and prints `Lighthouse: Skipped user preset <file>: …` for files that aren't valid JSON or are missing fields. `delete_user_preset()` removes the file.
+- `lighthouse/__init__.py`: `presets_folder()` is `bpy.utils.extension_path_user(__package__, create=True)`. The `preset` enums on the settings and on `apply_preset` are dynamic (`preset_items`): built-ins first, then user presets with the `USER` icon. `LIGHTHOUSE_OT_save_preset` (poll: active object is a light, invoke opens a name dialog) refuses empty names and built-in labels in any case. Saving an existing user name overwrites it. `LIGHTHOUSE_OT_delete_preset` (confirm on invoke) only lists user presets, so a built-in can't be passed. The Presets row gains `+`, plus `-` when a user preset is chosen.
+- `tests/blender_runner.py`: `run_installed(snippet, user_dir)` symlinks the package into `user_dir/extensions/user_default/`, sets `BLENDER_USER_RESOURCES=user_dir` and enables `bl_ext.user_default.lighthouse`. Calls that share `user_dir` act like restarts of one install. `preset_items()` in its prelude calls the dropdown's items callback.
+
+**Data flow**
+User presets are read from disk every time the dropdown or `apply_preset` needs them. Nothing is cached, so a preset saved in another Blender instance shows up on the next redraw. They live outside the .blend file and aren't part of undo.
+
+**Blender API quirks**
+- `extension_path_user()` raises `ValueError` unless the package name is `bl_ext.<repo>.<id>`. That's why every preset test (task 09's too) runs through `run_installed` instead of `import lighthouse`.
+- Blender doesn't keep the strings returned by a dynamic enum `items` callback alive, so the callbacks fill module-level lists.
+- Dynamic enum items are not exposed through `bl_rna...enum_items` (it returns `[]`).
+- A preset enum is stored as its item number, so adding or deleting a user preset can shift which entry the dropdown shows.
+- With `BLENDER_USER_RESOURCES` set, enabling an extension logs a `bl_pkg` register traceback (`No module named 'cattrs'`) on Fedora's package. It's environment noise.
