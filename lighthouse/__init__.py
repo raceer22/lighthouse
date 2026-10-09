@@ -416,6 +416,8 @@ class LIGHTHOUSE_OT_step_exposure(bpy.types.Operator):
     scope: bpy.props.EnumProperty(name="Scope", items=SCOPE_ITEMS)
 
     def execute(self, context):
+        if self.steps == 0.0:
+            return {'CANCELLED'}
         lights = light_objects(context.view_layer)
         if self.scope == 'SELECTED':
             lights = [obj for obj in lights if obj.select_get()]
@@ -544,8 +546,10 @@ class LIGHTHOUSE_PT_intensity(bpy.types.Panel):
         op.factor = settings.scale_factor
         op.scope = settings.scale_scope
         row = self.layout.row(align=True)
-        row.label(text="EV")
-        for steps, text in EV_STEPS:
+        for i, (steps, text) in enumerate(EV_STEPS):
+            if i == len(EV_STEPS) // 2:
+                # A flat no-op button: labels can't center their text, buttons do
+                row.operator(LIGHTHOUSE_OT_step_exposure.bl_idname, text="EV", emboss=False).steps = 0.0
             op = row.operator(LIGHTHOUSE_OT_step_exposure.bl_idname, text=text)
             op.steps = steps
             op.scope = settings.scale_scope
@@ -557,14 +561,11 @@ class LIGHTHOUSE_PT_presets(bpy.types.Panel):
     bl_region_type = 'UI'
     bl_category = "Lights"
 
-    def draw_header(self, context):
+    def draw(self, context):
         settings = context.window_manager.lighthouse
         row = self.layout.row(align=True)
         row.prop(settings, "preset", text="")
         row.operator(LIGHTHOUSE_OT_apply_preset.bl_idname, text="Apply").preset = settings.preset
-
-    def draw(self, context):
-        settings = context.window_manager.lighthouse
         row = self.layout.row(align=True)
         row.operator(LIGHTHOUSE_OT_save_preset.bl_idname, text="Save", icon='ADD')
         if settings.preset not in BUILTIN_PRESETS:
