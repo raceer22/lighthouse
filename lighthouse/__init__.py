@@ -27,6 +27,13 @@ def preset_items(self, context):
     ]
     return _preset_items
 
+LIGHT_TYPES = (
+    ('POINT', "Point", "Point lights", 'LIGHT_POINT', 1),
+    ('SUN', "Sun", "Sun lights", 'LIGHT_SUN', 2),
+    ('SPOT', "Spot", "Spot lights", 'LIGHT_SPOT', 3),
+    ('AREA', "Area", "Area lights", 'LIGHT_AREA', 4),
+)
+
 SCOPE_ITEMS = (
     ('ALL', "All Lights", "Every light in the view layer, whatever the list filters show"),
     ('SELECTED', "Selected Lights", "Only selected lights"),
@@ -42,13 +49,7 @@ class LIGHTHOUSE_PG_settings(bpy.types.PropertyGroup):
     type_filter: bpy.props.EnumProperty(
         name="Type",
         description="Only list lights of this type",
-        items=(
-            ('ALL', "All", "Every light type"),
-            ('POINT', "Point", "Point lights", 'LIGHT_POINT', 1),
-            ('SUN', "Sun", "Sun lights", 'LIGHT_SUN', 2),
-            ('SPOT', "Spot", "Spot lights", 'LIGHT_SPOT', 3),
-            ('AREA', "Area", "Area lights", 'LIGHT_AREA', 4),
-        ),
+        items=(('ALL', "All", "Every light type"),) + LIGHT_TYPES,
     )
     grouped: bpy.props.BoolProperty(
         name="Group by Collection",
@@ -87,18 +88,104 @@ class LIGHTHOUSE_PG_solo(bpy.types.PropertyGroup):
 
 
 class LIGHTHOUSE_OT_select_light(bpy.types.Operator):
-    """Select this light only and make it active"""
+    """Click: select only this light and make it active.
+    Shift+click: add it to the selection, or remove it if selected.
+    Ctrl+click: rename it.
+    Alt+click: select only this light and frame it in the 3D view"""
     bl_idname = "lighthouse.select_light"
     bl_label = "Select Light"
     bl_options = {'REGISTER', 'UNDO'}
 
     name: bpy.props.StringProperty()
+    action: bpy.props.EnumProperty(
+        name="Action",
+        items=(
+            ('SELECT', "Select", "Select only this light and make it active"),
+            ('TOGGLE', "Toggle", "Add this light to the selection and make it active, or remove it if selected"),
+            ('RENAME', "Rename", "Rename this light"),
+            ('FRAME', "Frame", "Select only this light and frame it in the 3D view"),
+        ),
+    )
+    new_name: bpy.props.StringProperty(name="Name")
+
+    def invoke(self, context, event):
+        if event.shift:
+            self.action = 'TOGGLE'
+        elif event.ctrl:
+            self.action = 'RENAME'
+        elif event.alt:
+            self.action = 'FRAME'
+        else:
+            self.action = 'SELECT'
+        if self.action == 'RENAME':
+            obj = context.view_layer.objects.get(self.name)
+            if obj is None:
+                return {'CANCELLED'}
+            self.new_name = obj.name
+            return context.window_manager.invoke_props_dialog(self, title="Rename Light")
+        return self.execute(context)
+
+    def draw(self, context):
+        self.layout.prop(self, "new_name", text="")
 
     def execute(self, context):
         layer = context.view_layer
         obj = layer.objects.get(self.name)
         if obj is None:
             return {'CANCELLED'}
+        if self.action == 'RENAME':
+            name = self.new_name.strip()
+            if not name:
+                self.report({'ERROR'}, "Light name can't be empty")
+                return {'CANCELLED'}
+            obj.name = name
+            return {'FINISHED'}
+        if self.action == 'TOGGLE':
+            if obj.select_get():
+                obj.select_set(False)
+                return {'FINISHED'}
+        else:
+            for other in layer.objects:
+                other.select_set(False)
+        obj.select_set(True)
+        layer.objects.active = obj
+        if self.action == 'FRAME':
+            frame_selected(context)
+        return {'FINISHED'}
+
+
+def frame_selected(context):
+    """Frame the selection in the panel's 3D view, or the first one on screen.
+    Does nothing without one (in background mode)."""
+    areas = [context.area] if context.area and context.area.type == 'VIEW_3D' else []
+    if context.screen:
+        areas += [area for area in context.screen.areas if area.type == 'VIEW_3D']
+    for area in areas:
+        region = next((r for r in area.regions if r.type == 'WINDOW'), None)
+        if region is not None:
+            with context.temp_override(area=area, region=region):
+                bpy.ops.view3d.view_selected()
+            return
+
+
+class LIGHTHOUSE_OT_add_light(bpy.types.Operator):
+    """Add a light at the 3D cursor in the active collection, selected and active"""
+    bl_idname = "lighthouse.add_light"
+    bl_label = "Add Light"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    type: bpy.props.EnumProperty(name="Type", items=LIGHT_TYPES)
+
+    def execute(self, context):
+        layer = context.view_layer
+        collection = layer.active_layer_collection.collection
+        if is_read_only(collection):
+            self.report({'ERROR'}, f"{collection.name} is read-only (linked from a library)")
+            return {'CANCELLED'}
+        name = next(label for key, label, *_ in LIGHT_TYPES if key == self.type)
+        obj = bpy.data.objects.new(name, bpy.data.lights.new(name, self.type))
+        obj.location = context.scene.cursor.location
+        collection.objects.link(obj)
         for other in layer.objects:
             other.select_set(False)
         obj.select_set(True)
@@ -373,6 +460,25 @@ class LIGHTHOUSE_OT_light_info(bpy.types.Operator):
         return {'CANCELLED'}
 
 
+POWER_UNIT_NAMES = {"W": "watts", "W/m²": "watts per square metre"}
+
+
+class LIGHTHOUSE_OT_power_unit(bpy.types.Operator):
+    """Unit of the light's power"""
+    bl_idname = "lighthouse.power_unit"
+    bl_label = "Power Unit"
+    bl_options = {'INTERNAL'}
+
+    unit: bpy.props.StringProperty()
+
+    @classmethod
+    def description(cls, context, properties):
+        return f"Power in {POWER_UNIT_NAMES[properties.unit]} ({properties.unit})"
+
+    def execute(self, context):
+        return {'CANCELLED'}
+
+
 EV_STEPS = ((-1.0, "−1"), (-0.5, "−½"), (-0.25, "−¼"), (0.25, "+¼"), (0.5, "+½"), (1.0, "+1"))
 
 
@@ -419,6 +525,9 @@ class LIGHTHOUSE_PT_presets(bpy.types.Panel):
 
 
 INDENT_STEP = 1.5
+# Fixed widths for a light row's unit label and color swatch, so power fills the rest with no gap.
+UNIT_WIDTH = 1.5
+SWATCH_WIDTH = 2
 
 
 def indent(row, depth):
@@ -440,6 +549,7 @@ class LIGHTHOUSE_PT_lights(bpy.types.Panel):
         row.prop(filters, "grouped", text="", icon='OUTLINER')
         if filters.grouped and not filters.name_filter:
             row.operator(LIGHTHOUSE_OT_collapse_all_groups.bl_idname, text="", icon='FULLSCREEN_EXIT')
+        row.operator_menu_enum(LIGHTHOUSE_OT_add_light.bl_idname, "type", text="", icon='ADD')
         self.layout.row(align=True).prop(filters, "type_filter", expand=True)
 
         entries = list_entries(context.view_layer, filters.name_filter, filters.type_filter, filters.grouped)
@@ -492,11 +602,16 @@ class LIGHTHOUSE_PT_lights(bpy.types.Panel):
             icon='DISCLOSURE_TRI_DOWN' if obj.lighthouse_expanded else 'DISCLOSURE_TRI_RIGHT',
             emboss=False,
         )
+        light_type = row.row(align=True)
+        light_type.enabled = not state.read_only
+        light_type.prop(light, "type", icon_only=True)
+        selected = obj.select_get(view_layer=context.view_layer)
+        active = context.view_layer.objects.active == obj
         op = row.operator(
             LIGHTHOUSE_OT_select_light.bl_idname,
             text=obj.name,
-            icon='LIGHT_' + light.type,
-            emboss=False,
+            emboss=selected or active,
+            depress=active,
         )
         op.name = obj.name
         if light_info_tooltip(light.users - 1, entry.other_collections):
@@ -506,8 +621,12 @@ class LIGHTHOUSE_PT_lights(bpy.types.Panel):
         controls = row.row(align=True)
         controls.enabled = not state.read_only
         controls.prop(light, "energy", text="")
-        controls.label(text=power_unit(light))
-        controls.prop(light, "color", text="")
+        unit = controls.row(align=True)
+        unit.ui_units_x = UNIT_WIDTH
+        unit.operator(LIGHTHOUSE_OT_power_unit.bl_idname, text="W", emboss=False).unit = power_unit(light)
+        swatch = controls.row(align=True)
+        swatch.ui_units_x = SWATCH_WIDTH
+        swatch.prop(light, "color", text="")
         toggles = row.row(align=True)
         op = toggles.operator(
             LIGHTHOUSE_OT_mute_light.bl_idname,
@@ -541,6 +660,7 @@ classes = (
     LIGHTHOUSE_PG_solo_collection,
     LIGHTHOUSE_PG_solo,
     LIGHTHOUSE_OT_select_light,
+    LIGHTHOUSE_OT_add_light,
     LIGHTHOUSE_OT_mute_light,
     LIGHTHOUSE_OT_solo_light,
     LIGHTHOUSE_OT_toggle_group,
@@ -555,6 +675,7 @@ classes = (
     LIGHTHOUSE_OT_save_preset,
     LIGHTHOUSE_OT_delete_preset,
     LIGHTHOUSE_OT_light_info,
+    LIGHTHOUSE_OT_power_unit,
     LIGHTHOUSE_PT_intensity,
     LIGHTHOUSE_PT_presets,
     LIGHTHOUSE_PT_lights,
