@@ -106,6 +106,23 @@ class LIGHTHOUSE_OT_scale_lights(bpy.types.Operator):
         return {'FINISHED'}
 
 
+class LIGHTHOUSE_OT_step_exposure(bpy.types.Operator):
+    """Double (+1 EV) or halve (-1 EV) the power of the lights in scope"""
+    bl_idname = "lighthouse.step_exposure"
+    bl_label = "Step Light Exposure"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    steps: bpy.props.IntProperty(name="Steps", description="EV steps: +1 doubles power, -1 halves it", default=1)
+    scope: bpy.props.EnumProperty(name="Scope", items=SCOPE_ITEMS)
+
+    def execute(self, context):
+        lights = light_objects(context.view_layer)
+        if self.scope == 'SELECTED':
+            lights = [obj for obj in lights if obj.select_get()]
+        scale_lights(lights, 2.0 ** self.steps)
+        return {'FINISHED'}
+
+
 class LIGHTHOUSE_OT_shared_light_info(bpy.types.Operator):
     """This light's data is shared with other objects: editing it changes all of them"""
     bl_idname = "lighthouse.shared_light_info"
@@ -172,6 +189,11 @@ class LIGHTHOUSE_PT_lights(bpy.types.Panel):
         op = row.operator(LIGHTHOUSE_OT_scale_lights.bl_idname, text="Apply")
         op.factor = settings.scale_factor
         op.scope = settings.scale_scope
+        row = box.row(align=True)
+        for steps, text in ((-1, "-1 EV"), (1, "+1 EV")):
+            op = row.operator(LIGHTHOUSE_OT_step_exposure.bl_idname, text=text)
+            op.steps = steps
+            op.scope = settings.scale_scope
 
 
 classes = (
@@ -180,6 +202,7 @@ classes = (
     LIGHTHOUSE_OT_mute_light,
     LIGHTHOUSE_OT_solo_light,
     LIGHTHOUSE_OT_scale_lights,
+    LIGHTHOUSE_OT_step_exposure,
     LIGHTHOUSE_OT_shared_light_info,
     LIGHTHOUSE_PT_lights,
 )

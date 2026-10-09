@@ -87,3 +87,14 @@ Apply runs one operator call that scales every light in scope, so Blender record
 
 **Blender API quirks**
 - As in task 05, undo can't be tested in `--background`. Check by hand that one Ctrl+Z after Apply restores every light.
+
+## Task 07: EV buttons
+
+**Components**
+- `lighthouse/__init__.py`: `LIGHTHOUSE_OT_step_exposure` (`lighthouse.step_exposure`, `UNDO`) takes `steps` (an integer, +1 or -1 from the buttons) and `scope` (`SCOPE_ITEMS`). It picks the scoped lights the same way `scale_lights` does and calls `scale_lights()` with factor `2 ** steps`, so it inherits the shared-datablock and read-only rules. The Intensity box gains a row of "-1 EV" and "+1 EV" buttons below Apply, each passing the chosen scope.
+
+**Data flow**
+One button press is one operator call, so it makes one undo step. Power is in W, or W/m² for sun, and the same factor applies to every light type.
+
+**Blender API quirks**
+- As in tasks 05 and 06, undo can't be tested in `--background`. Check by hand that one Ctrl+Z after an EV button restores every light.
