@@ -1,6 +1,6 @@
 import bpy
 
-from .lights import light_objects, listed_lights, power_unit, row_state, scale_lights, scale_summary, toggle_solo
+from .lights import detail_properties, detail_target, light_objects, listed_lights, power_unit, row_state, scale_lights, scale_summary, toggle_solo
 from pathlib import Path
 
 from .presets import BUILTIN_PRESETS, apply_preset, delete_user_preset, preset_from_light, preset_summary, save_user_preset, user_presets
@@ -243,6 +243,13 @@ class LIGHTHOUSE_PT_lights(bpy.types.Panel):
             state = row_state(obj, context.view_layer, context.scene)
             row = self.layout.row(align=True)
             row.active = not state.dimmed
+            row.prop(
+                obj,
+                "lighthouse_expanded",
+                text="",
+                icon='DISCLOSURE_TRI_DOWN' if obj.lighthouse_expanded else 'DISCLOSURE_TRI_RIGHT',
+                emboss=False,
+            )
             op = row.operator(
                 LIGHTHOUSE_OT_select_light.bl_idname,
                 text=obj.name,
@@ -272,6 +279,16 @@ class LIGHTHOUSE_PT_lights(bpy.types.Panel):
                 depress=state.soloed,
             )
             op.name = obj.name
+            if obj.lighthouse_expanded:
+                self.draw_details(light, state, context.scene.render.engine)
+
+    def draw_details(self, light, state, engine):
+        box = self.layout.box()
+        box.active = not state.dimmed
+        box.enabled = not state.read_only
+        box.use_property_split = True
+        for path in detail_properties(light, engine):
+            box.prop(*detail_target(light, path))
 
     def draw_presets(self, settings):
         box = self.layout.box()
@@ -318,9 +335,14 @@ def register():
     for cls in classes:
         bpy.utils.register_class(cls)
     bpy.types.WindowManager.lighthouse = bpy.props.PointerProperty(type=LIGHTHOUSE_PG_settings)
+    bpy.types.Object.lighthouse_expanded = bpy.props.BoolProperty(
+        name="Show Details",
+        description="Show this light's shadow, influence and render engine settings",
+    )
 
 
 def unregister():
+    del bpy.types.Object.lighthouse_expanded
     del bpy.types.WindowManager.lighthouse
     for cls in reversed(classes):
         bpy.utils.unregister_class(cls)

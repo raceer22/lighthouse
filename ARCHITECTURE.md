@@ -115,3 +115,18 @@ User presets are read from disk every time the dropdown or `apply_preset` needs 
 - Dynamic enum items are not exposed through `bl_rna...enum_items` (it returns `[]`).
 - A preset enum is stored as its item number, so adding or deleting a user preset can shift which entry the dropdown shows.
 - With `BLENDER_USER_RESOURCES` set, enabling an extension logs a `bl_pkg` register traceback (`No module named 'cattrs'`) on Fedora's package. It's environment noise.
+
+## Task 11: detail section
+
+**Components**
+- `lighthouse/lights.py`: `detail_properties(light, engine)` returns the RNA paths, relative to the light data, that a row's detail section shows: the soft size (`shadow_soft_size` for point and spot, `angle` for sun, none for area because its size is a shape parameter), then `specular_factor`, `diffuse_factor`, `volume_factor` and `use_shadow`. When `engine == 'CYCLES'` it adds `cycles.max_bounces`, `cycles.use_multiple_importance_sampling`, `cycles.is_caustics_light`, plus `cycles.is_portal` for area lights. Any path the light can't resolve is dropped. `detail_target(light, path)` splits a path into the `(owner, property)` pair that `prop()` needs.
+- `lighthouse/__init__.py`: `Object.lighthouse_expanded` (a BoolProperty registered in `register()`) is drawn as a disclosure triangle at the start of each row. An expanded row gets a box below it with one `prop()` per detail path. The box follows the row's dimmed and read-only state.
+
+**Data flow**
+`draw()` passes `context.scene.render.engine` to `detail_properties()` on every redraw, so switching engines changes the detail section right away. The details are `prop()` calls on the light data or on `light.cycles`, so they edit the same properties as the Properties editor's Light tab. Collapsed rows draw nothing extra.
+
+**Blender API quirks**
+- Every light type has `shadow_soft_size` in RNA, sun and area included, so `hasattr` can't decide what to show. The list depends on the light type, and resolving each path is only a safety net.
+- Cycles' "Cast Shadow" is `Light.use_shadow` (it moved off `light.cycles` in 4.0), so EEVEE and Cycles share one shadow toggle.
+- The expanded state is object data. It is saved in the .blend file, survives renames, and toggling it adds an undo step.
+- The panel layout can't be drawn in `--background`. Check by hand that expanding each type shows its details without console errors, and that switching the engine updates them.

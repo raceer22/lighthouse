@@ -31,6 +31,38 @@ def power_unit(light):
     return "W/m²" if light.type == 'SUN' else "W"
 
 
+SOFT_SIZE = {'POINT': "shadow_soft_size", 'SPOT': "shadow_soft_size", 'SUN': "angle"}
+SHARED_DETAILS = ("specular_factor", "diffuse_factor", "volume_factor", "use_shadow")
+CYCLES_DETAILS = ("cycles.max_bounces", "cycles.use_multiple_importance_sampling", "cycles.is_caustics_light")
+
+
+def detail_properties(light, engine):
+    """RNA paths, relative to the light data, of the extra settings a row's detail section shows
+    for this light's type under the given render engine. Paths the light lacks are left out."""
+    paths = [SOFT_SIZE[light.type]] if light.type in SOFT_SIZE else []
+    paths += SHARED_DETAILS
+    if engine == 'CYCLES':
+        paths += CYCLES_DETAILS
+        if light.type == 'AREA':
+            paths.append("cycles.is_portal")
+    return [path for path in paths if _has_path(light, path)]
+
+
+def detail_target(light, path):
+    """The (owner, property name) pair to draw or edit a detail path with, e.g. "cycles.max_bounces"
+    gives (light.cycles, "max_bounces")."""
+    owner_path, _, prop = path.rpartition(".")
+    return (light.path_resolve(owner_path) if owner_path else light), prop
+
+
+def _has_path(light, path):
+    try:
+        light.path_resolve(path)
+    except ValueError:
+        return False
+    return True
+
+
 def is_read_only(light):
     """True when light data comes from a library or a non-editable (system) override."""
     override = light.override_library
