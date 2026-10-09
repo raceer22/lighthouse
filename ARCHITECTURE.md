@@ -47,7 +47,7 @@ The slider and swatch are `layout.prop()` on `obj.data`, so they edit the same R
 ## Task 04: hidden, library and shared-data rows
 
 **Components**
-- `lighthouse/lights.py`: `row_state(obj, view_layer)` returns a `RowState(dimmed, read_only, shared)`. `dimmed` is set when the object is hidden in the viewport, in renders or in the view layer (`hide_get()`). `read_only` is set when the light data has a `library` or a system (non-editable) override. `shared` is set when `light.users > 1`.
+- `lighthouse/lights.py`: `row_state(obj, view_layer)` returns a `RowState(dimmed, read_only, shared)`. `dimmed` is set when the object is hidden in the viewport, in renders or in the view layer (`hide_get()`). `read_only` is set when the light data has a `library` or a system (non-editble) ovearride. `shared` is set when `light.users > 1`.
 - `lighthouse/__init__.py`: the panel sets `row.active = not dimmed`. It puts the slider, unit and swatch in a sub-row with `enabled = not read_only`, so a library light can still be selected by name. Shared rows get a flat `LINKED` button, `LIGHTHOUSE_OT_shared_light_info`, a no-op `INTERNAL` operator whose docstring is the tooltip.
 
 **Data flow**
@@ -57,3 +57,33 @@ The slider and swatch are `layout.prop()` on `obj.data`, so they edit the same R
 - `UILayout.label()` has no tooltip, which is why the shared indicator is an operator button.
 - `override_hierarchy_create()` overrides the light object but leaves its light data linked (`library` set), so the library check covers it. Only data overridden on its own (`light.override_create()`) reaches the `is_system_override` branch.
 - `make validate` warns about the OCIO 2.5 config on Fedora's Blender 5.2.2 package. As with the launch error noted under task 01, this comes from the environment, not the extension.
+
+## Task 05: mute and solo
+
+**Components**
+- `lighthouse/lights.py`: `toggle_solo(scene, view_layer, obj)` handles solo, switch and un-solo. `soloed_light_name(scene)` reads the soloed light. `row_state()` takes an optional `scene` and adds `muted` (hidden in both viewport and render) and `soloed`.
+- `lighthouse/__init__.py`: `LIGHTHOUSE_OT_mute_light` and `LIGHTHOUSE_OT_solo_light` (both `UNDO`, `name` property). Each row ends with an eye button and a solo button, drawn with `depress=` for the active state.
+
+**Data flow**
+The first solo writes a JSON snapshot `{"light": name, "flags": {name: [hide_render, hide_viewport]}}` to `scene["lighthouse_solo"]` and hides every other light in both. Soloing a different light only changes `"light"` and adds lights that are missing from the snapshot (ones created during solo), so un-solo always goes back to the state from before the first solo. Pressing solo on the soloed light restores the snapshot, skipping lights that no longer exist, and deletes the property. The snapshot is scene data, so it is saved in the .blend file and recorded by undo.
+
+**Known limits**
+- The snapshot is keyed by object name. A light renamed during solo is not restored.
+- If the soloed light is deleted, no row shows as soloed. Solo any light, then press it again to restore.
+- Mute during solo changes the flags, but un-solo overwrites them with the snapshot.
+
+**Blender API quirks**
+- `bpy.ops.ed.undo()` fails its poll in `--background`, so tests can't check undo. Check it by hand.
+- Python string snippets passed to `run_in_blender` are dedented as a whole, so shared snippet fragments must carry the same 8-space indent as the test body.
+
+## Task 06: intensity scale
+
+**Components**
+- `lighthouse/lights.py`: `scale_lights(lights, factor)` multiplies `energy` once per light datablock, so data shared by several objects is scaled once. It skips read-only lights. `is_read_only(light)` is the library / system-override check, moved out of `row_state()` so both use it.
+- `lighthouse/__init__.py`: `LIGHTHOUSE_OT_scale_lights` (`lighthouse.scale_lights`, `UNDO`) takes `factor` and `scope` (`ALL` / `SELECTED`, from `SCOPE_ITEMS`). Its scope starts from the unfiltered `light_objects()`, so the list filters never narrow it. The property group is renamed `LIGHTHOUSE_PG_settings` and gains `scale_factor` (default 1.0) and `scale_scope`. The panel draws an "Intensity" box above the search field, with the scope toggle, the factor slider and an Apply button that copies both settings into the operator.
+
+**Data flow**
+Apply runs one operator call that scales every light in scope, so Blender records a single undo step and one Ctrl+Z restores all values. Task 07's EV buttons can call the same operator with `factor=2` or `0.5` and the chosen scope. The factor and scope live on the WindowManager like the filters, so they are not saved or undone.
+
+**Blender API quirks**
+- As in task 05, undo can't be tested in `--background`. Check by hand that one Ctrl+Z after Apply restores every light.
