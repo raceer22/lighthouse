@@ -1,6 +1,6 @@
 import bpy
 
-from .lights import listed_lights, power_unit
+from .lights import listed_lights, power_unit, row_state
 
 
 class LIGHTHOUSE_PG_filters(bpy.types.PropertyGroup):
@@ -42,6 +42,16 @@ class LIGHTHOUSE_OT_select_light(bpy.types.Operator):
         return {'FINISHED'}
 
 
+class LIGHTHOUSE_OT_shared_light_info(bpy.types.Operator):
+    """This light's data is shared with other objects: editing it changes all of them"""
+    bl_idname = "lighthouse.shared_light_info"
+    bl_label = "Shared Light Data"
+    bl_options = {'INTERNAL'}
+
+    def execute(self, context):
+        return {'CANCELLED'}
+
+
 class LIGHTHOUSE_PT_lights(bpy.types.Panel):
     bl_label = "Lights"
     bl_space_type = 'VIEW_3D'
@@ -55,7 +65,9 @@ class LIGHTHOUSE_PT_lights(bpy.types.Panel):
 
         for obj in listed_lights(context.view_layer, filters.name_filter, filters.type_filter):
             light = obj.data
+            state = row_state(obj, context.view_layer)
             row = self.layout.row(align=True)
+            row.active = not state.dimmed
             op = row.operator(
                 LIGHTHOUSE_OT_select_light.bl_idname,
                 text=obj.name,
@@ -63,14 +75,19 @@ class LIGHTHOUSE_PT_lights(bpy.types.Panel):
                 emboss=False,
             )
             op.name = obj.name
-            row.prop(light, "energy", text="")
-            row.label(text=power_unit(light))
-            row.prop(light, "color", text="")
+            if state.shared:
+                row.operator(LIGHTHOUSE_OT_shared_light_info.bl_idname, text="", icon='LINKED', emboss=False)
+            controls = row.row(align=True)
+            controls.enabled = not state.read_only
+            controls.prop(light, "energy", text="")
+            controls.label(text=power_unit(light))
+            controls.prop(light, "color", text="")
 
 
 classes = (
     LIGHTHOUSE_PG_filters,
     LIGHTHOUSE_OT_select_light,
+    LIGHTHOUSE_OT_shared_light_info,
     LIGHTHOUSE_PT_lights,
 )
 
