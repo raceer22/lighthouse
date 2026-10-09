@@ -2,7 +2,7 @@
 # Licensed under the GNU General Public License v3 or later (GPL-3.0-or-later)
 import bpy
 
-from .lights import GroupEntry, detail_properties, detail_target, details_open, group_lights, group_soloed, indent_level, is_read_only, light_info_tooltip, light_objects, list_entries, move_lights, move_summary, power_unit, row_state, scale_lights, scale_summary, toggle_details, toggle_solo_group, toggle_solo_light
+from .lights import GroupEntry, color_control, detail_properties, detail_target, details_open, group_lights, group_soloed, indent_level, is_read_only, light_info_tooltip, light_objects, list_entries, move_lights, move_summary, power_unit, row_state, scale_lights, scale_summary, toggle_details, toggle_solo_group, toggle_solo_light
 from pathlib import Path
 
 from .presets import BUILTIN_PRESETS, apply_preset, delete_user_preset, preset_from_light, preset_summary, save_user_preset, user_presets
@@ -424,7 +424,7 @@ class LIGHTHOUSE_OT_step_exposure(bpy.types.Operator):
 
 
 class LIGHTHOUSE_OT_apply_preset(bpy.types.Operator):
-    """Set power, color and soft size of the selected lights from a preset.
+    """Set power, color, soft size, exposure and temperature of the selected lights from a preset.
     Lights of a type the preset doesn't suit are skipped"""
     bl_idname = "lighthouse.apply_preset"
     bl_label = "Apply Light Preset"
@@ -440,7 +440,8 @@ class LIGHTHOUSE_OT_apply_preset(bpy.types.Operator):
 
 
 class LIGHTHOUSE_OT_save_preset(bpy.types.Operator):
-    """Save the active light's power, color and soft size as a preset available in every file"""
+    """Save the active light's power, color, soft size, exposure and temperature as a preset
+    available in every file"""
     bl_idname = "lighthouse.save_preset"
     bl_label = "Save Light Preset"
 
@@ -571,7 +572,7 @@ class LIGHTHOUSE_PT_presets(bpy.types.Panel):
 
 
 INDENT_STEP = 1.5
-# Fixed widths for a light row's unit label and color swatch, so power fills the rest with no gap.
+# Fixed widths for a light row's unit label and color swatch (or Kelvin field), so power fills the rest with no gap.
 UNIT_WIDTH = 1.5
 SWATCH_WIDTH = 2
 
@@ -672,7 +673,7 @@ class LIGHTHOUSE_PT_lights(bpy.types.Panel):
         unit.operator(LIGHTHOUSE_OT_power_unit.bl_idname, text="W", emboss=False).unit = power_unit(light)
         swatch = controls.row(align=True)
         swatch.ui_units_x = SWATCH_WIDTH
-        swatch.prop(light, "color", text="")
+        swatch.prop(light, color_control(light), text="")
         toggles = row.row(align=True)
         op = toggles.operator(
             LIGHTHOUSE_OT_mute_light.bl_idname,

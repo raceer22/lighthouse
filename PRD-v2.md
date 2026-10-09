@@ -19,7 +19,7 @@ The first version works, but it stops scaling once a scene has more than a handf
 
 ### Panel layout
 - The Lights tab has three top-level panels that can each be collapsed and reordered by dragging: **Intensity**, **Presets** and **Lights**. Blender remembers their open/closed state and order.
-- The Presets panel header holds the preset dropdown and Apply, so presets can be applied while the panel is collapsed. Save (`+`) and delete (`-`) stay in the body.
+- The Presets panel header is just its label. The body holds the preset dropdown and Apply, then Save (`+`) and delete (`-`).
 
 ### Intensity
 - The factor is a plain number field (no slider bar), default 1.0.
@@ -37,6 +37,7 @@ The first version works, but it stops scaling once a scene has more than a handf
 - A collection is shown only if it contains a listed light, directly or in a sub-collection. Its parent collections are kept for the path, even when they hold no lights themselves.
   - Example: if `Set/Interior/Lamps` is the only collection with lights, the tree shows `Set` → `Interior` → `Lamps`.
 - Lights linked directly to the Scene Collection are listed at the top level with no group header.
+- Within a collection (and at the top level), its own lights come first, sorted by name, then its sub-collections.
 - Collections excluded from the view layer are not shown. Their lights are not in the view layer, as before.
 - With a type filter active, groups that have no light of that type are hidden.
 - A light linked into several collections gets a row under each one. All of those rows edit the same object.
@@ -119,7 +120,7 @@ Same as PRD.md, plus:
 
 ## Acceptance Criteria
 
-1. Intensity, Presets and Lights are three separate panels in the Lights tab. Each can be collapsed and reordered, and the preset dropdown and Apply work from the collapsed Presets header.
+1. Intensity, Presets and Lights are three separate panels in the Lights tab. Each can be collapsed and reordered, and the Presets header is a plain label with the dropdown and Apply in the body.
 2. The factor field has no slider bar and defaults to 1.0. Each of the six EV buttons multiplies power by `2 ** steps`, for example +¼ turns 100 W into ≈118.92 W.
 3. Grouped view shows lights nested under their collections as in the outliner. Collections without lights are left out unless they are on the path to one, and Scene Collection lights appear at the top level.
 4. Typing a search switches the list to flat. Clearing it restores the toggle's mode.

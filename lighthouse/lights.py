@@ -160,6 +160,14 @@ def has_property(rna, name):
     return name in rna.bl_rna.properties
 
 
+def color_control(light):
+    """The light property a row's fixed color slot shows: "temperature" for a light using
+    blackbody temperature (Blender 5.0+), "color" otherwise."""
+    if has_property(light, "use_temperature") and light.use_temperature:
+        return "temperature"
+    return "color"
+
+
 def _has_path(light, path):
     try:
         light.path_resolve(path)

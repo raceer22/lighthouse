@@ -59,9 +59,9 @@ def test_collections_without_lights_are_left_out_and_scene_collection_lights_hav
     """)
 
     assert rows == [
+        ["light", "Sun", 0, 0],
         ["group", "Lights", 0, 1],
         ["light", "Key", 1, 0],
-        ["light", "Sun", 0, 0],
     ]
 
 
@@ -92,10 +92,10 @@ def test_search_flattens_the_list_and_clearing_it_restores_groups():
     assert result == {
         "search": [["light", "Key Lamp", 0, 0], ["light", "key sun", 0, 0]],
         "cleared": [
-            ["group", "Lamps", 0, 1],
-            ["light", "Key Lamp", 1, 0],
             ["light", "Fill", 0, 0],
             ["light", "key sun", 0, 0],
+            ["group", "Lamps", 0, 1],
+            ["light", "Key Lamp", 1, 0],
         ],
     }
 
@@ -171,4 +171,23 @@ def test_info_tooltip_names_whichever_cases_apply():
         "Also in 1 other collection",
         "Also in 3 other collections",
         "Light data is shared with 1 other object. Also in 2 other collections",
+    ]
+
+
+def test_a_collections_own_lights_come_before_its_sub_collections():
+    rows = run("""
+        empty_scene()
+        set_ = new_collection("Set")
+        move_to(add_light("Zenith"), set_)
+        move_to(add_light("Bulb"), new_collection("Lamps", set_))
+        add_light("Sun", "SUN")
+        report(entries())
+    """)
+
+    assert rows == [
+        ["light", "Sun", 0, 0],
+        ["group", "Set", 0, 2],
+        ["light", "Zenith", 1, 0],
+        ["group", "Lamps", 1, 1],
+        ["light", "Bulb", 2, 0],
     ]

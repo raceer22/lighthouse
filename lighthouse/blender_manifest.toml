@@ -1,7 +1,7 @@
 schema_version = "1.0.0"
 
 id = "lighthouse"
-version = "1.0.0"
+version = "1.1.0"
 name = "Lighthouse"
 tagline = "List and control every light from the 3D Viewport sidebar"
 maintainer = "raceer22"

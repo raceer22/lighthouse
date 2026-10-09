@@ -22,11 +22,12 @@ def test_intensity_presets_and_lights_are_top_level_panels_in_the_lights_tab():
     assert panels == {name: top_level for name in PANELS}
 
 
-def test_presets_panel_draws_its_header():
-    has_header = run_in_blender("""
+def test_presets_panel_header_is_only_its_label():
+    header = run_in_blender("""
         import lighthouse
         lighthouse.register()
-        report(hasattr(bpy.types.LIGHTHOUSE_PT_presets, "draw_header"))
+        panel = bpy.types.LIGHTHOUSE_PT_presets
+        report([panel.bl_label, hasattr(panel, "draw_header")])
     """)
 
-    assert has_header is True
+    assert header == ["Presets", False]

@@ -22,7 +22,7 @@ def test_60w_bulb_changes_a_selected_point_light_but_not_a_selected_sun(tmp_path
     """, tmp_path)[0]
 
     assert lights == {
-        "Point": [60, approx([1.0, 0.71, 0.42]), approx(0.03)],
+        "Point": [60, [1, 1, 1], approx(0.03)],  # Kelvin on 5.0+, so white
         "Sun": [7, approx([0.2, 0.3, 0.4]), 0.5],
         "sun angle": approx(0.1),
     }
@@ -67,4 +67,26 @@ def test_daylight_sets_a_selected_sun_and_its_angle(tmp_path):
         report([sun.data.energy, list(sun.data.color), sun.data.angle])
     """, tmp_path)[0]
 
-    assert sun == [4, approx([1.0, 0.96, 0.9]), approx(0.0093)]
+    assert sun == [4, [1, 1, 1], approx(0.0093)]  # Kelvin on 5.0+, so white
+
+
+def test_built_ins_set_their_kelvin_with_a_white_color_that_does_not_tint_it(tmp_path):
+    lights = run_installed("""
+        empty_scene()
+        lights = {}
+        for preset, light_type in (('CANDLE', 'POINT'), ('BULB_60W', 'AREA'), ('DAYLIGHT', 'SUN')):
+            for obj in bpy.context.view_layer.objects:
+                obj.select_set(False)
+            obj = add_light(preset, light_type)
+            obj.data.color = (0.2, 0.3, 0.4)
+            obj.select_set(True)
+            bpy.ops.lighthouse.apply_preset(preset=preset)
+            lights[preset] = [obj.data.use_temperature, obj.data.temperature, list(obj.data.color)]
+        report(lights)
+    """, tmp_path)[0]
+
+    assert lights == {
+        "CANDLE": [True, 1850, [1, 1, 1]],
+        "BULB_60W": [True, 2700, [1, 1, 1]],
+        "DAYLIGHT": [True, 5500, [1, 1, 1]],
+    }

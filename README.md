@@ -1,6 +1,10 @@
 # Lighthouse
 
-A Blender extension that adds a **Lights** tab to the 3D Viewport sidebar (N). It lists every light in the view layer with inline power, color, mute and solo controls. It also has bulk intensity tools (a scale factor and ±1 EV buttons, which also scale keyframes) and power/color/radius presets, built-in and your own.
+A Blender extension that adds a **Lights** tab to the 3D Viewport sidebar (N), with three panels:
+
+- **Intensity**: scale all or selected lights by a factor, or step them by −1, −½, −¼, +¼, +½ or +1 EV. Keyframes scale too.
+- **Presets**: apply built-in (Candle, 60W Bulb, Daylight) or your own presets of power, color, radius, exposure and Kelvin temperature. Built-ins use Kelvin on Blender 5.0+ and an RGB color on older versions.
+- **Lights**: every light in the view layer, grouped by collection as in the outliner or as a flat list, with search and type filters. Each row has a details toggle, type, name, power, color (or a Kelvin field for lights using temperature), mute and solo. Click a name to select it, Shift+click to select a range, Ctrl+Shift+click to toggle it in the selection, Ctrl+click to rename and Alt+click to frame it. Group headers count their lights and can select, collapse, hide or solo the group, or move the selected lights into it. `+` adds a light at the 3D cursor.
 
 - Blender 4.2 or later. Tested on 5.2.2 LTS, under Cycles and EEVEE.
 - Pure Python, with no dependencies.
@@ -22,7 +26,7 @@ make validate             # blender --command extension validate
 make build                # same as ./build.sh
 ```
 
-`tests/acceptance.md` walks every PRD acceptance criterion. `ARCHITECTURE.md` describes the components and the Blender API quirks.
+`tests/acceptance.md` walks every PRD-v2 acceptance criterion, with a manual GUI checklist. `tests/smoke_engines.py` runs every operator under Cycles and EEVEE against an installed copy. `ARCHITECTURE.md` describes the components and the Blender API quirks.
 
 ## Permissions
 

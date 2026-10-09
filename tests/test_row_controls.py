@@ -93,7 +93,8 @@ def test_range_selects_the_listed_lights_from_the_active_one_to_the_clicked_one(
 
 def test_range_runs_upwards_too_and_skips_lights_in_collapsed_groups():
     state = run_in_blender(SELECTION + """
-        for name in ("Studio", "Props"):
+        # Listed: Fill, Key, Props (collapsed, holding Hidden), Studio > Alpha.
+        for name in ("Props", "Studio"):
             bpy.context.scene.collection.children.link(bpy.data.collections.new(name))
         for name, collection in (("Alpha", "Studio"), ("Hidden", "Props")):
             light = add_light(name)
@@ -101,12 +102,12 @@ def test_range_runs_upwards_too_and_skips_lights_in_collapsed_groups():
             bpy.data.collections[collection].objects.link(light)
         bpy.data.collections["Props"].lighthouse_collapsed = True
         bpy.context.view_layer.update()
-        bpy.context.view_layer.objects.active = bpy.data.objects["Fill"]
-        bpy.ops.lighthouse.select_light(name="Alpha", action='RANGE')
+        bpy.context.view_layer.objects.active = bpy.data.objects["Alpha"]
+        bpy.ops.lighthouse.select_light(name="Key", action='RANGE')
         report(selection())
     """)
 
-    assert state == {"selected": ["Alpha", "Fill"], "active": "Fill"}
+    assert state == {"selected": ["Alpha", "Key"], "active": "Alpha"}
 
 
 def test_range_without_a_listed_active_light_selects_only_the_clicked_one():

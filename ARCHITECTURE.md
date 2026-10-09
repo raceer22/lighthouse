@@ -168,7 +168,7 @@ All three panels read `WindowManager.lighthouse`. EV buttons pass their float `s
 ## v2 task 02: lights grouped by collection
 
 **Components**
-- `lighthouse/lights.py`: `list_entries(view_layer, name_filter, type_filter, grouped)` returns the rows the Lights panel draws, in order. They are `GroupEntry(collection, depth, count)` and `LightEntry(obj, depth, other_collections)` NamedTuples. In grouped mode, `_collection_entries()` walks `view_layer.layer_collection` recursively. It skips `exclude`d layer collections and keeps a collection only if its subtree holds a listed light. Each group lists its sub-collections in outliner order, then its own lights sorted by name ignoring case. Scene Collection lights come last at depth 0 with no header. `count` is the size of the set of listed lights in the subtree, so a light in two sub-collections counts once. `other_collections` is how many other entries the same object got. In flat mode (`grouped` off or a non-empty search) the result is `listed_lights()` at depth 0.
+- `lighthouse/lights.py`: `list_entries(view_layer, name_filter, type_filter, grouped)` returns the rows the Lights panel draws, in order. They are `GroupEntry(collection, depth, count)` and `LightEntry(obj, depth, other_collections)` NamedTuples. In grouped mode, `_collection_entries()` walks `view_layer.layer_collection` recursively. It skips `exclude`d layer collections and keeps a collection only if its subtree holds a listed light. Each group lists its sub-collections in outliner order, then its own lights sorted by name ignoring case. Scene Collection lights come last at depth 0 with no header (changed later: see Post-v2 polish). `count` is the size of the set of listed lights in the subtree, so a light in two sub-collections counts once. `other_collections` is how many other entries the same object got. In flat mode (`grouped` off or a non-empty search) the result is `listed_lights()` at depth 0.
 - `indent_level(depth)` caps indentation at `MAX_INDENT` (3). `light_info_tooltip(other_users, other_collections)` builds the info icon's text, or `""` when neither case applies.
 - `lighthouse/__init__.py`: `LIGHTHOUSE_PG_settings.grouped` (BoolProperty, default True) is drawn as an `OUTLINER` icon toggle next to the search field. `LIGHTHOUSE_PT_lights.draw()` iterates `list_entries()` and calls `draw_group()` (indent, collection icon, `Name (N)`) or `draw_light()` (the v1 row plus indent). `indent()` adds `row.separator(factor=INDENT_STEP * indent_level(depth))`.
 - `LIGHTHOUSE_OT_light_info` (`INTERNAL`, no-op, `INFO` icon) replaces `LIGHTHOUSE_OT_shared_light_info` / `LINKED`. Its `other_users` and `other_collections` properties are set on each button, and `description()` turns them into the tooltip through `light_info_tooltip()`.
@@ -255,3 +255,34 @@ A triangle click runs `toggle_details`. It first drops entries whose `obj` is `N
 **Blender API quirks**
 - WindowManager ID pointers survive undo: in a headless run, `ed.undo` after a toggle reverted the scene and `expanded[0].obj` still resolved to the same light, so no `session_uid` matching is needed. To be confirmed by Ctrl+Z in the GUI.
 - `path_resolve` can't serve as the version check for the new properties, because a light proxy forwards it to the real RNA. `bl_rna.properties` membership is the lookup the task names, and it is what the 4.2 stub test fakes.
+
+## v2 task 07: Kelvin, exposure and acceptance pass
+
+**Components**
+- `lighthouse/lights.py`: `color_control(light)` returns `"temperature"` when the light has `use_temperature` (checked with `has_property`) and it is on, and `"color"` otherwise. The row's fixed color slot draws `prop(light, color_control(light), text="")` at the same `SWATCH_WIDTH`.
+- `lighthouse/presets.py`: `Preset` gains `exposure=0.0`, `use_temperature=False` and `temperature=6500.0`. The built-ins use Kelvin (Candle 1850 K, 60W Bulb 2700 K, Daylight 5500 K) and keep their RGB as the fallback. `presets.py` now imports `has_property` from `lights.py`.
+- `tests/smoke_engines.py` puts the lights in a sub-collection and runs every v2 operator too (group operators, `toggle_details`, `add_light`, every `select_light` action, fractional EV), plus the color slot and details with temperature on and off.
+- `tests/acceptance.md` is rewritten for PRD-v2 AC 1–21. The manifest is 1.1.0.
+
+**Data flow**
+- Save: `preset_from_light` copies `exposure`, `use_temperature` and `temperature` only where the light has them, so on older Blender the preset keeps the defaults. `save_user_preset` writes every field through `_asdict()`.
+- Load: `user_presets` reads the three new keys with `data.get()`, so a pre-v2 file gives exposure 0 and temperature off.
+- Apply: `apply_preset` always sets power, RGB color and radius. Where the light has them it sets `exposure`, then `use_temperature` and `temperature`. If the preset uses Kelvin and the light has temperature, the color is set to white after that. Without `use_temperature` (before 5.0), only the RGB fallback is applied.
+
+**Blender API quirks**
+- In 5.2, `Light.color` tints the blackbody color: a 3000 K Cycles render with `color` red came out pure red. A Kelvin preset therefore applies white, and its stored `color` is only the fallback for versions without temperature. A user preset saved from a tinted Kelvin light loses the tint, which was accepted as rare.
+- `Light.temperature` is clamped to 800–20000 K, with 6500 K as the default.
+- The stub for a pre-5.0 light has to hide the newer properties from `getattr`/`setattr` as well as from `bl_rna.properties`, or an unguarded write would reach the real 5.2 light and the test would pass anyway.
+- The smoke script must not interleave `hide_group` and `solo_group` toggles: un-solo restores the flags solo recorded, so a hide in between is undone and the group ends hidden. This is the intended behaviour (AC 10), not a bug.
+
+## Post-v2 polish: list order and Presets header
+
+**Components**
+- `_collection_entries()` now emits a collection's own lights (sorted by name, ignoring case) before its sub-collections, so Scene Collection lights come first at depth 0.
+- `LIGHTHOUSE_PT_presets` no longer has `draw_header()`. Its header is the plain `bl_label`, and `draw()` starts with the preset dropdown and Apply, followed by Save and Delete. This replaces the task 05 header layout and amends PRD-v2 AC 1.
+
+**Data flow**
+`group_lights()` and the Shift+click range both follow `list_entries()` order. Group select makes the group's first own light active (before lights in sub-collections), and a range runs over the new order.
+
+**Blender API quirks**
+- Without `draw_header()`, presets can't be applied while the panel is collapsed. That trade-off was chosen for a cleaner header.

@@ -73,3 +73,47 @@ def test_a_deleted_user_preset_is_gone_after_restarting_and_built_ins_cannot_be_
 
     assert built_in_refused
     assert items == ["Candle", "60W Bulb", "Daylight", "Keep"]
+
+
+def test_a_preset_saved_from_a_kelvin_light_restores_its_kelvin_and_exposure_after_restarting(tmp_path):
+    run_installed("""
+        empty_scene()
+        key = add_light("Key", "SPOT")
+        key.data.use_temperature = True
+        key.data.temperature = 3000
+        key.data.exposure = 1.5
+        bpy.context.view_layer.objects.active = key
+        bpy.ops.lighthouse.save_preset(name="Warm Key")
+        report(None)
+    """, tmp_path / "config")
+
+    light = run_installed("""
+        empty_scene()
+        fill = add_light("Fill")
+        fill.select_set(True)
+        bpy.ops.lighthouse.apply_preset(preset=[i for i, name, _ in preset_items() if name == "Warm Key"][0])
+        report([fill.data.use_temperature, fill.data.temperature, fill.data.exposure])
+    """, tmp_path / "config")[0]
+
+    assert light == [True, 3000, 1.5]
+
+
+def test_a_preset_file_saved_before_v2_applies_with_no_exposure_and_temperature_off(tmp_path):
+    folder = tmp_path / "config" / "extensions" / ".user" / "user_default" / "lighthouse"
+    folder.mkdir(parents=True)
+    (folder / "Old.json").write_text("""{
+      "label": "Old", "type_compat": ["AREA", "POINT", "SPOT"],
+      "power": 80.0, "color": [0.5, 0.6, 0.7], "radius": 0.1
+    }""")
+
+    light = run_installed("""
+        empty_scene()
+        fill = add_light("Fill")
+        fill.data.use_temperature = True
+        fill.data.exposure = 2
+        fill.select_set(True)
+        bpy.ops.lighthouse.apply_preset(preset=[i for i, name, _ in preset_items() if name == "Old"][0])
+        report([fill.data.energy, list(fill.data.color), fill.data.use_temperature, fill.data.exposure])
+    """, tmp_path / "config")[0]
+
+    assert light == [80, approx([0.5, 0.6, 0.7]), False, 0]

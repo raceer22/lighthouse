@@ -134,7 +134,7 @@ def test_select_group_selects_only_the_lights_in_it_and_its_sub_collections():
         report(selection())
     """)
 
-    assert result == {"selected": ["Bulb", "Fill", "Shared"], "active": "Bulb"}
+    assert result == {"selected": ["Bulb", "Fill", "Shared"], "active": "Fill"}
 
 
 def test_select_group_with_extend_keeps_the_earlier_selection():
