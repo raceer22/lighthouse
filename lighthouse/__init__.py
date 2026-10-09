@@ -89,7 +89,8 @@ class LIGHTHOUSE_PG_solo(bpy.types.PropertyGroup):
 
 class LIGHTHOUSE_OT_select_light(bpy.types.Operator):
     """Click: select only this light and make it active.
-    Shift+click: add it to the selection, or remove it if selected.
+    Shift+click: select the listed lights from the active one to this one.
+    Ctrl+Shift+click: add it to the selection, or remove it if selected.
     Ctrl+click: rename it.
     Alt+click: select only this light and frame it in the 3D view"""
     bl_idname = "lighthouse.select_light"
@@ -103,14 +104,17 @@ class LIGHTHOUSE_OT_select_light(bpy.types.Operator):
             ('SELECT', "Select", "Select only this light and make it active"),
             ('TOGGLE', "Toggle", "Add this light to the selection and make it active, or remove it if selected"),
             ('RENAME', "Rename", "Rename this light"),
+            ('RANGE', "Range", "Select only the listed lights from the active one to this one"),
             ('FRAME', "Frame", "Select only this light and frame it in the 3D view"),
         ),
     )
     new_name: bpy.props.StringProperty(name="Name")
 
     def invoke(self, context, event):
-        if event.shift:
+        if event.shift and event.ctrl:
             self.action = 'TOGGLE'
+        elif event.shift:
+            self.action = 'RANGE'
         elif event.ctrl:
             self.action = 'RENAME'
         elif event.alt:
@@ -140,6 +144,20 @@ class LIGHTHOUSE_OT_select_light(bpy.types.Operator):
                 return {'CANCELLED'}
             obj.name = name
             return {'FINISHED'}
+        if self.action == 'RANGE':
+            filters = context.window_manager.lighthouse
+            listed = [
+                entry.obj
+                for entry in list_entries(layer, filters.name_filter, filters.type_filter, filters.grouped)
+                if not isinstance(entry, GroupEntry)
+            ]
+            if layer.objects.active in listed and obj in listed:
+                ends = sorted((listed.index(layer.objects.active), listed.index(obj)))
+                for other in layer.objects:
+                    other.select_set(False)
+                for light in listed[ends[0]:ends[1] + 1]:
+                    light.select_set(True)
+                return {'FINISHED'}
         if self.action == 'TOGGLE':
             if obj.select_get():
                 obj.select_set(False)
