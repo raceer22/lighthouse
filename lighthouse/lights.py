@@ -89,6 +89,40 @@ def toggle_solo(scene, view_layer, obj):
 
 def scale_lights(lights, factor):
     """Multiply the power of each light object's data by factor, once per datablock
-    even when several of the objects share it. Read-only (library) lights are skipped."""
-    for light in {obj.data for obj in lights if not is_read_only(obj.data)}:
+    even when several of the objects share it, along with every keyframe of its power animation.
+    Read-only (library) lights are skipped. Returns how many datablocks were scaled and how many
+    of them were keyframed."""
+    scaled = {obj.data for obj in lights if not is_read_only(obj.data)}
+    keyframed = 0
+    for light in scaled:
         light.energy *= factor
+        energy_curve = _energy_fcurve(light)
+        if energy_curve is not None:
+            keyframed += 1
+            for key in energy_curve.keyframe_points:
+                key.co.y *= factor
+                key.handle_left.y *= factor
+                key.handle_right.y *= factor
+            energy_curve.update()
+    return len(scaled), keyframed
+
+
+def scale_summary(scaled, keyframed):
+    """Status bar message after scaling, e.g. "Scaled 4 lights (2 keyframed, whole animation)"."""
+    message = f"Scaled {scaled} light{'' if scaled == 1 else 's'}"
+    return message + (f" ({keyframed} keyframed, whole animation)" if keyframed else "")
+
+
+def _energy_fcurve(light):
+    """The F-curve animating a light's power in its assigned action, or None.
+    Uses the action slot's channelbag (Blender 4.4+), else legacy action F-curves."""
+    animation = light.animation_data
+    if animation is None or animation.action is None:
+        return None
+    from bpy_extras import anim_utils
+    if hasattr(anim_utils, "action_get_channelbag_for_slot"):
+        bag = anim_utils.action_get_channelbag_for_slot(animation.action, animation.action_slot)
+        if bag is not None:
+            return bag.fcurves.find("energy")
+    fcurves = getattr(animation.action, "fcurves", None)
+    return None if fcurves is None else fcurves.find("energy")

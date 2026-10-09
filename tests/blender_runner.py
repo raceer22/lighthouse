@@ -38,6 +38,16 @@ def add_mesh(name):
 
 
 def run_in_blender(snippet):
+    return _run(snippet)[0]
+
+
+def run_in_blender_with_reports(snippet):
+    """Like run_in_blender, but also return the info messages operators reported."""
+    value, output = _run(snippet)
+    return value, [l[len("Info: "):] for l in output.splitlines() if l.startswith("Info: ")]
+
+
+def _run(snippet):
     script = PRELUDE + textwrap.dedent(snippet)
     result = subprocess.run(
         ["blender", "--background", "--factory-startup",
@@ -49,4 +59,4 @@ def run_in_blender(snippet):
     assert result.returncode == 0, output
     lines = [l for l in result.stdout.splitlines() if l.startswith(MARKER)]
     assert lines, output
-    return json.loads(lines[-1][len(MARKER):])
+    return json.loads(lines[-1][len(MARKER):]), output

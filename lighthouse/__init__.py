@@ -1,6 +1,6 @@
 import bpy
 
-from .lights import light_objects, listed_lights, power_unit, row_state, scale_lights, toggle_solo
+from .lights import light_objects, listed_lights, power_unit, row_state, scale_lights, scale_summary, toggle_solo
 
 
 SCOPE_ITEMS = (
@@ -90,7 +90,8 @@ class LIGHTHOUSE_OT_solo_light(bpy.types.Operator):
 
 
 class LIGHTHOUSE_OT_scale_lights(bpy.types.Operator):
-    """Multiply the power of the lights in scope by the factor"""
+    """Multiply the power of the lights in scope by the factor.
+    On keyframed lights, every power keyframe is scaled"""
     bl_idname = "lighthouse.scale_lights"
     bl_label = "Scale Light Power"
     bl_options = {'REGISTER', 'UNDO'}
@@ -102,12 +103,13 @@ class LIGHTHOUSE_OT_scale_lights(bpy.types.Operator):
         lights = light_objects(context.view_layer)
         if self.scope == 'SELECTED':
             lights = [obj for obj in lights if obj.select_get()]
-        scale_lights(lights, self.factor)
+        self.report({'INFO'}, scale_summary(*scale_lights(lights, self.factor)))
         return {'FINISHED'}
 
 
 class LIGHTHOUSE_OT_step_exposure(bpy.types.Operator):
-    """Double (+1 EV) or halve (-1 EV) the power of the lights in scope"""
+    """Double (+1 EV) or halve (-1 EV) the power of the lights in scope.
+    On keyframed lights, every power keyframe is scaled"""
     bl_idname = "lighthouse.step_exposure"
     bl_label = "Step Light Exposure"
     bl_options = {'REGISTER', 'UNDO'}
@@ -119,7 +121,7 @@ class LIGHTHOUSE_OT_step_exposure(bpy.types.Operator):
         lights = light_objects(context.view_layer)
         if self.scope == 'SELECTED':
             lights = [obj for obj in lights if obj.select_get()]
-        scale_lights(lights, 2.0 ** self.steps)
+        self.report({'INFO'}, scale_summary(*scale_lights(lights, 2.0 ** self.steps)))
         return {'FINISHED'}
 
 
