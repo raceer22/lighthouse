@@ -240,3 +240,18 @@ The name button passes only `name`. `invoke()` picks `action` from the event, so
 - A `label()` can't have a tooltip, so the unit is a flat `INTERNAL` operator whose `description()` classmethod builds the text from its properties (the same trick as `light_info`).
 - `invoke_props_dialog` draws every operator property unless the operator defines `draw()`.
 - Which modifier clicks Blender passes through to an operator button (Ctrl and Alt on buttons can be taken by the UI) is still to be confirmed in the manual GUI check.
+
+## v2 task 06: details accordion
+
+**Components**
+- `lighthouse/__init__.py`: `LIGHTHOUSE_PG_expanded` (one `obj` Object pointer) and `LIGHTHOUSE_PG_settings.expanded`, a collection of them on the WindowManager. It replaces `Object.lighthouse_expanded`, which is no longer registered.
+- `LIGHTHOUSE_OT_toggle_details` (`INTERNAL`, no `UNDO`) takes the object `name` and `keep_others`. `invoke()` sets `keep_others` from Shift. The row's disclosure triangle draws it, with the icon from `details_open()`.
+- `lighthouse/lights.py`: `details_open(settings, obj)` and `toggle_details(settings, obj, keep_others)` hold the accordion logic. `has_property(rna, name)` checks `rna.bl_rna.properties` for properties newer than Blender 4.2. `NEWER_DETAILS` (`exposure` 4.4+, `use_temperature` and `temperature` 5.0+) lead `detail_properties()` when the light has them.
+- `draw_details` now takes the object: the box shows `Name` (`prop(obj, "name")`), then the `detail_properties()` paths.
+
+**Data flow**
+A triangle click runs `toggle_details`. It first drops entries whose `obj` is `None` (deleted lights). If the light is open it removes only its entry. Otherwise it clears the others (unless `keep_others`) and adds it. Each draw asks `details_open(settings, obj)`, so every row of a multi-linked object shows the same state. The state lives on the WindowManager, so it isn't saved in the .blend, and an operator without `UNDO` pushes no undo step. Entries point at the object, so renaming keeps them.
+
+**Blender API quirks**
+- WindowManager ID pointers survive undo: in a headless run, `ed.undo` after a toggle reverted the scene and `expanded[0].obj` still resolved to the same light, so no `session_uid` matching is needed. To be confirmed by Ctrl+Z in the GUI.
+- `path_resolve` can't serve as the version check for the new properties, because a light proxy forwards it to the real RNA. `bl_rna.properties` membership is the lookup the task names, and it is what the 4.2 stub test fakes.

@@ -127,6 +127,8 @@ def power_unit(light):
     return "W/m²" if light.type == 'SUN' else "W"
 
 
+# Added after Blender 4.2: exposure in 4.4, temperature in 5.0. Shown only when the light has them.
+NEWER_DETAILS = ("exposure", "use_temperature", "temperature")
 SOFT_SIZE = {'POINT': "shadow_soft_size", 'SPOT': "shadow_soft_size", 'SUN': "angle"}
 SHARED_DETAILS = ("specular_factor", "diffuse_factor", "volume_factor", "use_shadow")
 CYCLES_DETAILS = ("cycles.max_bounces", "cycles.use_multiple_importance_sampling", "cycles.is_caustics_light")
@@ -135,7 +137,8 @@ CYCLES_DETAILS = ("cycles.max_bounces", "cycles.use_multiple_importance_sampling
 def detail_properties(light, engine):
     """RNA paths, relative to the light data, of the extra settings a row's detail section shows
     for this light's type under the given render engine. Paths the light lacks are left out."""
-    paths = [SOFT_SIZE[light.type]] if light.type in SOFT_SIZE else []
+    paths = [name for name in NEWER_DETAILS if has_property(light, name)]
+    paths += [SOFT_SIZE[light.type]] if light.type in SOFT_SIZE else []
     paths += SHARED_DETAILS
     if engine == 'CYCLES':
         paths += CYCLES_DETAILS
@@ -151,12 +154,38 @@ def detail_target(light, path):
     return (light.path_resolve(owner_path) if owner_path else light), prop
 
 
+def has_property(rna, name):
+    """True when the RNA struct has a property of that name, so properties newer than the
+    oldest supported Blender (4.2) can be checked before use."""
+    return name in rna.bl_rna.properties
+
+
 def _has_path(light, path):
     try:
         light.path_resolve(path)
     except ValueError:
         return False
     return True
+
+
+def details_open(settings, obj):
+    """True when the light's details are open in the list (every row of the object shares it)."""
+    return any(item.obj == obj for item in settings.expanded)
+
+
+def toggle_details(settings, obj, keep_others=False):
+    """Open the light's details, closing every other light's unless keep_others is set,
+    or close them if they are open. Entries of deleted lights are dropped."""
+    expanded = settings.expanded
+    for index in reversed(range(len(expanded))):
+        if expanded[index].obj is None:
+            expanded.remove(index)
+    if details_open(settings, obj):
+        expanded.remove(next(i for i, item in enumerate(expanded) if item.obj == obj))
+        return
+    if not keep_others:
+        expanded.clear()
+    expanded.add().obj = obj
 
 
 def is_read_only(id_data):

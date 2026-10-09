@@ -2,7 +2,7 @@
 # Licensed under the GNU General Public License v3 or later (GPL-3.0-or-later)
 import bpy
 
-from .lights import GroupEntry, detail_properties, detail_target, group_lights, group_soloed, indent_level, is_read_only, light_info_tooltip, light_objects, list_entries, move_lights, move_summary, power_unit, row_state, scale_lights, scale_summary, toggle_solo_group, toggle_solo_light
+from .lights import GroupEntry, detail_properties, detail_target, details_open, group_lights, group_soloed, indent_level, is_read_only, light_info_tooltip, light_objects, list_entries, move_lights, move_summary, power_unit, row_state, scale_lights, scale_summary, toggle_details, toggle_solo_group, toggle_solo_light
 from pathlib import Path
 
 from .presets import BUILTIN_PRESETS, apply_preset, delete_user_preset, preset_from_light, preset_summary, save_user_preset, user_presets
@@ -40,6 +40,10 @@ SCOPE_ITEMS = (
 )
 
 
+class LIGHTHOUSE_PG_expanded(bpy.types.PropertyGroup):
+    obj: bpy.props.PointerProperty(type=bpy.types.Object)
+
+
 class LIGHTHOUSE_PG_settings(bpy.types.PropertyGroup):
     name_filter: bpy.props.StringProperty(
         name="Search",
@@ -64,6 +68,8 @@ class LIGHTHOUSE_PG_settings(bpy.types.PropertyGroup):
     )
     scale_scope: bpy.props.EnumProperty(name="Scope", description="Which lights to scale", items=SCOPE_ITEMS)
     preset: bpy.props.EnumProperty(name="Preset", description="Light setup to apply to selected lights", items=preset_items)
+    # Lights whose details are open. Panel state: not saved, not undoable, kept on rename.
+    expanded: bpy.props.CollectionProperty(type=LIGHTHOUSE_PG_expanded)
 
 
 class LIGHTHOUSE_PG_solo_object(bpy.types.PropertyGroup):
@@ -241,6 +247,28 @@ class LIGHTHOUSE_OT_solo_light(bpy.types.Operator):
         if obj is None:
             return {'CANCELLED'}
         toggle_solo_light(context.scene.lighthouse_solo, context.view_layer, obj)
+        return {'FINISHED'}
+
+
+class LIGHTHOUSE_OT_toggle_details(bpy.types.Operator):
+    """Show or hide this light's details, closing the others.
+    Shift+click to keep the others open"""
+    bl_idname = "lighthouse.toggle_details"
+    bl_label = "Toggle Details"
+    bl_options = {'INTERNAL'}
+
+    name: bpy.props.StringProperty()
+    keep_others: bpy.props.BoolProperty(name="Keep Others", description="Leave other lights' details open")
+
+    def invoke(self, context, event):
+        self.keep_others = event.shift
+        return self.execute(context)
+
+    def execute(self, context):
+        obj = context.view_layer.objects.get(self.name)
+        if obj is None:
+            return {'CANCELLED'}
+        toggle_details(context.window_manager.lighthouse, obj, self.keep_others)
         return {'FINISHED'}
 
 
@@ -613,13 +641,13 @@ class LIGHTHOUSE_PT_lights(bpy.types.Panel):
         row = self.layout.row(align=True)
         row.active = not state.dimmed
         indent(row, entry.depth)
-        row.prop(
-            obj,
-            "lighthouse_expanded",
+        expanded = details_open(context.window_manager.lighthouse, obj)
+        row.operator(
+            LIGHTHOUSE_OT_toggle_details.bl_idname,
             text="",
-            icon='DISCLOSURE_TRI_DOWN' if obj.lighthouse_expanded else 'DISCLOSURE_TRI_RIGHT',
+            icon='DISCLOSURE_TRI_DOWN' if expanded else 'DISCLOSURE_TRI_RIGHT',
             emboss=False,
-        )
+        ).name = obj.name
         light_type = row.row(align=True)
         light_type.enabled = not state.read_only
         light_type.prop(light, "type", icon_only=True)
@@ -660,19 +688,22 @@ class LIGHTHOUSE_PT_lights(bpy.types.Panel):
             depress=state.soloed,
         )
         op.name = obj.name
-        if obj.lighthouse_expanded:
-            self.draw_details(light, state, context.scene.render.engine)
+        if expanded:
+            self.draw_details(obj, state, context.scene.render.engine)
 
-    def draw_details(self, light, state, engine):
+    def draw_details(self, obj, state, engine):
+        light = obj.data
         box = self.layout.box()
         box.active = not state.dimmed
         box.enabled = not state.read_only
         box.use_property_split = True
+        box.prop(obj, "name")
         for path in detail_properties(light, engine):
             box.prop(*detail_target(light, path))
 
 
 classes = (
+    LIGHTHOUSE_PG_expanded,
     LIGHTHOUSE_PG_settings,
     LIGHTHOUSE_PG_solo_object,
     LIGHTHOUSE_PG_solo_collection,
@@ -681,6 +712,7 @@ classes = (
     LIGHTHOUSE_OT_add_light,
     LIGHTHOUSE_OT_mute_light,
     LIGHTHOUSE_OT_solo_light,
+    LIGHTHOUSE_OT_toggle_details,
     LIGHTHOUSE_OT_toggle_group,
     LIGHTHOUSE_OT_collapse_all_groups,
     LIGHTHOUSE_OT_select_group,
@@ -705,10 +737,6 @@ def register():
         bpy.utils.register_class(cls)
     bpy.types.WindowManager.lighthouse = bpy.props.PointerProperty(type=LIGHTHOUSE_PG_settings)
     bpy.types.Scene.lighthouse_solo = bpy.props.PointerProperty(type=LIGHTHOUSE_PG_solo)
-    bpy.types.Object.lighthouse_expanded = bpy.props.BoolProperty(
-        name="Show Details",
-        description="Show this light's shadow, influence and render engine settings",
-    )
     bpy.types.Collection.lighthouse_collapsed = bpy.props.BoolProperty(
         name="Collapsed",
         description="Hide this collection's lights and sub-collections in the Lights list",
@@ -717,7 +745,6 @@ def register():
 
 def unregister():
     del bpy.types.Collection.lighthouse_collapsed
-    del bpy.types.Object.lighthouse_expanded
     del bpy.types.Scene.lighthouse_solo
     del bpy.types.WindowManager.lighthouse
     for cls in reversed(classes):
