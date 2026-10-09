@@ -9,9 +9,8 @@ test:
 validate:
 	$(BLENDER) --factory-startup --command extension validate lighthouse
 
-build: validate
-	mkdir -p $(DIST)
-	$(BLENDER) --factory-startup --command extension build --source-dir lighthouse --output-dir $(DIST)
+build:
+	BLENDER=$(BLENDER) ./build.sh $(DIST)
 
 # Installs into the user_default repo and enables it in the user's Blender config.
 install: build

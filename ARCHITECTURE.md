@@ -130,3 +130,20 @@ User presets are read from disk every time the dropdown or `apply_preset` needs 
 - Cycles' "Cast Shadow" is `Light.use_shadow` (it moved off `light.cycles` in 4.0), so EEVEE and Cycles share one shadow toggle.
 - The expanded state is object data. It is saved in the .blend file, survives renames, and toggling it adds an undo step.
 - The panel layout can't be drawn in `--background`. Check by hand that expanding each type shows its details without console errors, and that switching the engine updates them.
+
+## Task 12: packaging and acceptance pass
+
+**Components**
+- `lighthouse/LICENSE`: the full GPLv3 text, shipped inside the zip.
+- `build.sh`: validates the manifest, then builds `lighthouse-<version>.zip` into its argument (default `dist`). `make build` calls it. `BLENDER` overrides the binary.
+- `README.md`: what the extension is, how to build and install it, and why it declares no `permissions`.
+- `tests/acceptance.md`: AC 1–14 mapped to the tests that prove them, plus a GUI checklist for what can't run headless (panel drawing, undo).
+- `tests/smoke_engines.py`: a script, not a pytest test. It runs every operator on every light type under Cycles and then EEVEE against an installed copy.
+- `tests/test_packaging.py`: also checks that the zip ships the license and that `build.sh` produces the versioned zip.
+
+**Data flow**
+`build.sh` → `extension validate` → `extension build --source-dir lighthouse`. Only `lighthouse/` is packaged, so the repo's tests, tasks and docs never reach the zip. Blender leaves out dotfiles and `__pycache__` by default, so the manifest has no `paths_exclude_pattern`.
+
+**Blender API quirks**
+- No `files` permission: presets live in `extension_path_user()`, Blender's own per-extension folder, and the permission is meant for access outside Blender.
+- `RenderSettings.engine`'s `enum_items` lists only `BLENDER_EEVEE` in `--background` scripts, but setting `'CYCLES'` still works.
