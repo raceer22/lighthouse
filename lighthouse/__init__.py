@@ -2,7 +2,7 @@
 # Licensed under the GNU General Public License v3 or later (GPL-3.0-or-later)
 import bpy
 
-from .lights import detail_properties, detail_target, light_objects, listed_lights, power_unit, row_state, scale_lights, scale_summary, toggle_solo
+from .lights import GroupEntry, detail_properties, detail_target, indent_level, light_info_tooltip, light_objects, list_entries, power_unit, row_state, scale_lights, scale_summary, toggle_solo
 from pathlib import Path
 
 from .presets import BUILTIN_PRESETS, apply_preset, delete_user_preset, preset_from_light, preset_summary, save_user_preset, user_presets
@@ -49,6 +49,11 @@ class LIGHTHOUSE_PG_settings(bpy.types.PropertyGroup):
             ('SPOT', "Spot", "Spot lights", 'LIGHT_SPOT', 3),
             ('AREA', "Area", "Area lights", 'LIGHT_AREA', 4),
         ),
+    )
+    grouped: bpy.props.BoolProperty(
+        name="Group by Collection",
+        description="Nest lights under their collections, as in the outliner. The list is flat while searching",
+        default=True,
     )
     scale_factor: bpy.props.FloatProperty(
         name="Factor",
@@ -216,11 +221,18 @@ class LIGHTHOUSE_OT_delete_preset(bpy.types.Operator):
         return {'FINISHED'}
 
 
-class LIGHTHOUSE_OT_shared_light_info(bpy.types.Operator):
-    """This light's data is shared with other objects: editing it changes all of them"""
-    bl_idname = "lighthouse.shared_light_info"
-    bl_label = "Shared Light Data"
+class LIGHTHOUSE_OT_light_info(bpy.types.Operator):
+    """Light data shared with other objects, or the light listed in other collections"""
+    bl_idname = "lighthouse.light_info"
+    bl_label = "Light Info"
     bl_options = {'INTERNAL'}
+
+    other_users: bpy.props.IntProperty()
+    other_collections: bpy.props.IntProperty()
+
+    @classmethod
+    def description(cls, context, properties):
+        return light_info_tooltip(properties.other_users, properties.other_collections)
 
     def execute(self, context):
         return {'CANCELLED'}
@@ -271,6 +283,15 @@ class LIGHTHOUSE_PT_presets(bpy.types.Panel):
             row.operator(LIGHTHOUSE_OT_delete_preset.bl_idname, text="Delete", icon='REMOVE').preset = settings.preset
 
 
+INDENT_STEP = 1.5
+
+
+def indent(row, depth):
+    """Indent a list row by a fixed step per nesting level, capped by indent_level()."""
+    if indent_level(depth):
+        row.separator(factor=INDENT_STEP * indent_level(depth))
+
+
 class LIGHTHOUSE_PT_lights(bpy.types.Panel):
     bl_label = "Lights"
     bl_space_type = 'VIEW_3D'
@@ -279,52 +300,70 @@ class LIGHTHOUSE_PT_lights(bpy.types.Panel):
 
     def draw(self, context):
         filters = context.window_manager.lighthouse
-        self.layout.prop(filters, "name_filter", text="", icon='VIEWZOOM')
+        row = self.layout.row(align=True)
+        row.prop(filters, "name_filter", text="", icon='VIEWZOOM')
+        row.prop(filters, "grouped", text="", icon='OUTLINER')
         self.layout.row(align=True).prop(filters, "type_filter", expand=True)
 
-        for obj in listed_lights(context.view_layer, filters.name_filter, filters.type_filter):
-            light = obj.data
-            state = row_state(obj, context.view_layer, context.scene)
-            row = self.layout.row(align=True)
-            row.active = not state.dimmed
-            row.prop(
-                obj,
-                "lighthouse_expanded",
-                text="",
-                icon='DISCLOSURE_TRI_DOWN' if obj.lighthouse_expanded else 'DISCLOSURE_TRI_RIGHT',
-                emboss=False,
-            )
-            op = row.operator(
-                LIGHTHOUSE_OT_select_light.bl_idname,
-                text=obj.name,
-                icon='LIGHT_' + light.type,
-                emboss=False,
-            )
-            op.name = obj.name
-            if state.shared:
-                row.operator(LIGHTHOUSE_OT_shared_light_info.bl_idname, text="", icon='LINKED', emboss=False)
-            controls = row.row(align=True)
-            controls.enabled = not state.read_only
-            controls.prop(light, "energy", text="")
-            controls.label(text=power_unit(light))
-            controls.prop(light, "color", text="")
-            toggles = row.row(align=True)
-            op = toggles.operator(
-                LIGHTHOUSE_OT_mute_light.bl_idname,
-                text="",
-                icon='HIDE_ON' if state.muted else 'HIDE_OFF',
-                depress=state.muted,
-            )
-            op.name = obj.name
-            op = toggles.operator(
-                LIGHTHOUSE_OT_solo_light.bl_idname,
-                text="",
-                icon='SOLO_ON' if state.soloed else 'SOLO_OFF',
-                depress=state.soloed,
-            )
-            op.name = obj.name
-            if obj.lighthouse_expanded:
-                self.draw_details(light, state, context.scene.render.engine)
+        entries = list_entries(context.view_layer, filters.name_filter, filters.type_filter, filters.grouped)
+        for entry in entries:
+            if isinstance(entry, GroupEntry):
+                self.draw_group(entry)
+            else:
+                self.draw_light(context, entry)
+
+    def draw_group(self, entry):
+        row = self.layout.row(align=True)
+        indent(row, entry.depth)
+        row.label(text=f"{entry.collection.name} ({entry.count})", icon='OUTLINER_COLLECTION')
+
+    def draw_light(self, context, entry):
+        obj = entry.obj
+        light = obj.data
+        state = row_state(obj, context.view_layer, context.scene)
+        row = self.layout.row(align=True)
+        row.active = not state.dimmed
+        indent(row, entry.depth)
+        row.prop(
+            obj,
+            "lighthouse_expanded",
+            text="",
+            icon='DISCLOSURE_TRI_DOWN' if obj.lighthouse_expanded else 'DISCLOSURE_TRI_RIGHT',
+            emboss=False,
+        )
+        op = row.operator(
+            LIGHTHOUSE_OT_select_light.bl_idname,
+            text=obj.name,
+            icon='LIGHT_' + light.type,
+            emboss=False,
+        )
+        op.name = obj.name
+        if light_info_tooltip(light.users - 1, entry.other_collections):
+            op = row.operator(LIGHTHOUSE_OT_light_info.bl_idname, text="", icon='INFO', emboss=False)
+            op.other_users = light.users - 1
+            op.other_collections = entry.other_collections
+        controls = row.row(align=True)
+        controls.enabled = not state.read_only
+        controls.prop(light, "energy", text="")
+        controls.label(text=power_unit(light))
+        controls.prop(light, "color", text="")
+        toggles = row.row(align=True)
+        op = toggles.operator(
+            LIGHTHOUSE_OT_mute_light.bl_idname,
+            text="",
+            icon='HIDE_ON' if state.muted else 'HIDE_OFF',
+            depress=state.muted,
+        )
+        op.name = obj.name
+        op = toggles.operator(
+            LIGHTHOUSE_OT_solo_light.bl_idname,
+            text="",
+            icon='SOLO_ON' if state.soloed else 'SOLO_OFF',
+            depress=state.soloed,
+        )
+        op.name = obj.name
+        if obj.lighthouse_expanded:
+            self.draw_details(light, state, context.scene.render.engine)
 
     def draw_details(self, light, state, engine):
         box = self.layout.box()
@@ -345,7 +384,7 @@ classes = (
     LIGHTHOUSE_OT_apply_preset,
     LIGHTHOUSE_OT_save_preset,
     LIGHTHOUSE_OT_delete_preset,
-    LIGHTHOUSE_OT_shared_light_info,
+    LIGHTHOUSE_OT_light_info,
     LIGHTHOUSE_PT_intensity,
     LIGHTHOUSE_PT_presets,
     LIGHTHOUSE_PT_lights,

@@ -164,3 +164,21 @@ All three panels read `WindowManager.lighthouse`. EV buttons pass their float `s
 - `draw_header()` runs even while the panel is collapsed, which is what lets presets be applied from a collapsed Presets panel. Drawing still can't run in `--background`, so the header and layout are checked by hand.
 - Passing a float to an `IntProperty` operator argument raises `TypeError` ("expected an int type, not float"). A `FloatProperty` accepts ints, so old `steps=1` callers keep working.
 - A `FloatProperty` with no `soft_max` gets `soft_max == hard_max` (FLT_MAX when no `max` is set), so dragging the field isn't capped. Dropping `slider=True` removes the slider bar.
+
+## v2 task 02: lights grouped by collection
+
+**Components**
+- `lighthouse/lights.py`: `list_entries(view_layer, name_filter, type_filter, grouped)` returns the rows the Lights panel draws, in order. They are `GroupEntry(collection, depth, count)` and `LightEntry(obj, depth, other_collections)` NamedTuples. In grouped mode, `_collection_entries()` walks `view_layer.layer_collection` recursively. It skips `exclude`d layer collections and keeps a collection only if its subtree holds a listed light. Each group lists its sub-collections in outliner order, then its own lights sorted by name ignoring case. Scene Collection lights come last at depth 0 with no header. `count` is the size of the set of listed lights in the subtree, so a light in two sub-collections counts once. `other_collections` is how many other entries the same object got. In flat mode (`grouped` off or a non-empty search) the result is `listed_lights()` at depth 0.
+- `indent_level(depth)` caps indentation at `MAX_INDENT` (3). `light_info_tooltip(other_users, other_collections)` builds the info icon's text, or `""` when neither case applies.
+- `lighthouse/__init__.py`: `LIGHTHOUSE_PG_settings.grouped` (BoolProperty, default True) is drawn as an `OUTLINER` icon toggle next to the search field. `LIGHTHOUSE_PT_lights.draw()` iterates `list_entries()` and calls `draw_group()` (indent, collection icon, `Name (N)`) or `draw_light()` (the v1 row plus indent). `indent()` adds `row.separator(factor=INDENT_STEP * indent_level(depth))`.
+- `LIGHTHOUSE_OT_light_info` (`INTERNAL`, no-op, `INFO` icon) replaces `LIGHTHOUSE_OT_shared_light_info` / `LINKED`. Its `other_users` and `other_collections` properties are set on each button, and `description()` turns them into the tooltip through `light_info_tooltip()`.
+
+**Data flow**
+`draw()` → `list_entries()` → `listed_lights(view_layer, type_filter=...)` gives the set of listed lights. The collection walk keeps only objects in that set, so grouped and flat modes agree on which lights are listed, and the type filter drops empty groups and changes counts. Every entry for an object holds the same `Object`, so all of its rows edit the same light. `grouped` lives on the WindowManager, so it is not saved and not part of undo.
+
+**Blender API quirks**
+- Python wrappers of the same ID compare and hash equal even when fetched separately, so `set`/`Counter` of objects and `obj in listed` work across `view_layer.objects` and `collection.objects`.
+- `Collection.objects` holds only directly linked objects (`all_objects` is recursive), which is what a per-level walk needs. Exclusion lives on the `LayerCollection`, not the `Collection`.
+- An operator's `description(cls, context, properties)` classmethod gets the properties set on that button, so a single no-op operator can show a different tooltip on each row.
+- The test prelude's `empty_scene()` removes objects but keeps the factory `Collection`, an empty collection that `list_entries()` must drop.
+- `row.separator(factor=...)` in an aligned row gives a horizontal gap. Its exact width can only be checked in the GUI.

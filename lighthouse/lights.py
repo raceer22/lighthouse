@@ -1,4 +1,5 @@
 import json
+from collections import Counter
 from typing import NamedTuple
 
 
@@ -24,6 +25,70 @@ def listed_lights(view_layer, name_filter="", type_filter='ALL'):
         if type_filter in ('ALL', obj.data.type) and needle in obj.name.casefold()
     ]
     return sorted(matches, key=lambda obj: obj.name.casefold())
+
+
+class GroupEntry(NamedTuple):
+    collection: object
+    depth: int
+    count: int
+
+
+class LightEntry(NamedTuple):
+    obj: object
+    depth: int
+    other_collections: int
+
+
+def list_entries(view_layer, name_filter="", type_filter='ALL', grouped=True):
+    """The rows the Lights panel draws, in order: collections nested as in the outliner
+    (only those on the path to a listed light), each followed by its sub-collections then its
+    lights sorted by name ignoring case. Scene Collection lights come last, with no header.
+    When not grouped, or while searching, it is the flat listed_lights() order with no headers."""
+    if not grouped or name_filter:
+        return [LightEntry(obj, 0, 0) for obj in listed_lights(view_layer, name_filter, type_filter)]
+    listed = set(listed_lights(view_layer, type_filter=type_filter))
+    entries = _collection_entries(view_layer.layer_collection, listed, 0)[0]
+    places = Counter(entry.obj for entry in entries if isinstance(entry, LightEntry))
+    return [
+        entry._replace(other_collections=places[entry.obj] - 1) if isinstance(entry, LightEntry) else entry
+        for entry in entries
+    ]
+
+
+def _collection_entries(layer_collection, listed, depth):
+    """The entries inside a layer collection, at the given depth, and the set of listed lights they hold."""
+    entries, lights = [], set()
+    for child in layer_collection.children:
+        if child.exclude:
+            continue
+        child_entries, child_lights = _collection_entries(child, listed, depth + 1)
+        if child_lights:
+            entries += [GroupEntry(child.collection, depth, len(child_lights)), *child_entries]
+            lights |= child_lights
+    own = sorted((obj for obj in layer_collection.collection.objects if obj in listed),
+                 key=lambda obj: obj.name.casefold())
+    entries += [LightEntry(obj, depth, 0) for obj in own]
+    lights.update(own)
+    return entries, lights
+
+
+MAX_INDENT = 3
+
+
+def indent_level(depth):
+    """How many indent steps a row at this nesting depth gets: one per level, at most MAX_INDENT."""
+    return min(depth, MAX_INDENT)
+
+
+def light_info_tooltip(other_users, other_collections):
+    """Tooltip for a row's info icon, naming whichever case applies: light data shared with other
+    objects, and the object listed in other collections. Empty when neither applies (no icon)."""
+    parts = []
+    if other_users:
+        parts.append(f"Light data is shared with {other_users} other object{'' if other_users == 1 else 's'}")
+    if other_collections:
+        parts.append(f"Also in {other_collections} other collection{'' if other_collections == 1 else 's'}")
+    return ". ".join(parts)
 
 
 def power_unit(light):
