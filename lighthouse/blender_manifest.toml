@@ -1,0 +1,16 @@
+schema_version = "1.0.0"
+
+id = "lighthouse"
+version = "0.1.0"
+name = "Lighthouse"
+tagline = "List and control every light from the 3D Viewport sidebar"
+maintainer = "raceer22"
+type = "add-on"
+
+tags = ["Lighting", "3D View"]
+
+blender_version_min = "4.2.0"
+
+license = [
+  "SPDX:GPL-3.0-or-later",
+]

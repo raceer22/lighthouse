@@ -68,3 +68,6 @@ A Blender extension, **Lighthouse** (id `lighthouse`), that adds a **Lights** ta
 - A non-destructive master multiplier that stores base values.
 - Publishing to extensions.blender.org, including its review requirements. The packaging should allow it, but the submission itself is later work.
 - Any support for Blender versions below 4.2.
+
+## Additionally
+- After implementing each task, append a brief entry to ARCHITECTURE.md detailing: (1) newly added components, (2) how data flows between them, and (3) key Blender API quirks encountered.

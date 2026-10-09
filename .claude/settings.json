@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "FileEdit",
+      "FileWrite",
+      "Bash(mkdir *)",
+      "Bash(blender *)",
+      "Bash(git *)",
+      "Bash(chmod *)",
+      "Bash(./build.sh)"
+    ]
+  }
+}
