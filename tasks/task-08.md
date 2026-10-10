@@ -1,30 +1,37 @@
-# Task 08: Reveal active light
+# Task 08: World in solo
 
-**Depends on:** task-01, task-04
-**Group:** Navigation · **Source:** `.notes/new-features-decisions.md` item 12
+**Depends on:** task-07
+**Group:** World · **Source:** `.notes/new-features-decisions.md` item 17
 
 ## Goal
-A header button unfolds every collection and lights row that hides the active light, so a light selected in the viewport can be found in the list. A light added with `+` into a folded collection is revealed on its own.
+Soloing a lamp or a group also mutes the World, so a solo shows only that light. The World can be soloed itself, which darkens every lamp. Only one thing is soloed at a time, and the header's Exit Solo button also ends a World solo, restoring the World's mute together with the lights.
 
 ## Scope
-- `lighthouse/lights.py`: `reveal(view_layer, obj)`. For each non-excluded collection that holds `obj` directly, it expands that collection and its ancestors (`lighthouse_collapsed = False`) and unfolds the collection's lights row, or the Scene Collection's fold. It changes nothing else. `_collection_paths(view_layer, wanted)` already returns each matching collection with its ancestors. A light in two collections is revealed in both.
-- `lighthouse.reveal_active_light` (`INTERNAL`, no `UNDO`, like `toggle_group`). `poll()` requires the active object to be a light, so the button is greyed out otherwise. It goes in the list header.
-- `add_light` calls `reveal()` on the new light after linking it.
-- No handler on selection change. Revealing on its own would undo your folding and mark the file as changed.
-- The panel can't be scrolled from Python, so the button only unfolds. It doesn't jump to the row.
-
-## Out of scope
-Filters: a light hidden by the search or type filter stays hidden. Flat mode has nothing to unfold.
+- `lighthouse/__init__.py`, `LIGHTHOUSE_PG_solo` gains:
+  - `world_soloed`: the World is the solo target.
+  - The World's snapshot: `world` (a PointerProperty to `bpy.types.World`), `world_node` (the muted node's name) and `world_muted` (its `mute` before solo), plus a flag saying whether the snapshot was taken. It is taken the first time solo touches the World, like the light snapshots.
+- `lighthouse/lights.py`:
+  - `_solo()` (lamp and group solo) mutes `world_mute_node()` after snapshotting it. A scene with no world, or no node to mute, is left alone.
+  - `toggle_solo_world(solo, view_layer, scene)` hides every light (snapshotting them like `_solo()`) and un-mutes the World node. Pressing it while the World is soloed calls `unsolo()`.
+  - Switching between lamp, group and World solo keeps the existing snapshot, as switching between lamps does today.
+  - `unsolo()` restores the World node's `mute` when the world and the node still exist, then clears the snapshot and `world_soloed`.
+  - `update_snapshot()` also handles the World: `mute_world` during solo writes the new flag into the snapshot, so un-solo keeps it.
+  - `solo_label()` returns "World" for a World solo.
+- `lighthouse/__init__.py`:
+  - `lighthouse.solo_world` (`REGISTER`, `UNDO`).
+  - The World panel's top row gets Solo next to Mute (`SOLO_ON`/`SOLO_OFF`, pressed while the World is soloed).
+  - `mute_world` calls `update_snapshot()`.
 
 ## Done when (testable)
-- Test: `Bulb` is in `Set/Interior/Lamps`, every collection is collapsed and `Lamps`' lights row is folded (it has a sub-collection). After `reveal_active_light`, `Set`, `Interior` and `Lamps` are expanded, `Lamps`' lights row is open, and `list_entries()` contains `Bulb`.
-- Test: a sibling collection `Props` stays collapsed.
-- Test: a light linked into two collections is revealed in both.
-- Test: a Scene Collection light behind a folded Scene Collection is revealed.
-- Test: `poll()` is `False` with a mesh or nothing active.
-- Test: `add_light` with a collapsed `Lamps` active leaves `Lamps` and its ancestors expanded.
-- `make test` passes.
-- Manual (GUI): the button is greyed out without an active light. Pressing it after clicking a light in the viewport shows its row.
+- Test: soloing a lamp mutes the World's Background. Un-solo restores it to unmuted, and to muted if it was muted before.
+- Test: `solo_world` hides every light and leaves the World unmuted. Pressing it again restores every light's and the World's flags.
+- Test: lamp solo, then `solo_world`, then `exit_solo` restores the original flags of both the lights and the World.
+- Test: `mute_world` during a lamp solo, then un-solo, leaves the World in the state chosen during solo.
+- Test: lamp solo with `scene.world = None` works as before.
+- Test: after deleting the World node during solo, un-solo still restores the lights.
+- Test: `solo_label()` is "World" during a World solo, and `exit_solo`'s description says so.
+- `make test` passes. The existing tests in `tests/test_mute_solo.py` and `tests/test_exit_solo.py` still pass unchanged.
+- Manual (GUI): solo a lamp and the HDRI goes dark. Solo the World and only the HDRI lights the scene. Exit Solo brings everything back.
 
 ## Afterwards
-Append a `## v4 task 08: reveal active light` entry to ARCHITECTURE.md. Add `reveal_active_light` to `tests/smoke_engines.py`.
+Append a `## v5 task 08: World in solo` entry to ARCHITECTURE.md and update the solo data-flow notes. Add `solo_world` and a lamp solo with a world to `tests/smoke_engines.py`.

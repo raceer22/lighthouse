@@ -1,34 +1,40 @@
-# Task 05: Show empty collections
+# Task 05: World panel with Strength
 
-**Depends on:** task-01
-**Group:** Collections · **Source:** `.notes/new-features-decisions.md` items 6, 7, 8
+**Depends on:** none
+**Group:** World · **Source:** `.notes/new-features-decisions.md` items 12, 13 (Strength), 14, 18
 
 ## Goal
-The grouped list can show every collection, including ones without (matching) lights. Then you can click an empty collection to make it active, or move lights into it. A toggle turns this off and gives back exactly today's list.
+A World panel sits right after Lights, open by default, so the order is Lights, World, Intensity, Presets. For a simple setup, where *World Output → Surface* reaches a Background node directly, it shows that Background's Strength. Any other setup shows "Custom world setup, edit in Shader Editor". A scene with no world shows a short message.
 
 ## Scope
-- `LIGHTHOUSE_PG_settings.show_empty`: a BoolProperty, default `True`, on the WindowManager (not saved, not undone). `clear_filters` doesn't reset it. It is drawn as an icon toggle next to the grouped toggle (for example `OUTLINER_COLLECTION`). It only changes the grouped list, since search stays flat.
 - `lighthouse/lights.py`:
-  - `list_entries(..., show_empty=False)`: when on, every non-excluded collection is listed, and one without listed lights gets count `0` (so under a type filter, `(0)` means "no lights of this type"). The default stays `False`, so existing callers and tests keep today's behaviour. The panel, `select_light`'s `RANGE` and `toggle_all_groups` pass `settings.show_empty`.
-  - The lights row rule from task 01 ("at least one listed sub-collection") counts empty sub-collections while they are shown.
-  - `GroupEntry` says whether anything is under the collection (own listed lights or listed sub-collections, empty ones included), for example as a `foldable` field.
-  - `listed_groups(..., show_empty=False)` follows the same rule, so Expand/Collapse All covers what is drawn. Collections with nothing under them are left out of the "all collapsed?" check, because they have no triangle that could show the state.
-- `draw_group()`:
-  - Triangle only when `foldable`. Otherwise draw a blank of the same width (for example `label(text="", icon='BLANK1')`) so names stay aligned.
-  - With count `0`, Select and Solo are drawn but disabled (`enabled = False` on a sub-row), and Move here and Hide stay enabled. All four are always drawn so the columns line up.
+  - `WorldSetup(state, source, background, environment)` NamedTuple. `state` is `'NONE'` (no world), `'CUSTOM'` or `'SIMPLE'`. `source` is the node linked to the active World Output's Surface (`node_tree.get_output_node('ALL')`), or `None`. `background` is that node when it is a Background node. `environment` is the Environment Texture linked to the Background's Color input, if any. Task 06 adds rotation and task 07 uses `source`.
+  - `world_setup(scene)` builds it.
+- `lighthouse/__init__.py`:
+  - `LIGHTHOUSE_PT_world` (`bl_label = "World"`, same space, region and category as the other panels).
+    - `SIMPLE`: `prop(background.inputs["Strength"], "default_value", text="Strength")`.
+    - `CUSTOM`: the "Custom world setup, edit in Shader Editor" label.
+    - `NONE`: "No world in this scene".
+    - The controls are disabled for a read-only (library) world.
+  - Register in this order: `LIGHTHOUSE_PT_lights`, `LIGHTHOUSE_PT_world`, `LIGHTHOUSE_PT_intensity`, `LIGHTHOUSE_PT_presets`. With no `bl_order`, registration order is the default panel order, so for new layouts Lights moves above Intensity and Presets. Layouts where the user dragged the panels keep their order.
+- Update `tests/test_panels.py` (`PANELS` and the order).
+
+## Open questions
+Not decided:
+- A Background whose Strength input is linked to another node. Default: treat it as `CUSTOM`, because the slider would do nothing.
+- A world with `use_nodes` off (4.x). Default: `CUSTOM`.
 
 ## Out of scope
-What the panel does when no lights match at all. It still returns early with the message until task 06.
+Rotation (task 06), Mute (task 07), Solo (task 08).
 
 ## Done when (testable)
-- Test: with `show_empty=True`, an empty `Props` is listed as `group Props 0 (0)`, nested empty `A/B` are both listed, and an excluded collection isn't listed.
-- Test: with type filter `SUN`, a collection holding only point lights is listed with count 0 when `show_empty` is on and dropped when it is off.
-- Test: with `show_empty=False`, the output matches the existing `tests/test_grouped_lights.py` expectations, unchanged.
-- Test: `foldable` is `False` for an empty leaf and `True` for a collection whose only child is an empty collection.
-- Test: a collection with its own lights and one empty sub-collection gets a lights row with `show_empty` on, and no lights row with it off.
-- Test: `show_empty` defaults to `True`, and `clear_filters` leaves it as it is.
-- `make test` passes.
-- Manual (GUI): names line up whether or not a triangle is drawn. On a `(0)` collection, Select and Solo are greyed out, and Move here and Hide work.
+- Test: the factory-startup world is `SIMPLE` with its Background and no environment. Adding an Environment Texture into Color gives `environment`.
+- Test: a Mix Shader feeding the output, a node group feeding it, and a linked Strength each give `CUSTOM`. `scene.world = None` gives `NONE`. An output with nothing linked to Surface gives `CUSTOM` with `source = None`.
+- Test (Recorder): the panel draws the Strength prop for `SIMPLE`, the custom label for `CUSTOM`, and the no-world label for `NONE`.
+- Test: the four panels register in the order Lights, World, Intensity, Presets, all top-level in the Lights tab.
+- Test (item 18): `scale_lights` with scope All and `step_exposure` with scope All leave the World strength unchanged.
+- `make test` passes on 5.2 and on 4.2.
+- Manual (GUI): the panel order is right in a fresh layout, dragging Strength updates the viewport, and Ctrl+Z reverts it.
 
 ## Afterwards
-Append a `## v4 task 05: show empty collections` entry to ARCHITECTURE.md.
+Append a `## v5 task 05: World panel` entry to ARCHITECTURE.md (detection rule and panel order). Add a `world_setup()` call on the factory world to `tests/smoke_engines.py`.

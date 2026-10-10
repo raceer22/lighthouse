@@ -1,30 +1,32 @@
-# Task 07: New Collection button
+# Task 07: World mute
 
-**Depends on:** task-03, task-05
-**Group:** Collections · **Source:** `.notes/new-features-decisions.md` item 11
+**Depends on:** task-05
+**Group:** World · **Source:** `.notes/new-features-decisions.md` items 13 (Mute), 16
 
 ## Goal
-A button in the list header creates a collection inside the active one and makes it active. A following `+` then puts a light straight into it. With empty collections shown (task 05, on by default), the new collection appears right away as `(0)`.
+A Mute toggle in the World panel turns off the World's light by muting the node that feeds *World Output → Surface* (`node.mute`). Strength stays untouched. Like a muted lamp, the mute shows in the Shader Editor and is saved with the file. If the verify step allows, this also works for custom setups.
+
+## Verify first
+Does a muted Mix Shader or node group feeding World Output render black, or does it pass its first input through? Render a tiny image (for example 8×8 px, 1 sample, camera only) of a world with a Mix Shader of two bright Backgrounds, muted, in Cycles and EEVEE on 4.2 and 5.2, and read back the pixels. Do the same for a muted Background node.
+- If both render black: mute `source` for every setup.
+- Otherwise (the fallback in item 16): mute the detected Background for `SIMPLE` setups only, and grey out Mute for `CUSTOM` ones.
+
+Record the result in ARCHITECTURE.md. If the render check runs in a few seconds, keep it as a test.
 
 ## Scope
-- `lighthouse.new_collection` (`UNDO`):
-  - The parent is `view_layer.active_layer_collection.collection`, which is the Scene Collection when the master is active.
-  - It refuses a library (`is_read_only`) parent with an `ERROR` report before creating anything, like `add_light`.
-  - It creates `bpy.data.collections.new("Collection")` (Blender adds `.001` on a clash), links it into `parent.children` and makes its layer collection active.
-  - It doesn't touch object selection.
-- Header: an icon button (for example `COLLECTION_NEW`) next to `+`.
-
-## Open questions
-Not decided: whether creating inside a collapsed collection expands it so the new one is visible. Default: leave folding alone.
+- `lighthouse/lights.py`: `world_mute_node(setup)` returns the node Mute acts on, following the verified rule, or `None`. `world_muted(setup)` reports its `mute`.
+- `lighthouse/__init__.py`:
+  - `lighthouse.mute_world` (`REGISTER`, `UNDO`) flips `mute` on that node. It cancels when there is no node to mute or the world is read-only.
+  - Panel: a top row with the world's name and Mute (`HIDE_ON`/`HIDE_OFF`, pressed when muted, like a light row). While muted, the panel's controls are drawn inactive. The row leaves room for task 08's Solo.
 
 ## Done when (testable)
-- Test: with `Set` active, the new collection is a child of `Set`, is the active collection, and is the only new collection in `bpy.data.collections`.
-- Test: with the Scene Collection active, the new collection is a top-level child of `scene.collection`.
-- Test: with a linked collection active, the operator raises `RuntimeError` and `bpy.data.collections` is unchanged.
-- Test: selected objects and the active object are unchanged.
-- Test: `list_entries(show_empty=True)` lists the new collection with count 0, under its parent.
+- Test: on the factory world, `mute_world` sets the Background's `mute` and leaves Strength unchanged. A second call clears it.
+- Test: for a Mix Shader setup, `mute_world` mutes the Mix Shader, or cancels and changes nothing if the fallback was chosen.
+- Test: with no world, or nothing linked to Surface, it cancels.
+- Test: the mute survives `save_as_mainfile` and `open_mainfile`.
+- Test (Recorder): the panel draws Mute pressed when muted. Strength is still drawn, inactive.
 - `make test` passes.
-- Manual (GUI): click New Collection and then `+`, and the light lands in the new collection. One Ctrl+Z removes the collection.
+- Manual (GUI): Mute darkens the viewport in Rendered shading, the muted node shows red in the Shader Editor, and Ctrl+Z restores it.
 
 ## Afterwards
-Append a `## v4 task 07: New Collection` entry to ARCHITECTURE.md. Add `new_collection` to `tests/smoke_engines.py`.
+Append a `## v5 task 07: World mute` entry to ARCHITECTURE.md with the verify result. Add `mute_world` (twice) to `tests/smoke_engines.py`.
