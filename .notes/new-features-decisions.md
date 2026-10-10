@@ -32,7 +32,7 @@ Settled while reviewing `new-features.md`. Each item gives the decision and, whe
 ## World panel
 
 12. A **World sub-panel**, ordered **Lights → World → Intensity → Presets**, open by default.
-    - Why right after Lights: World mute/solo interacts with the lamps in the list.
+    - Why right after Lights: World solo interacts with the lamps in the list.
 13. **Controls**: Strength, Rotation, Mute and Solo.
 14. **Detection**: follow *World Output → Surface*. If it reaches a **Background** node directly, that node's Strength is the World strength. Rotation applies to the **Environment Texture** feeding that Background's Color, if there is one.
     - Anything else (Mix Shader, node groups, …) shows *"Custom world setup, edit in Shader Editor"* and no Strength/Rotation controls.
@@ -46,10 +46,12 @@ Settled while reviewing `new-features.md`. Each item gives the decision and, whe
 16. **Mute** mutes the node feeding *World Output → Surface* (`node.mute`), whatever its type, so it also works for custom setups. Strength is left untouched, and the mute shows in the Shader Editor and is saved with the file, like a muted lamp.
     - **Verify**: a muted Mix Shader or node group renders black rather than passing its first input through. If it doesn't, fall back to muting the detected Background node (simple setups only).
 17. **Solo**:
-    - Soloing a lamp or group **also mutes the World**.
-    - The **World can be soloed itself**, which darkens every lamp.
+    - Soloing a lamp or group **leaves the World alone**. For a full solo, mute the World yourself.
+    - The **World can be soloed itself**, which darkens every lamp and un-mutes the World if it was muted. Exit Solo restores its mute.
+    - Switching from World solo to a lamp or group solo restores the World's mute right away. Muting the World during World solo is kept after Exit Solo.
     - Only one thing is soloed at a time, as now, and the existing exit-solo header button ends World solo too.
-    - Why: a lamp solo with the HDRI still lighting the scene is only half a solo, and "only the HDRI" is just as useful for judging it.
+    - Why: the World Mute toggle already gives a full solo in one click, and lamp solo stays predictable. "Only the HDRI" is still useful for judging the World.
+    - (Changed 2026-10-10: lamp solo used to mute the World as well.)
 18. **The Intensity tools (scale, EV steps) never affect the World**. It has its own Strength.
 
 ## Light linking

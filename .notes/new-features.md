@@ -12,3 +12,4 @@
 - dublicate object
     - middle mouse click
 - add menu for custom bindings
+- focus on a collection
