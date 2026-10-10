@@ -34,6 +34,7 @@ from .lights import (
     move_lights,
     move_summary,
     power_unit,
+    reveal,
     row_state,
     scale_lights,
     scale_summary,
@@ -297,6 +298,7 @@ class LIGHTHOUSE_OT_add_light(bpy.types.Operator):
         obj = bpy.data.objects.new(name, bpy.data.lights.new(name, self.type))
         obj.location = context.scene.cursor.location
         collection.objects.link(obj)
+        reveal(layer, obj)
         for other in layer.objects:
             other.select_set(False)
         obj.select_set(True)
@@ -422,6 +424,22 @@ class LIGHTHOUSE_OT_toggle_group(bpy.types.Operator):
         if collection is None:
             return {'CANCELLED'}
         collection.lighthouse_collapsed = not collection.lighthouse_collapsed
+        return {'FINISHED'}
+
+
+class LIGHTHOUSE_OT_reveal_active_light(bpy.types.Operator):
+    """Expand the collections and lights rows that hide the active light"""
+    bl_idname = "lighthouse.reveal_active_light"
+    bl_label = "Reveal Active Light"
+    bl_options = {'INTERNAL'}
+
+    @classmethod
+    def poll(cls, context):
+        obj = context.view_layer.objects.active
+        return obj is not None and obj.type == 'LIGHT'
+
+    def execute(self, context):
+        reveal(context.view_layer, context.view_layer.objects.active)
         return {'FINISHED'}
 
 
@@ -910,6 +928,7 @@ class LIGHTHOUSE_PT_lights(bpy.types.Panel):
             collapsed = bool(groups) and all_collapsed(context.view_layer, filters)
             row.operator(LIGHTHOUSE_OT_toggle_all_groups.bl_idname, text="",
                          icon='FULLSCREEN_ENTER' if collapsed else 'FULLSCREEN_EXIT')
+            row.operator(LIGHTHOUSE_OT_reveal_active_light.bl_idname, text="", icon='VIEW_ZOOM')
         # Always drawn (greyed out by poll when solo is off) so the list never shifts.
         solo_active = context.scene.lighthouse_solo.active
         row.operator(LIGHTHOUSE_OT_exit_solo.bl_idname, text="",
@@ -1107,6 +1126,7 @@ classes = (
     LIGHTHOUSE_OT_toggle_lights_row,
     LIGHTHOUSE_OT_set_active_collection,
     LIGHTHOUSE_OT_toggle_all_groups,
+    LIGHTHOUSE_OT_reveal_active_light,
     LIGHTHOUSE_OT_clear_filters,
     LIGHTHOUSE_OT_select_group,
     LIGHTHOUSE_OT_move_to_group,

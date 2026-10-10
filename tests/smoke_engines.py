@@ -94,6 +94,8 @@ for engine in ('CYCLES', eevee):
     assert bpy.ops.lighthouse.set_active_collection(name="") == {'FINISHED'}
     for _ in range(2):
         assert bpy.ops.lighthouse.toggle_all_groups() == {'FINISHED'}
+    bpy.context.view_layer.objects.active = next(o for o in bpy.context.view_layer.objects if o.type == 'LIGHT')
+    assert bpy.ops.lighthouse.reveal_active_light() == {'FINISHED'}
     assert bpy.ops.lighthouse.clear_filters() == {'FINISHED'}
     for collection in (group, other):
         collection.lighthouse_collapsed = False

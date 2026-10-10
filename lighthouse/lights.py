@@ -428,6 +428,19 @@ def solo_label(solo):
     return target.name if target is not None else "deleted"
 
 
+def reveal(view_layer, obj):
+    """Expand every non-excluded collection holding obj directly, with its ancestors, and
+    unfold those collections' lights rows (the Scene Collection's fold for its own lights)."""
+    holders = set(obj.users_collection)
+    for collection in _collection_paths(view_layer, lambda c: c in holders):
+        collection.lighthouse_collapsed = False
+        if collection in holders:
+            collection.lighthouse_lights_collapsed = False
+    master = view_layer.layer_collection.collection
+    if master in holders:
+        master.lighthouse_lights_collapsed = False
+
+
 def _collection_paths(view_layer, wanted):
     """The collections in the view layer tree (excluded ones left out) that wanted() accepts,
     with all their ancestors, each once."""
