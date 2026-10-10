@@ -1,13 +1,54 @@
 # Copyright (C) 2026 raceer22
 # Licensed under the GNU General Public License v3 or later (GPL-3.0-or-later)
 import zlib
+from pathlib import Path
 
 import bpy
 
-from .lights import DETAIL_LABELS, find_collection, find_object, id_key, GroupEntry, color_control, detail_properties, detail_target, details_open, empty_message, group_lights, group_soloed, indent_level, is_collapsed, is_read_only, light_info_tooltip, light_objects, list_entries, listed_groups, move_lights, move_summary, power_unit, row_state, scale_lights, scale_summary, solo_label, toggle_details, toggle_solo_group, toggle_solo_light, unsolo, update_snapshot
-from pathlib import Path
-
-from .presets import BUILTIN_PRESETS, apply_preset, delete_user_preset, preset_from_light, preset_path, preset_summary, save_user_preset, USER_PREFIX, user_presets
+from .lights import (
+    DETAIL_LABELS,
+    find_collection,
+    find_object,
+    id_key,
+    GroupEntry,
+    color_control,
+    detail_properties,
+    detail_target,
+    details_open,
+    empty_message,
+    group_lights,
+    group_soloed,
+    indent_level,
+    is_collapsed,
+    is_read_only,
+    light_info_tooltip,
+    light_objects,
+    list_entries,
+    listed_groups,
+    move_lights,
+    move_summary,
+    power_unit,
+    row_state,
+    scale_lights,
+    scale_summary,
+    solo_label,
+    toggle_details,
+    toggle_solo_group,
+    toggle_solo_light,
+    unsolo,
+    update_snapshot,
+)
+from .presets import (
+    BUILTIN_PRESETS,
+    apply_preset,
+    delete_user_preset,
+    preset_from_light,
+    preset_path,
+    preset_summary,
+    save_user_preset,
+    USER_PREFIX,
+    user_presets,
+)
 
 
 def presets_folder():

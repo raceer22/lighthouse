@@ -4,7 +4,10 @@ Walks PRD-v2 acceptance criteria 1–21. Each criterion lists its automated evid
 
 - **Automated**: `make test` → 102 passed (2026-10-09). `make validate` and `make build` pass (`dist/lighthouse-0.2.0.zip`).
 - **Engine smoke**: `tests/smoke_engines.py` runs every operator on point, sun, spot and area lights in a sub-collection under Cycles, then EEVEE, against the zip installed in a clean profile. It covers `add_light`, every `select_light` action, mute and solo, `toggle_details`, `toggle_group`, `toggle_all_groups`, `clear_filters`, `select_group` (with and without extend), `move_to_group`, `hide_group`, `solo_group`, scale, ±1, ±½ and ±¼ EV, apply, save and delete preset, and the row color slot and details with temperature off and on. Run 2026-10-09: `SMOKE ok CYCLES`, `SMOKE ok BLENDER_EEVEE`, with no Lighthouse warnings or errors.
-- **Blender 4.2**: no 4.2 binary on this machine, so the smoke wasn't run there. Missing temperature and exposure properties are covered by stub tests (AC 21).
+- **Blender 4.2** (v3 task 07, 2026-10-10, portable `blender-4.2.23-linux-x64`):
+  - 5.2.2: `make test` → `1 failed, 133 passed`. The failure is `test_empty_message_names_why_the_list_is_empty` ("filter" vs "filters" wording), which also failed before task 07. Smoke: `SMOKE ok CYCLES`, `SMOKE ok BLENDER_EEVEE`.
+  - 4.2.23: `make test BLENDER=~/blender-versions/blender-4.2.23-linux-x64/blender` → `1 failed, 128 passed, 5 skipped`, with the same failure. The skips test `Light.exposure` (4.4+) or `Light.use_temperature` (5.0+). Smoke: `SMOKE ok CYCLES`, `SMOKE ok BLENDER_EEVEE_NEXT`.
+  - `make validate` passes on both, and `./build.sh` writes `dist/lighthouse-1.2.0.zip`. Not yet done: the manual GUI pass on 4.2.
 - **Manual (GUI)**: the panel can't be drawn, modifier clicks can't be sent and undo can't run in `--background`. Those items are ticked only after someone checks them by hand in Blender 5.2.2.
 
 Known environment noise (Fedora's package, unrelated to Lighthouse): an OpenColorIO 2.5 config error on launch, and a `bl_pkg` register traceback (`No module named 'cattrs'`) when a user profile is set.

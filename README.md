@@ -6,7 +6,7 @@ A Blender extension that adds a **Lights** tab to the 3D Viewport sidebar (N), w
 - **Presets**: apply built-in (Candle, 60W Bulb, Daylight) or your own presets of power, color, radius, exposure and Kelvin temperature. Built-ins use Kelvin on Blender 5.0+ and an RGB color on older versions.
 - **Lights**: every light in the view layer, grouped by collection as in the outliner or as a flat list, with search and type filters. Each row has a details toggle, type, name, power, color (or a Kelvin field for lights using temperature), mute and solo. Click a name to select it, Shift+click to select a range, Ctrl+Shift+click to toggle it in the selection, Ctrl+click to rename and Alt+click to frame it. Group headers count their lights and can select, collapse, hide or solo the group, or move the selected lights into it. `+` adds a light at the 3D cursor.
 
-- Blender 4.2 or later. Tested on 5.2.2 LTS, under Cycles and EEVEE.
+- Blender 4.2 or later. Tested on 4.2.23 LTS and 5.2.2 LTS, under Cycles and EEVEE. Kelvin temperature needs 5.0+ and light exposure needs 4.4+. On older versions, presets set the RGB color instead.
 - Pure Python, with no dependencies.
 - License: GPL-3.0-or-later (see `lighthouse/LICENSE`).
 
@@ -20,8 +20,15 @@ In Blender, go to Edit › Preferences › Get Extensions › ▾ › Install fr
 
 ## Develop
 
+Set up once:
+
+```sh
+python -m venv .venv && .venv/bin/pip install pytest
+```
+
 ```sh
 make test                 # pytest, driving headless Blender
+make test BLENDER=/path/to/blender   # the same against another Blender binary
 make validate             # blender --command extension validate
 make build                # same as ./build.sh
 ```

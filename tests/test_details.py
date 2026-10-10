@@ -1,10 +1,10 @@
 import math
 
-from blender_runner import run_in_blender
+from blender_runner import NEWER_DETAILS, run_in_blender
 
 FACTORS = ["specular_factor", "diffuse_factor", "volume_factor", "use_shadow"]
 # Exposure (4.4+) and temperature (5.0+) come first, on Blender versions that have them.
-NEWER = ["exposure", "use_temperature", "temperature"]
+NEWER = NEWER_DETAILS
 
 
 def test_eevee_details_show_only_properties_each_light_type_uses():
@@ -12,7 +12,7 @@ def test_eevee_details_show_only_properties_each_light_type_uses():
         from lighthouse.lights import detail_properties
         empty_scene()
         report({
-            t: detail_properties(add_light(t, t).data, "BLENDER_EEVEE")
+            t: detail_properties(add_light(t, t).data, EEVEE)
             for t in ("POINT", "SUN", "SPOT", "AREA")
         })
     """)
@@ -34,7 +34,7 @@ def test_switching_to_cycles_adds_cycles_options_and_switching_back_removes_them
             return {t: detail_properties(light, scene.render.engine) for t, light in lights.items()}
         scene.render.engine = "CYCLES"
         cycles = current()
-        scene.render.engine = "BLENDER_EEVEE"
+        scene.render.engine = EEVEE
         report({"cycles": cycles, "eevee": current()})
     """)
 

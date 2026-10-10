@@ -1,4 +1,4 @@
-from blender_runner import run_in_blender
+from blender_runner import needs_blender, run_in_blender
 
 # A real light whose RNA lacks the properties added after Blender 4.2, as on 4.2.
 OLDER_LIGHT = """
@@ -22,6 +22,7 @@ OLDER_LIGHT = """
 """
 
 
+@needs_blender(5, 0, "Light.use_temperature")
 def test_row_shows_kelvin_only_for_a_light_using_temperature():
     controls = run_in_blender(OLDER_LIGHT + """
         from lighthouse.lights import color_control
@@ -46,7 +47,7 @@ def test_built_ins_set_only_the_rgb_color_on_a_light_without_temperature():
             data = add_light(key, light_type).data
             stub = type("Object", (), {"data": OlderLight(data)})()
             apply_preset([stub], BUILTIN_PRESETS[key])
-            lights[key] = [data.energy, [round(c, 3) for c in data.color], data.use_temperature]
+            lights[key] = [data.energy, [round(c, 3) for c in data.color], getattr(data, "use_temperature", False)]
         report(lights)
     """)
 

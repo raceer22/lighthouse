@@ -15,8 +15,11 @@ KEYFRAMED = """
 
         def fcurve(data_path, index=0):
             animation = light.data.animation_data
-            bag = anim_utils.action_get_channelbag_for_slot(animation.action, animation.action_slot)
-            return bag.fcurves.find(data_path, index=index)
+            if hasattr(anim_utils, "action_get_channelbag_for_slot"):
+                fcurves = anim_utils.action_get_channelbag_for_slot(animation.action, animation.action_slot).fcurves
+            else:  # Blender 4.2-4.3: legacy action F-curves
+                fcurves = animation.action.fcurves
+            return fcurves.find(data_path, index=index)
 
         def keys(data_path="energy", index=0):
             return [k.co.y for k in fcurve(data_path, index).keyframe_points]

@@ -1,6 +1,6 @@
 from pytest import approx
 
-from blender_runner import run_installed
+from blender_runner import needs_blender, run_installed
 
 
 def test_a_preset_saved_from_a_light_in_one_file_applies_after_restarting_with_another_file(tmp_path):
@@ -75,6 +75,7 @@ def test_a_deleted_user_preset_is_gone_after_restarting_and_built_ins_cannot_be_
     assert items == ["Candle", "60W Bulb", "Daylight", "Keep"]
 
 
+@needs_blender(5, 0, "Light.use_temperature")
 def test_a_preset_saved_from_a_kelvin_light_restores_its_kelvin_and_exposure_after_restarting(tmp_path):
     run_installed("""
         empty_scene()
@@ -98,6 +99,7 @@ def test_a_preset_saved_from_a_kelvin_light_restores_its_kelvin_and_exposure_aft
     assert light == [True, 3000, 1.5]
 
 
+@needs_blender(5, 0, "Light.use_temperature")
 def test_a_preset_file_saved_before_v2_applies_with_no_exposure_and_temperature_off(tmp_path):
     folder = tmp_path / "config" / "extensions" / ".user" / "user_default" / "lighthouse"
     folder.mkdir(parents=True)

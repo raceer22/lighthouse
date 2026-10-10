@@ -4,7 +4,7 @@ DIST    := dist
 .PHONY: test validate build install
 
 test:
-	.venv/bin/pytest -q
+	BLENDER=$(BLENDER) .venv/bin/pytest -q
 
 validate:
 	$(BLENDER) --factory-startup --command extension validate lighthouse

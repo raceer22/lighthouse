@@ -5,7 +5,6 @@ from typing import NamedTuple
 class RowState(NamedTuple):
     dimmed: bool
     read_only: bool
-    shared: bool
     muted: bool
     soloed: bool
 
@@ -280,14 +279,12 @@ def move_summary(moved, skipped, collection_name):
 def row_state(obj, view_layer, scene=None):
     """How a light's row is drawn: dimmed when hidden in the render or not visible in the view layer
     (its own flags, or a hidden or excluded collection); read-only when its light data comes from a
-    library or a non-editable (system) override; shared when other objects use the same light data;
-    muted when its own flags hide it in both the viewport and the render; soloed when it is the
+    library or a non-editable (system) override; muted when its own flags hide it in both the viewport and the render; soloed when it is the
     scene's soloed light."""
     light = obj.data
     return RowState(
         dimmed=obj.hide_render or not obj.visible_get(view_layer=view_layer),
         read_only=is_read_only(light),
-        shared=light.users > 1,
         muted=obj.hide_render and obj.hide_viewport,
         soloed=scene is not None and scene.lighthouse_solo.active and scene.lighthouse_solo.light == obj,
     )

@@ -1,6 +1,6 @@
 import pytest
 
-from blender_runner import run_in_blender
+from blender_runner import needs_blender, run_in_blender
 
 
 def test_plus_one_ev_doubles_a_100_w_light():
@@ -107,6 +107,7 @@ def test_each_ev_button_multiplies_power_by_two_to_the_steps():
     }
 
 
+@needs_blender(4, 4, "Light.exposure")
 def test_ev_steps_never_change_a_lights_own_exposure():
     exposure = run_in_blender("""
         import lighthouse

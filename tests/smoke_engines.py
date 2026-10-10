@@ -38,7 +38,9 @@ def select_all_lights():
     bpy.context.view_layer.objects.active = objs[0]
 
 
-for engine in ('CYCLES', 'BLENDER_EEVEE'):
+# BLENDER_EEVEE_NEXT on Blender 4.2
+eevee = 'BLENDER_EEVEE_NEXT' if 'BLENDER_EEVEE_NEXT' in bpy.types.RenderSettings.bl_rna.properties['engine'].enum_items.keys() else 'BLENDER_EEVEE'
+for engine in ('CYCLES', eevee):
     bpy.context.scene.render.engine = engine
 
     # Rows: the details each type shows and the color slot, with temperature off and on.

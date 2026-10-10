@@ -2,13 +2,15 @@ import subprocess
 import zipfile
 from pathlib import Path
 
+from blender_runner import blender_binary
+
 ROOT = Path(__file__).resolve().parent.parent
 SOURCE = ROOT / "lighthouse"
 
 
 def run_extension_command(*args):
     return subprocess.run(
-        ["blender", "--factory-startup", "--command", "extension", *args],
+        [blender_binary(), "--factory-startup", "--command", "extension", *args],
         capture_output=True,
         text=True,
     )
@@ -59,4 +61,4 @@ def test_build_script_builds_the_versioned_zip(tmp_path):
     result = run_build_script(str(tmp_path))
 
     assert result.returncode == 0, result.stdout + result.stderr
-    assert [p.name for p in tmp_path.iterdir()] == ["lighthouse-1.1.0.zip"]
+    assert [p.name for p in tmp_path.iterdir()] == ["lighthouse-1.2.0.zip"]

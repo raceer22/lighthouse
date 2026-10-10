@@ -74,22 +74,6 @@ def test_light_with_system_override_is_read_only_and_editable_override_is_not(tm
     assert read_only == {"System": True, "Editable": False}
 
 
-def test_lights_sharing_one_datablock_are_both_shared_and_a_lone_light_is_not():
-    shared = run_in_blender("""
-        from lighthouse.lights import row_state
-        empty_scene()
-        key = add_light("Key")
-        twin = bpy.data.objects.new("Twin", key.data)
-        bpy.context.scene.collection.objects.link(twin)
-        add_light("Lone")
-        layer = bpy.context.view_layer
-        layer.update()
-        report({o.name: row_state(o, layer).shared for o in layer.objects})
-    """)
-
-    assert shared == {"Key": True, "Twin": True, "Lone": False}
-
-
 def test_editing_power_on_one_shared_row_changes_the_other():
     powers = run_in_blender("""
         from lighthouse.lights import listed_lights

@@ -1,6 +1,9 @@
 from pytest import approx
 
-from blender_runner import reports, run_installed
+from blender_runner import blender_version, needs_blender, reports, run_installed
+
+# Built-ins set Kelvin on 5.0+ with a white color; older lights get the RGB fallback.
+KELVIN = blender_version() >= (5, 0)
 
 
 def test_60w_bulb_changes_a_selected_point_light_but_not_a_selected_sun(tmp_path):
@@ -22,7 +25,7 @@ def test_60w_bulb_changes_a_selected_point_light_but_not_a_selected_sun(tmp_path
     """, tmp_path)[0]
 
     assert lights == {
-        "Point": [60, [1, 1, 1], approx(0.03)],  # Kelvin on 5.0+, so white
+        "Point": [60, [1, 1, 1] if KELVIN else approx([1.0, 0.71, 0.42]), approx(0.03)],
         "Sun": [7, approx([0.2, 0.3, 0.4]), 0.5],
         "sun angle": approx(0.1),
     }
@@ -67,9 +70,10 @@ def test_daylight_sets_a_selected_sun_and_its_angle(tmp_path):
         report([sun.data.energy, list(sun.data.color), sun.data.angle])
     """, tmp_path)[0]
 
-    assert sun == [4, [1, 1, 1], approx(0.0093)]  # Kelvin on 5.0+, so white
+    assert sun == [4, [1, 1, 1] if KELVIN else approx([1.0, 0.96, 0.9]), approx(0.0093)]
 
 
+@needs_blender(5, 0, "Light.use_temperature")
 def test_built_ins_set_their_kelvin_with_a_white_color_that_does_not_tint_it(tmp_path):
     lights = run_installed("""
         empty_scene()

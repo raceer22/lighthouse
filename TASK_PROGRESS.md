@@ -29,3 +29,8 @@
 - The new `id_key()`, `find_object()` and `find_collection()` look up by `(name, library)`. The 9 row and header operators gain a hidden `library` property (default `""`), and the panel fills both properties through `target(op, id)`. On 5.2 the tuple keys work as long as local IDs use `None` (`""` finds nothing). 4.2 was not checked.
 - When `library=""` finds no local ID, the lookup falls back to the name alone, so name-only calls such as `move_to_group(name="Linked")` still reach linked data. Added an ARCHITECTURE.md entry.
 - 6 new tests in `tests/test_library_lookup.py`. `make test`: 132 pass, plus the `test_empty_list` failure that was already there before this ticket (it fails on the untouched tree too). The engine smoke run passes. Not done yet: the manual GUI check.
+
+## TICKET-07: Tidy-up, and prove the Blender 4.2 minimum
+- The tests run `$BLENDER` (`make test BLENDER=...`). `blender_version()`, `needs_blender()`, `NEWER_DETAILS` and the prelude's `EEVEE` make the suite version-aware. On 4.2 it skips only the 5 tests that set `exposure` or `use_temperature`. The add-on needed no 4.2 fixes.
+- Removed `RowState.shared` and its test. `__init__.py` imports are tidied, the version is now 1.2.0, and `dist/lighthouse-1.2.0.zip` is built. The README has venv setup, `BLENDER=` and "Tested on 4.2.23 LTS and 5.2.2 LTS". acceptance.md and ARCHITECTURE.md have 4.2 entries.
+- 5.2.2: 133 pass. 4.2.23: 128 pass, 5 skip. On both, `test_empty_list` still fails, as before this ticket ("filter"/"filters" wording). The smoke run and validate pass on both. Not done yet: the manual GUI check on 4.2.
