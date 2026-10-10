@@ -141,7 +141,8 @@ class LIGHTHOUSE_PG_settings(bpy.types.PropertyGroup):
         default=1.0,
         min=0.0,
     )
-    scale_scope: bpy.props.EnumProperty(name="Scope", description="Which lights to scale", items=SCOPE_ITEMS)
+    scale_scope: bpy.props.EnumProperty(name="Scope", description="Which lights to scale", items=SCOPE_ITEMS,
+                                       default='SELECTED')
     preset: bpy.props.EnumProperty(name="Preset", description="Light setup to apply to selected lights", items=preset_items)
     # Lights whose details are open. Panel state: not saved, not undoable, kept on rename.
     expanded: bpy.props.CollectionProperty(type=LIGHTHOUSE_PG_expanded)

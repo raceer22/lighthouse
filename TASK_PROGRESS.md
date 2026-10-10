@@ -76,3 +76,8 @@
 - New `lights.reveal(view_layer, obj)` expands every collection that holds the light, plus its ancestors, and unfolds their lights rows (or the Scene Collection fold). Siblings stay collapsed, and a light in two collections is revealed in both. New `lighthouse.reveal_active_light` (`INTERNAL`, `VIEW_ZOOM` header button next to toggle-all, `poll()` needs an active light).
 - `add_light` calls `reveal()` after linking, so a light added into a folded collection is visible. There is no selection handler and filters are left alone. Added the smoke step and an ARCHITECTURE.md entry.
 - 6 new tests in `tests/test_reveal.py`. `make test`: 176 pass. Engine smoke run passes on 4.2.23. Not done yet: the manual GUI check (button greyed out without an active light, reveal after a viewport click).
+
+## v4 TICKET-09: Intensity scope starts as Selected
+- `LIGHTHOUSE_PG_settings.scale_scope` now defaults to `SELECTED`. `SCOPE_ITEMS` order and the operators' own `scope` property are unchanged.
+- The setting stays on the WindowManager, so a .blend saved with All still opens with Selected. Added an ARCHITECTURE.md entry.
+- 2 new tests in `tests/test_scope_default.py` (fresh session, save then reopen). `make test`: 178 pass. Not done yet: the manual GUI check (panel opens with Selected pressed).

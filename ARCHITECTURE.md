@@ -388,3 +388,6 @@ Checked on Blender 4.2.23 LTS (portable build) against 5.2.2 LTS. The add-on cod
 - `lights.reveal(view_layer, obj)` expands every non-excluded collection that holds `obj` directly, plus its ancestors (via `_collection_paths()`), and unfolds those holders' lights rows, or the Scene Collection's fold when the master holds `obj`. It changes nothing else, so siblings stay collapsed. A light in two collections is revealed in both.
 - New component: `lighthouse.reveal_active_light` (`INTERNAL`, no `UNDO`, like `toggle_group`), a `VIEW_ZOOM` button in the list header (grouped, unsearched mode only, next to toggle-all). `poll()` needs the active object to be a light. The panel can't be scrolled from Python, so it only unfolds. Filters are not cleared.
 - `add_light` calls `reveal()` after linking, so a light added into a folded collection shows up. There is no selection-change handler, because revealing on its own would undo the user's folding and mark the file as changed.
+
+## v4 task 09: scope starts as Selected
+- `LIGHTHOUSE_PG_settings.scale_scope` defaults to `SELECTED` (the toggle still reads All | Selected). It lives on the WindowManager, so it is not saved in the .blend and every session starts at Selected. The operators' own `scope` property is unchanged, and the panel always passes the chosen scope.
