@@ -312,8 +312,10 @@ NEW_LIGHT_MODES = (
 
 
 def default_new_light_mode(context):
-    """The mode new lights start in when the file follows the default."""
-    return 'COLOR'
+    """The mode new lights start in when the file follows the default: the add-on preference when
+    Lighthouse is installed, otherwise Color (as when tests import and register it directly)."""
+    addon = context.preferences.addons.get(__package__)
+    return addon.preferences.new_light_mode if addon and addon.preferences else 'COLOR'
 
 
 def current_new_light_mode(context):
@@ -330,7 +332,7 @@ class LIGHTHOUSE_OT_toggle_new_light_mode(bpy.types.Operator):
     @classmethod
     def description(cls, context, properties):
         mode = "Kelvin" if current_new_light_mode(context) == 'KELVIN' else "Color"
-        source = "default" if context.scene.lighthouse_new_lights == 'FOLLOW' else "this file"
+        source = "Preferences default" if context.scene.lighthouse_new_lights == 'FOLLOW' else "this file"
         return f"New lights start in {mode} ({source}). Click to switch"
 
     def execute(self, context):
@@ -1008,7 +1010,19 @@ class LIGHTHOUSE_PT_presets(bpy.types.Panel):
 class LIGHTHOUSE_AP_preferences(bpy.types.AddonPreferences):
     bl_idname = __package__
 
+    new_light_mode: bpy.props.EnumProperty(
+        name="New lights start in",
+        description="Whether lights added by Lighthouse start in Color or in Kelvin, "
+                    "in every file whose header toggle hasn't been flipped",
+        items=NEW_LIGHT_MODES[1:],
+        default='COLOR',
+    )
+
     def draw(self, context):
+        if supports_temperature():
+            row = self.layout.row()
+            row.label(text="New lights start in")
+            row.prop(self, "new_light_mode", expand=True)
         self.layout.operator(LIGHTHOUSE_OT_restore_default_presets.bl_idname, text="Restore Default Presets")
         self.layout.label(text="Brings back deleted defaults. Defaults you edited are kept.")
 
