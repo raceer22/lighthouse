@@ -67,6 +67,13 @@ class GroupEntry(NamedTuple):
     count: int
 
 
+class LightsEntry(NamedTuple):
+    """The foldable row above a collection's own lights, when it also has listed sub-collections."""
+    collection: object
+    depth: int
+    count: int
+
+
 class LightEntry(NamedTuple):
     obj: object
     depth: int
@@ -77,7 +84,9 @@ def list_entries(view_layer, name_filter="", type_filter='ALL', grouped=True):
     """The rows the Lights panel draws, in order: collections nested as in the outliner
     (only those on the path to a listed light), each followed by its own lights sorted by name
     ignoring case, then its sub-collections. A collapsed collection keeps its header and count but
-    nothing below it. Scene Collection lights come first, with no header.
+    nothing below it. A collection with both its own lights and sub-collections puts its lights under a
+    foldable LightsEntry row; folding it drops only those lights. Scene Collection lights come first,
+    with no header.
     When not grouped, or while searching, it is the flat listed_lights() order with no headers."""
     if not grouped or name_filter:
         return [LightEntry(obj, 0, 0) for obj in listed_lights(view_layer, name_filter, type_filter)]
@@ -135,24 +144,38 @@ def _collection_entries(layer_collection, listed, depth):
     (a dict used as an ordered set, in list order)."""
     own = sorted((obj for obj in layer_collection.collection.objects if obj in listed),
                  key=lambda obj: obj.name.casefold())
-    entries = [LightEntry(obj, depth, 0) for obj in own]
     lights = dict.fromkeys(own)
+    groups = []
     for child in layer_collection.children:
         if child.exclude:
             continue
         child_entries, child_lights = _collection_entries(child, listed, depth + 1)
         if child_lights:
-            entries.append(GroupEntry(child.collection, depth, len(child_lights)))
+            groups.append(GroupEntry(child.collection, depth, len(child_lights)))
             if not is_collapsed(child.collection):
-                entries += child_entries
+                groups += child_entries
             lights |= child_lights
-    return entries, lights
+    # Depth 0 is the Scene Collection (or group_lights()' own collection): its lights get no row.
+    if own and groups and depth > 0:
+        collection = layer_collection.collection
+        entries = [LightsEntry(collection, depth, len(own))]
+        if not is_lights_folded(collection):
+            entries += [LightEntry(obj, depth + 1, 0) for obj in own]
+    else:
+        entries = [LightEntry(obj, depth, 0) for obj in own]
+    return entries + groups, lights
 
 
 def is_collapsed(collection):
     """True when the collection is collapsed in the list. False while the add-on's property is
     unregistered."""
     return getattr(collection, "lighthouse_collapsed", False)
+
+
+def is_lights_folded(collection):
+    """True when the collection's lights row is folded. False while the add-on's property is
+    unregistered."""
+    return getattr(collection, "lighthouse_lights_collapsed", False)
 
 
 MAX_INDENT = 3

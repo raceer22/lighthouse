@@ -34,3 +34,10 @@
 - The tests run `$BLENDER` (`make test BLENDER=...`). `blender_version()`, `needs_blender()`, `NEWER_DETAILS` and the prelude's `EEVEE` make the suite version-aware. On 4.2 it skips only the 5 tests that set `exposure` or `use_temperature`. The add-on needed no 4.2 fixes.
 - Removed `RowState.shared` and its test. `__init__.py` imports are tidied, the version is now 1.2.0, and `dist/lighthouse-1.2.0.zip` is built. The README has venv setup, `BLENDER=` and "Tested on 4.2.23 LTS and 5.2.2 LTS". acceptance.md and ARCHITECTURE.md have 4.2 entries.
 - 5.2.2: 133 pass. 4.2.23: 128 pass, 5 skip. On both, `test_empty_list` still fails, as before this ticket ("filter"/"filters" wording). The smoke run and validate pass on both. Not done yet: the manual GUI check on 4.2.
+
+# v4 tickets (tasks/ rewritten in 13f76ff)
+
+## v4 TICKET-01: Foldable lights row
+- A collection with its own lights and at least one listed sub-collection now shows a foldable `Lights (N)` row (`LightsEntry`, `is_lights_folded()`, `Collection.lighthouse_lights_collapsed`, `lighthouse.toggle_lights_row`, `draw_lights_row()`). Leaf collections and Scene Collection lights are unchanged.
+- Folding hides only the drawn lights. Counts, `group_lights()` and `listed_groups()` still include them, and `select_light`'s `RANGE` now keeps only `LightEntry` rows. Added the smoke step and an ARCHITECTURE.md entry.
+- 6 new tests (`tests/test_lights_row.py`, `tests/test_grouped_lights.py`), and 1 ordering test now expects the row. The `test_empty_list` wording test was fixed first to match `filter(s)`, in its own commit. `make test`: 140 pass. The engine smoke run passes. Not done yet: the manual GUI check.

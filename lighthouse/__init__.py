@@ -20,8 +20,11 @@ from .lights import (
     group_soloed,
     indent_level,
     is_collapsed,
+    is_lights_folded,
     is_read_only,
     light_info_tooltip,
+    LightEntry,
+    LightsEntry,
     light_objects,
     list_entries,
     listed_groups,
@@ -219,7 +222,7 @@ class LIGHTHOUSE_OT_select_light(bpy.types.Operator):
             listed = [
                 entry.obj
                 for entry in list_entries(layer, filters.name_filter, filters.type_filter, filters.grouped)
-                if not isinstance(entry, GroupEntry)
+                if isinstance(entry, LightEntry)
             ]
             if layer.objects.active in listed and obj in listed:
                 ends = sorted((listed.index(layer.objects.active), listed.index(obj)))
@@ -381,6 +384,23 @@ class LIGHTHOUSE_OT_toggle_group(bpy.types.Operator):
         if collection is None:
             return {'CANCELLED'}
         collection.lighthouse_collapsed = not collection.lighthouse_collapsed
+        return {'FINISHED'}
+
+
+class LIGHTHOUSE_OT_toggle_lights_row(bpy.types.Operator):
+    """Fold or unfold this collection's own lights in the list"""
+    bl_idname = "lighthouse.toggle_lights_row"
+    bl_label = "Toggle Lights Row"
+    bl_options = {'INTERNAL'}
+
+    name: bpy.props.StringProperty()
+    library: bpy.props.StringProperty(options={'HIDDEN'})
+
+    def execute(self, context):
+        collection = find_collection(self.name, self.library)
+        if collection is None:
+            return {'CANCELLED'}
+        collection.lighthouse_lights_collapsed = not collection.lighthouse_lights_collapsed
         return {'FINISHED'}
 
 
@@ -797,6 +817,8 @@ class LIGHTHOUSE_PT_lights(bpy.types.Panel):
         for entry in entries:
             if isinstance(entry, GroupEntry):
                 self.draw_group(context, entry)
+            elif isinstance(entry, LightsEntry):
+                self.draw_lights_row(entry)
             else:
                 self.draw_light(context, entry)
 
@@ -828,6 +850,18 @@ class LIGHTHOUSE_PT_lights(bpy.types.Panel):
             icon='SOLO_ON' if soloed else 'SOLO_OFF',
             depress=soloed,
         ), collection)
+
+    def draw_lights_row(self, entry):
+        collection = entry.collection
+        row = self.layout.row(align=True)
+        indent(row, entry.depth)
+        target(row.operator(
+            LIGHTHOUSE_OT_toggle_lights_row.bl_idname,
+            text="",
+            icon='DISCLOSURE_TRI_RIGHT' if is_lights_folded(collection) else 'DISCLOSURE_TRI_DOWN',
+            emboss=False,
+        ), collection)
+        row.label(text=f"Lights ({entry.count})", icon='LIGHT')
 
     def draw_light(self, context, entry):
         obj = entry.obj
@@ -911,6 +945,7 @@ classes = (
     LIGHTHOUSE_OT_exit_solo,
     LIGHTHOUSE_OT_toggle_details,
     LIGHTHOUSE_OT_toggle_group,
+    LIGHTHOUSE_OT_toggle_lights_row,
     LIGHTHOUSE_OT_toggle_all_groups,
     LIGHTHOUSE_OT_clear_filters,
     LIGHTHOUSE_OT_select_group,
@@ -939,9 +974,14 @@ def register():
         name="Collapsed",
         description="Hide this collection's lights and sub-collections in the Lights list",
     )
+    bpy.types.Collection.lighthouse_lights_collapsed = bpy.props.BoolProperty(
+        name="Lights Folded",
+        description="Hide this collection's own lights in the Lights list, keeping its sub-collections",
+    )
 
 
 def unregister():
+    del bpy.types.Collection.lighthouse_lights_collapsed
     del bpy.types.Collection.lighthouse_collapsed
     del bpy.types.Scene.lighthouse_solo
     del bpy.types.WindowManager.lighthouse

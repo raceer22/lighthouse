@@ -78,7 +78,8 @@ for engine in ('CYCLES', eevee):
             assert bpy.ops.lighthouse.toggle_details(name=obj.name, keep_others=keep_others) == {'FINISHED'}
 
     # Each toggle runs twice in a row, so it ends where it started.
-    for op in (bpy.ops.lighthouse.toggle_group, bpy.ops.lighthouse.hide_group, bpy.ops.lighthouse.solo_group):
+    for op in (bpy.ops.lighthouse.toggle_group, bpy.ops.lighthouse.toggle_lights_row,
+               bpy.ops.lighthouse.hide_group, bpy.ops.lighthouse.solo_group):
         for _ in range(2):
             assert op(name=group.name) == {'FINISHED'}
     assert bpy.ops.lighthouse.solo_group(name=group.name) == {'FINISHED'}

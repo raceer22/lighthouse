@@ -3,7 +3,7 @@ import textwrap
 from blender_runner import run_in_blender
 
 HELPERS = """
-from lighthouse.lights import GroupEntry, LightEntry, list_entries
+from lighthouse.lights import GroupEntry, LightEntry, LightsEntry, list_entries
 
 def new_collection(name, parent=None):
     collection = bpy.data.collections.new(name)
@@ -20,6 +20,7 @@ def move_to(obj, *collections):
 def entries(**options):
     return [
         ["group", e.collection.name, e.depth, e.count] if isinstance(e, GroupEntry)
+        else ["lights", e.collection.name, e.depth, e.count] if isinstance(e, LightsEntry)
         else ["light", e.obj.name, e.depth, e.other_collections]
         for e in list_entries(bpy.context.view_layer, **options)
     ]
@@ -187,7 +188,44 @@ def test_a_collections_own_lights_come_before_its_sub_collections():
     assert rows == [
         ["light", "Sun", 0, 0],
         ["group", "Set", 0, 2],
-        ["light", "Zenith", 1, 0],
+        ["lights", "Set", 1, 1],
+        ["light", "Zenith", 2, 0],
         ["group", "Lamps", 1, 1],
         ["light", "Bulb", 2, 0],
+    ]
+
+
+def test_own_lights_next_to_sub_collections_go_under_a_lights_row():
+    rows = run("""
+        empty_scene()
+        set_ = new_collection("Set")
+        move_to(add_light("Key"), set_)
+        move_to(add_light("Fill"), set_)
+        move_to(add_light("Bulb"), new_collection("Lamps", set_))
+        report(entries())
+    """)
+
+    assert rows == [
+        ["group", "Set", 0, 3],
+        ["lights", "Set", 1, 2],
+        ["light", "Fill", 2, 0],
+        ["light", "Key", 2, 0],
+        ["group", "Lamps", 1, 1],
+        ["light", "Bulb", 2, 0],
+    ]
+
+
+def test_a_leaf_collection_lists_its_lights_with_no_lights_row():
+    rows = run("""
+        empty_scene()
+        props = new_collection("Props")
+        move_to(add_light("Lamp"), props)
+        move_to(add_light("Candle"), props)
+        report(entries())
+    """)
+
+    assert rows == [
+        ["group", "Props", 0, 2],
+        ["light", "Candle", 1, 0],
+        ["light", "Lamp", 1, 0],
     ]
