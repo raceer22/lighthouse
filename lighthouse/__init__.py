@@ -1,29 +1,51 @@
 # Copyright (C) 2026 raceer22
 # Licensed under the GNU General Public License v3 or later (GPL-3.0-or-later)
+import zlib
+
 import bpy
 
 from .lights import DETAIL_LABELS, GroupEntry, color_control, detail_properties, detail_target, details_open, group_lights, group_soloed, indent_level, is_read_only, light_info_tooltip, light_objects, list_entries, move_lights, move_summary, power_unit, row_state, scale_lights, scale_summary, toggle_details, toggle_solo_group, toggle_solo_light
 from pathlib import Path
 
-from .presets import BUILTIN_PRESETS, apply_preset, delete_user_preset, preset_from_light, preset_summary, save_user_preset, user_presets
+from .presets import BUILTIN_PRESETS, apply_preset, delete_user_preset, preset_from_light, preset_path, preset_summary, save_user_preset, USER_PREFIX, user_presets
 
 
 def presets_folder():
     return Path(bpy.utils.extension_path_user(__package__, create=True))
 
 
+_user_presets_cache = {}
+
+
+def cached_user_presets():
+    """user_presets() of the presets folder, read again only when the folder's mtime changes
+    (a file added, removed or renamed) or after clear_user_presets_cache(). A file edited in
+    place outside Blender is picked up after a restart."""
+    folder = presets_folder()
+    stamp = folder.stat().st_mtime_ns
+    if _user_presets_cache.get("stamp") != stamp:
+        _user_presets_cache.update(stamp=stamp, presets=user_presets(folder))
+    return _user_presets_cache["presets"]
+
+
+def clear_user_presets_cache():
+    _user_presets_cache.clear()
+
+
 def all_presets():
-    return BUILTIN_PRESETS | user_presets(presets_folder())
+    return BUILTIN_PRESETS | cached_user_presets()
 
 
 _preset_items = []
 
 
 def preset_items(self, context):
-    """Built-in presets, then user presets marked with a user icon."""
+    """Built-in presets, then user presets marked with a user icon. Each item's number comes from
+    its key, so the stored value follows the preset when others are added or deleted."""
     _preset_items[:] = [
-        (key, preset.label, "User preset" if key not in BUILTIN_PRESETS else "", 'USER' if key not in BUILTIN_PRESETS else 'NONE', number)
-        for number, (key, preset) in enumerate(all_presets().items())
+        (key, preset.label, "User preset" if key not in BUILTIN_PRESETS else "", 'USER' if key not in BUILTIN_PRESETS else 'NONE',
+         zlib.crc32(key.encode()) & 0x7FFFFFFF)
+        for key, preset in all_presets().items()
     ]
     return _preset_items
 
@@ -448,6 +470,7 @@ class LIGHTHOUSE_OT_save_preset(bpy.types.Operator):
     bl_label = "Save Light Preset"
 
     name: bpy.props.StringProperty(name="Name", description="Preset name")
+    overwrite: bpy.props.BoolProperty(name="Overwrite", description="Replace the existing preset with this name")
 
     @classmethod
     def poll(cls, context):
@@ -455,6 +478,17 @@ class LIGHTHOUSE_OT_save_preset(bpy.types.Operator):
 
     def invoke(self, context, event):
         return context.window_manager.invoke_props_dialog(self)
+
+    def exists(self):
+        name = self.name.strip()
+        return bool(name) and preset_path(presets_folder(), name).exists()
+
+    def draw(self, context):
+        layout = self.layout
+        layout.prop(self, "name")
+        if self.exists():
+            layout.label(text="A preset with this name exists", icon='ERROR')
+            layout.prop(self, "overwrite")
 
     def execute(self, context):
         name = self.name.strip()
@@ -464,13 +498,19 @@ class LIGHTHOUSE_OT_save_preset(bpy.types.Operator):
         if name.lower() in {preset.label.lower() for preset in BUILTIN_PRESETS.values()}:
             self.report({'ERROR'}, f'"{name}" is a built-in preset. Choose another name')
             return {'CANCELLED'}
+        # The file path, not the label, so names that sanitize to the same file count too.
+        if self.exists() and not self.overwrite:
+            self.report({'ERROR'}, f'Preset "{name}" exists. Tick Overwrite to replace it')
+            return {'CANCELLED'}
         save_user_preset(presets_folder(), preset_from_light(context.active_object.data, name))
+        clear_user_presets_cache()
+        context.window_manager.lighthouse.preset = USER_PREFIX + preset_path(presets_folder(), name).stem
         self.report({'INFO'}, f"Saved preset {name}")
         return {'FINISHED'}
 
 
 def user_preset_items(self, context):
-    _user_preset_items[:] = [(key, preset.label, "") for key, preset in user_presets(presets_folder()).items()]
+    _user_preset_items[:] = [(key, preset.label, "") for key, preset in cached_user_presets().items()]
     return _user_preset_items
 
 
@@ -488,7 +528,11 @@ class LIGHTHOUSE_OT_delete_preset(bpy.types.Operator):
         return context.window_manager.invoke_confirm(self, event)
 
     def execute(self, context):
+        settings = context.window_manager.lighthouse
+        if settings.preset == self.preset:
+            settings.preset = 'CANDLE'
         delete_user_preset(presets_folder(), self.preset)
+        clear_user_presets_cache()
         return {'FINISHED'}
 
 
@@ -565,10 +609,16 @@ class LIGHTHOUSE_PT_presets(bpy.types.Panel):
         settings = context.window_manager.lighthouse
         row = self.layout.row(align=True)
         row.prop(settings, "preset", text="")
-        row.operator(LIGHTHOUSE_OT_apply_preset.bl_idname, text="Apply").preset = settings.preset
+        # '' when the selected preset's file was removed outside Blender. Assigning '' to the
+        # operator's enum raises TypeError and stops the panel drawing.
+        apply_row = row.row(align=True)
+        apply_row.enabled = bool(settings.preset)
+        op = apply_row.operator(LIGHTHOUSE_OT_apply_preset.bl_idname, text="Apply")
+        if settings.preset:
+            op.preset = settings.preset
         row = self.layout.row(align=True)
         row.operator(LIGHTHOUSE_OT_save_preset.bl_idname, text="Save")
-        if settings.preset not in BUILTIN_PRESETS:
+        if settings.preset and settings.preset not in BUILTIN_PRESETS:
             row.operator(LIGHTHOUSE_OT_delete_preset.bl_idname, text="Delete").preset = settings.preset
 
 

@@ -90,3 +90,30 @@ def test_built_ins_set_their_kelvin_with_a_white_color_that_does_not_tint_it(tmp
         "BULB_60W": [True, 2700, [1, 1, 1]],
         "DAYLIGHT": [True, 5500, [1, 1, 1]],
     }
+
+
+def test_a_library_light_is_skipped_as_read_only_and_reported(tmp_path):
+    energies, output = run_installed(f"""
+        empty_scene()
+        library_light = add_light("Library")
+        path = {str(tmp_path / "library.blend")!r}
+        bpy.data.libraries.write(path, {{library_light}})
+        bpy.data.objects.remove(library_light)
+        with bpy.data.libraries.load(path, link=True) as (src, dst):
+            dst.objects = ["Library"]
+        bpy.context.scene.collection.objects.link(dst.objects[0])
+        local = add_light("Local")
+        local.select_set(True)
+        bpy.data.objects["Library"].select_set(True)
+        from importlib import import_module
+        presets = import_module(bpy.types.LIGHTHOUSE_OT_apply_preset.__module__ + ".presets")
+        counts = presets.apply_preset([local, bpy.data.objects["Library"]], presets.BUILTIN_PRESETS['BULB_60W'])
+        local.data.energy = 7
+        bpy.ops.lighthouse.apply_preset(preset='BULB_60W')
+        report([list(counts), {{o.name: o.data.energy for o in bpy.context.view_layer.objects}}])
+    """, tmp_path / "config")
+
+    counts, energies = energies
+    assert counts == [1, 0, 1]
+    assert energies == {"Local": 60, "Library": 10}
+    assert info_reports(output) == ["Applied 60W Bulb to 1 light (1 skipped: read-only)"]

@@ -107,13 +107,13 @@ One button press is one operator call, so it makes one undo step. Power is in W,
 - `tests/blender_runner.py`: `run_installed(snippet, user_dir)` symlinks the package into `user_dir/extensions/user_default/`, sets `BLENDER_USER_RESOURCES=user_dir` and enables `bl_ext.user_default.lighthouse`. Calls that share `user_dir` act like restarts of one install. `preset_items()` in its prelude calls the dropdown's items callback.
 
 **Data flow**
-User presets are read from disk every time the dropdown or `apply_preset` needs them. Nothing is cached, so a preset saved in another Blender instance shows up on the next redraw. They live outside the .blend file and aren't part of undo.
+User presets were read from disk every time the dropdown or `apply_preset` needed them. Since v3 task 02 they are cached (see below). They live outside the .blend file and aren't part of undo.
 
 **Blender API quirks**
 - `extension_path_user()` raises `ValueError` unless the package name is `bl_ext.<repo>.<id>`. That's why every preset test (task 09's too) runs through `run_installed` instead of `import lighthouse`.
 - Blender doesn't keep the strings returned by a dynamic enum `items` callback alive, so the callbacks fill module-level lists.
 - Dynamic enum items are not exposed through `bl_rna...enum_items` (it returns `[]`).
-- A preset enum is stored as its item number, so adding or deleting a user preset can shift which entry the dropdown shows.
+- A preset enum is stored as its item number. Since v3 task 02 the number is a CRC of the key, so the dropdown keeps its preset when others are added or deleted.
 - With `BLENDER_USER_RESOURCES` set, enabling an extension logs a `bl_pkg` register traceback (`No module named 'cattrs'`) on Fedora's package. It's environment noise.
 
 ## Task 11: detail section
@@ -294,3 +294,21 @@ A triangle click runs `toggle_details`. It first drops entries whose `obj` is `N
 
 **Data flow**
 `lights` stays an ordered dict, so `group_lights()`, group select and Shift+click ranges all follow the new order with no further changes. The ordering note in "Post-v2 polish" above now matches the code.
+
+## v3 task 02: presets
+
+**Components**
+- `preset_items()` numbers each item `zlib.crc32(key) & 0x7FFFFFFF`, so the stored dropdown value follows the preset, not its position.
+- `cached_user_presets()` / `clear_user_presets_cache()` in `__init__.py`: a module-level cache keyed by the presets folder's `st_mtime_ns`. Save and delete clear it.
+- `LIGHTHOUSE_OT_save_preset` has an `overwrite` BoolProperty. It refuses when `preset_path()` already exists (so `Key/Fill` collides with `Key_Fill`), its dialog `draw()` shows a warning and the checkbox, and a successful save selects the new preset.
+- `LIGHTHOUSE_OT_delete_preset` resets the dropdown to `CANDLE` when it deletes the shown preset.
+- `apply_preset()` skips read-only (library / system override) light data and returns `(changed, incompatible, read_only)`. `preset_summary()` names both skip reasons.
+- `LIGHTHOUSE_PT_presets.draw()` disables Apply and hides Delete while `settings.preset` is `''`.
+
+**Data flow**
+Dropdown value (CRC of the key) → `all_presets()` → `cached_user_presets()` → the JSON files, re-read only when the folder's mtime changes or after a save or delete. A file edited in place outside Blender doesn't change the folder's mtime, so the edit is picked up only after a restart.
+
+**Blender API quirks**
+- A dynamic enum stores the item number. Numbers derived from keys keep the selection stable.
+- When the stored number has no item (for example, the file was removed outside Blender), the property reads `''`, and assigning `''` to another enum raises `TypeError`. That is why the panel guards it.
+- Not verified: whether the save dialog redraws while you type. The overwrite warning may only update after the field is confirmed (Enter or Tab). Check this in the manual GUI test.

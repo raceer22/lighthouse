@@ -117,3 +117,96 @@ def test_a_preset_file_saved_before_v2_applies_with_no_exposure_and_temperature_
     """, tmp_path / "config")[0]
 
     assert light == [80, approx([0.5, 0.6, 0.7]), False, 0]
+
+
+def test_selected_preset_stays_selected_when_a_preset_sorting_before_it_is_saved(tmp_path):
+    selected = run_installed("""
+        empty_scene()
+        bpy.context.view_layer.objects.active = add_light("Key")
+        bpy.ops.lighthouse.save_preset(name="Alpha")
+        bpy.ops.lighthouse.save_preset(name="Beta")
+        settings = bpy.context.window_manager.lighthouse
+        settings.preset = "USER:Beta"
+        # Added without the operator (which selects what it saves), as another Blender instance would.
+        addon = __import__("sys").modules[bpy.types.LIGHTHOUSE_OT_save_preset.__module__]
+        addon.save_user_preset(addon.presets_folder(), addon.BUILTIN_PRESETS['CANDLE']._replace(label="Aardvark"))
+        report(settings.preset)
+    """, tmp_path / "config")[0]
+
+    assert selected == "USER:Beta"
+
+
+def test_deleting_the_selected_preset_falls_back_to_a_built_in(tmp_path):
+    after_alpha, after_last = run_installed("""
+        empty_scene()
+        bpy.context.view_layer.objects.active = add_light("Key")
+        bpy.ops.lighthouse.save_preset(name="Alpha")
+        bpy.ops.lighthouse.save_preset(name="Beta")
+        settings = bpy.context.window_manager.lighthouse
+        settings.preset = "USER:Alpha"
+        bpy.ops.lighthouse.delete_preset(preset="USER:Alpha")
+        after_alpha = settings.preset
+        settings.preset = "USER:Beta"
+        bpy.ops.lighthouse.delete_preset(preset="USER:Beta")
+        report([after_alpha, settings.preset])
+    """, tmp_path / "config")[0]
+
+    assert after_alpha == "CANDLE"
+    assert after_last == "CANDLE"
+
+
+def test_saving_over_an_existing_preset_needs_overwrite(tmp_path):
+    results = run_installed("""
+        empty_scene()
+        key = add_light("Key")
+        bpy.context.view_layer.objects.active = key
+        def save(**props):
+            try:
+                return bpy.ops.lighthouse.save_preset(**props) == {'FINISHED'}
+            except RuntimeError:
+                return False
+        results = [save(name="My Key")]
+        key.data.energy = 321
+        results += [save(name="My Key"), save(name="My Key", overwrite=True)]
+        results += [save(name="Key_Fill"), save(name="Key/Fill"), save(name="Key/Fill", overwrite=True)]
+        results.append([p.power for p in __import__("sys").modules[bpy.types.LIGHTHOUSE_OT_save_preset.__module__].all_presets().values()
+                        if p.label == "My Key"])
+        report(results)
+    """, tmp_path / "config")[0]
+
+    assert results == [True, False, True, True, False, True, [321]]
+
+
+def test_a_saved_preset_becomes_the_selected_one(tmp_path):
+    selected = run_installed("""
+        empty_scene()
+        bpy.context.view_layer.objects.active = add_light("Key")
+        bpy.ops.lighthouse.save_preset(name="Fresh")
+        report(bpy.context.window_manager.lighthouse.preset)
+    """, tmp_path / "config")[0]
+
+    assert selected == "USER:Fresh"
+
+
+def test_user_presets_are_parsed_once_until_a_save(tmp_path):
+    counts = run_installed("""
+        empty_scene()
+        bpy.context.view_layer.objects.active = add_light("Key")
+        bpy.ops.lighthouse.save_preset(name="One")
+        bpy.ops.lighthouse.save_preset(name="Two")
+        addon = __import__("sys").modules[bpy.types.LIGHTHOUSE_OT_save_preset.__module__]
+        presets = __import__("sys").modules[addon.__name__ + ".presets"]
+        parsed = []
+        real_loads = presets.json.loads
+        presets.json = type("Json", (), {"loads": staticmethod(lambda text: parsed.append(1) or real_loads(text)),
+                                          "dumps": staticmethod(presets.json.dumps)})
+        addon.all_presets()
+        addon.all_presets()
+        counts = [len(parsed)]
+        bpy.ops.lighthouse.save_preset(name="Three")
+        addon.all_presets()
+        report(counts + [len(parsed)])
+    """, tmp_path / "config")[0]
+
+    assert counts[0] <= 2
+    assert counts[1] == counts[0] + 3

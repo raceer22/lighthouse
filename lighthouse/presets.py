@@ -3,7 +3,7 @@ import re
 from pathlib import Path
 from typing import NamedTuple
 
-from .lights import has_property
+from .lights import has_property, is_read_only
 
 
 class Preset(NamedTuple):
@@ -86,8 +86,10 @@ def apply_preset(lights, preset):
     and spot lights, the diameter for area lights and the angle for suns. Exposure and
     temperature are set only where the light has them (Blender 4.4+ and 5.0+). The color tints
     the temperature, so a light switched to Kelvin gets white instead of the RGB fallback.
-    Returns how many lights were changed and how many skipped."""
-    changed = [obj.data for obj in lights if obj.data.type in preset.type_compat]
+    Lights from a library or a system override are left alone.
+    Returns how many lights were changed, skipped as incompatible and skipped as read-only."""
+    editable = [obj.data for obj in lights if not is_read_only(obj.data)]
+    changed = [light for light in editable if light.type in preset.type_compat]
     for light in changed:
         light.energy = preset.power
         light.color = preset.color
@@ -104,10 +106,13 @@ def apply_preset(lights, preset):
             light.angle = preset.radius
         else:
             light.shadow_soft_size = preset.radius
-    return len(changed), len(lights) - len(changed)
+    return len(changed), len(editable) - len(changed), len(lights) - len(editable)
 
 
-def preset_summary(preset, changed, skipped):
-    """Status bar message after applying, e.g. "Applied Candle to 3 lights (1 skipped: incompatible type)"."""
+def preset_summary(preset, changed, incompatible, read_only=0):
+    """Status bar message after applying, e.g.
+    "Applied Candle to 2 lights (1 skipped: incompatible type, 1 skipped: read-only)"."""
     message = f"Applied {preset.label} to {changed} light{'' if changed == 1 else 's'}"
-    return message + (f" ({skipped} skipped: incompatible type)" if skipped else "")
+    reasons = [f"{count} skipped: {reason}" for count, reason in
+               ((incompatible, "incompatible type"), (read_only, "read-only")) if count]
+    return message + (f" ({', '.join(reasons)})" if reasons else "")
