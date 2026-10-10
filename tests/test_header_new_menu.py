@@ -1,6 +1,6 @@
 import textwrap
 
-from blender_runner import RECORDER, run_in_blender
+from blender_runner import RECORDER, blender_version, run_in_blender
 
 SETUP = """
 import lighthouse
@@ -51,12 +51,13 @@ def test_header_draws_one_add_menu_and_no_separate_add_buttons_in_every_mode():
 
 
 def test_header_row_has_one_button_fewer_than_with_two_add_buttons():
-    # Search, Grouped, Show Empty, Toggle All, Reveal, Exit Solo, + menu. Task 03 adds one back.
+    # Search, Grouped, Show Empty, Toggle All, Reveal, Exit Solo, + menu, and on 5.0+ the
+    # Color/Kelvin toggle in the slot New Collection left (v5 task 03).
     result = run("""
         report(len(header()))
     """)
 
-    assert result == 7
+    assert result == (8 if blender_version() >= (5, 0) else 7)
 
 
 def test_new_menu_adds_to_the_active_collection():

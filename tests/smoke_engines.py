@@ -89,6 +89,10 @@ for engine in ('CYCLES', eevee):
     old_name = group.name
     assert bpy.ops.lighthouse.set_active_collection(name=old_name, action='RENAME', new_name=old_name + " R") == {'FINISHED'}
     assert bpy.ops.lighthouse.set_active_collection(name=group.name, action='RENAME', new_name=old_name) == {'FINISHED'}
+    assert bpy.ops.lighthouse.toggle_new_light_mode() == {'FINISHED'}
+    assert bpy.ops.lighthouse.add_light(type='POINT') == {'FINISHED'}
+    bpy.data.objects.remove(bpy.context.view_layer.objects.active)
+    assert bpy.ops.lighthouse.toggle_new_light_mode() == {'FINISHED'}
     assert bpy.ops.lighthouse.new_collection() == {'FINISHED'}
     bpy.data.collections.remove(bpy.context.view_layer.active_layer_collection.collection)
     # With a target, as the right-click group menu calls them: name "" is the Scene Collection.

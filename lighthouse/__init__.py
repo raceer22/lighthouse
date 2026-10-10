@@ -10,6 +10,7 @@ from .lights import (
     find_collection,
     find_layer_collection,
     find_object,
+    new_light_mode,
     id_key,
     GroupEntry,
     color_control,
@@ -41,7 +42,9 @@ from .lights import (
     solo_label,
     toggle_details,
     toggle_solo_group,
+    supports_temperature,
     toggle_solo_light,
+    toggled_mode,
     unsolo,
     update_snapshot,
 )
@@ -301,6 +304,41 @@ def frame_selected(context):
             return
 
 
+NEW_LIGHT_MODES = (
+    ('FOLLOW', "Follow Default", "Use the default mode for new lights"),
+    ('COLOR', "Color", "New lights start with a plain color"),
+    ('KELVIN', "Kelvin", "New lights start at Blender's default temperature, with a white color"),
+)
+
+
+def default_new_light_mode(context):
+    """The mode new lights start in when the file follows the default."""
+    return 'COLOR'
+
+
+def current_new_light_mode(context):
+    return new_light_mode(context.scene.lighthouse_new_lights, default_new_light_mode(context))
+
+
+class LIGHTHOUSE_OT_toggle_new_light_mode(bpy.types.Operator):
+    """Switch whether lights added by Lighthouse start in Color or in Kelvin"""
+    bl_idname = "lighthouse.toggle_new_light_mode"
+    bl_label = "New Lights: Color or Kelvin"
+    # UNDO because the mode is file data: without an undo step, undoing something else would revert it.
+    bl_options = {'REGISTER', 'UNDO'}
+
+    @classmethod
+    def description(cls, context, properties):
+        mode = "Kelvin" if current_new_light_mode(context) == 'KELVIN' else "Color"
+        source = "default" if context.scene.lighthouse_new_lights == 'FOLLOW' else "this file"
+        return f"New lights start in {mode} ({source}). Click to switch"
+
+    def execute(self, context):
+        scene = context.scene
+        scene.lighthouse_new_lights = toggled_mode(scene.lighthouse_new_lights, default_new_light_mode(context))
+        return {'FINISHED'}
+
+
 class LIGHTHOUSE_OT_add_light(bpy.types.Operator):
     """Add a light at the 3D cursor in the active collection, selected and active"""
     bl_idname = "lighthouse.add_light"
@@ -326,7 +364,12 @@ class LIGHTHOUSE_OT_add_light(bpy.types.Operator):
             self.report({'ERROR'}, f"{collection.name} is read-only (linked from a library)")
             return {'CANCELLED'}
         name = next(label for key, label, *_ in LIGHT_TYPES if key == self.type)
-        obj = bpy.data.objects.new(name, bpy.data.lights.new(name, self.type))
+        light = bpy.data.lights.new(name, self.type)
+        if supports_temperature() and current_new_light_mode(context) == 'KELVIN':
+            light.use_temperature = True
+            light.temperature = bpy.types.Light.bl_rna.properties["temperature"].default
+            light.color = (1.0, 1.0, 1.0)
+        obj = bpy.data.objects.new(name, light)
         obj.location = context.scene.cursor.location
         collection.objects.link(obj)
         reveal(layer, obj)
@@ -1057,6 +1100,10 @@ class LIGHTHOUSE_PT_lights(bpy.types.Panel):
         row.operator(LIGHTHOUSE_OT_exit_solo.bl_idname, text="",
                      icon='SOLO_ON' if solo_active else 'SOLO_OFF', depress=solo_active)
         row.menu(LIGHTHOUSE_MT_new.bl_idname, text="", icon='ADD')
+        if supports_temperature():
+            kelvin = current_new_light_mode(context) == 'KELVIN'
+            row.operator(LIGHTHOUSE_OT_toggle_new_light_mode.bl_idname, text="",
+                         icon='LIGHT_SUN' if kelvin else 'COLOR', depress=kelvin)
         self.layout.row(align=True).prop(filters, "type_filter", expand=True)
 
         message = empty_message(context.view_layer, filters.name_filter, filters.type_filter)
@@ -1238,6 +1285,7 @@ classes = (
     LIGHTHOUSE_PG_solo_collection,
     LIGHTHOUSE_PG_solo,
     LIGHTHOUSE_OT_select_light,
+    LIGHTHOUSE_OT_toggle_new_light_mode,
     LIGHTHOUSE_OT_add_light,
     LIGHTHOUSE_OT_new_collection,
     LIGHTHOUSE_OT_mute_light,
@@ -1276,6 +1324,12 @@ def register():
         bpy.utils.register_class(cls)
     bpy.types.WindowManager.lighthouse = bpy.props.PointerProperty(type=LIGHTHOUSE_PG_settings)
     bpy.types.Scene.lighthouse_solo = bpy.props.PointerProperty(type=LIGHTHOUSE_PG_solo)
+    bpy.types.Scene.lighthouse_new_lights = bpy.props.EnumProperty(
+        name="New Lights",
+        description="Whether lights added by Lighthouse start in Color or in Kelvin in this file",
+        items=NEW_LIGHT_MODES,
+        default='FOLLOW',
+    )
     bpy.types.Collection.lighthouse_collapsed = bpy.props.BoolProperty(
         name="Collapsed",
         description="Hide this collection's lights and sub-collections in the Lights list",
@@ -1291,6 +1345,7 @@ def unregister():
     bpy.types.UI_MT_button_context_menu.remove(draw_group_menu)
     del bpy.types.Collection.lighthouse_lights_collapsed
     del bpy.types.Collection.lighthouse_collapsed
+    del bpy.types.Scene.lighthouse_new_lights
     del bpy.types.Scene.lighthouse_solo
     del bpy.types.WindowManager.lighthouse
     for cls in reversed(classes):

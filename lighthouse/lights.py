@@ -498,3 +498,21 @@ def _energy_fcurve(light):
             return bag.fcurves.find("energy")
     fcurves = getattr(animation.action, "fcurves", None)
     return None if fcurves is None else fcurves.find("energy")
+
+
+def new_light_mode(scene_value, default):
+    """The mode new lights start in, 'COLOR' or 'KELVIN'. A scene value of 'FOLLOW' uses the default."""
+    return default if scene_value == 'FOLLOW' else scene_value
+
+
+def toggled_mode(scene_value, default):
+    """The scene value after one flip of the mode. It is 'FOLLOW' when the flip lands on the default,
+    so a file only stores a mode that differs from it."""
+    mode = 'COLOR' if new_light_mode(scene_value, default) == 'KELVIN' else 'KELVIN'
+    return 'FOLLOW' if mode == default else mode
+
+
+def supports_temperature():
+    """Whether lights have a color temperature (Blender 5.0+)."""
+    import bpy
+    return "use_temperature" in bpy.types.Light.bl_rna.properties
