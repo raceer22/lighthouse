@@ -51,6 +51,7 @@ from .presets import (
     preset_from_light,
     preset_path,
     preset_summary,
+    restore_default_presets,
     save_user_preset,
     seed_default_presets,
     USER_PREFIX,
@@ -829,6 +830,21 @@ class LIGHTHOUSE_OT_delete_preset(bpy.types.Operator):
         return {'FINISHED'}
 
 
+class LIGHTHOUSE_OT_restore_default_presets(bpy.types.Operator):
+    """Bring back deleted default presets. Defaults you edited are kept as they are"""
+    bl_idname = "lighthouse.restore_default_presets"
+    bl_label = "Restore Default Presets"
+
+    def execute(self, context):
+        restored = restore_default_presets(presets_folder())
+        clear_user_presets_cache()
+        if restored:
+            self.report({'INFO'}, "Restored " + ", ".join(restored))
+        else:
+            self.report({'INFO'}, "Every default preset is already there")
+        return {'FINISHED'}
+
+
 class LIGHTHOUSE_OT_light_info(bpy.types.Operator):
     """Light data shared with other objects, or the light listed in other collections"""
     bl_idname = "lighthouse.light_info"
@@ -913,6 +929,7 @@ class LIGHTHOUSE_PT_presets(bpy.types.Panel):
         row.operator(LIGHTHOUSE_OT_save_preset.bl_idname, text="Save")
         if settings.preset:
             row.operator(LIGHTHOUSE_OT_delete_preset.bl_idname, text="Delete").preset = settings.preset
+        row.operator(LIGHTHOUSE_OT_restore_default_presets.bl_idname, text="Restore")
 
 
 INDENT_STEP = 1.5
@@ -1153,6 +1170,7 @@ classes = (
     LIGHTHOUSE_OT_apply_preset,
     LIGHTHOUSE_OT_save_preset,
     LIGHTHOUSE_OT_delete_preset,
+    LIGHTHOUSE_OT_restore_default_presets,
     LIGHTHOUSE_OT_light_info,
     LIGHTHOUSE_OT_power_unit,
     LIGHTHOUSE_PT_intensity,

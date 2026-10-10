@@ -86,3 +86,8 @@
 - `BUILTIN_PRESETS` is now `DEFAULT_PRESETS`. `restore_default_presets()` and `seed_default_presets()` (with a `.defaults_installed` marker) write them as JSON once, seeded in `presets_folder()` so a Save before the first draw sees them too. A default you delete stays deleted.
 - The dropdown is sorted by label with no icons. Save has no reserved names (`Candle` goes through exists/Overwrite). Delete offers every preset and selects the next, or the new last, or nothing. The `CANDLE` fallback and the built-in checks are gone. README and ARCHITECTURE.md are updated (old notes marked superseded, item 17 cost documented).
 - 5 new tests in `tests/test_default_presets.py`. The preset, Kelvin, empty-scope and user-preset tests and the smoke script moved to `USER:<label>` keys. `make test`: 183 pass. Engine smoke run passes on 4.2.23. Not done yet: the manual GUI check (no icons, empty dropdown with Apply greyed out).
+
+## v4 TICKET-11: Restore default presets
+- New `lighthouse.restore_default_presets` (no confirm, no `UNDO`), a Restore button next to Save and Delete. It calls `restore_default_presets(presets_folder())`, clears the cache and reports "Restored Candle, …" or "Every default preset is already there".
+- It only writes missing defaults, so edited defaults and your own presets are untouched. The selection is left alone (the open question's default). Added the smoke step and an ARCHITECTURE.md entry.
+- 3 new tests in `tests/test_restore_presets.py`. `make test`: 186 pass. Engine smoke run passes on 4.2.23. Not done yet: the manual GUI check (button placement, restored presets show up in the dropdown right away).
