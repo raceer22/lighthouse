@@ -94,13 +94,14 @@ def drawn_world(setup_code):
 def test_panel_draws_the_slider_for_a_mapping():
     log = drawn_world("add_world_rotation(tree, env)")
 
-    assert log == [["prop", "default_value"], ["prop", "default_value"]]
+    assert log == [["label", "World"], ["operator", "lighthouse.mute_world", ""], ["prop", "default_value"], ["prop", "default_value"]]
 
 
 def test_panel_draws_add_rotation_when_addable():
     log = drawn_world("")
 
-    assert log == [["prop", "default_value"], ["operator", "lighthouse.add_world_rotation", "Add Rotation"]]
+    assert log == [["label", "World"], ["operator", "lighthouse.mute_world", ""], ["prop", "default_value"],
+                   ["operator", "lighthouse.add_world_rotation", "Add Rotation"]]
 
 
 def test_panel_draws_no_rotation_for_a_custom_vector():
@@ -108,4 +109,4 @@ def test_panel_draws_no_rotation_for_a_custom_vector():
         tree.links.new(tree.nodes.new('ShaderNodeTexCoord').outputs["Generated"], env.inputs["Vector"])
     """)
 
-    assert log == [["prop", "default_value"]]
+    assert log == [["label", "World"], ["operator", "lighthouse.mute_world", ""], ["prop", "default_value"]]

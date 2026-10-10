@@ -135,4 +135,7 @@ for engine in ('CYCLES', eevee):
     if lights.world_setup(bpy.context.scene).rotation == 'ADDABLE':
         assert bpy.ops.lighthouse.add_world_rotation() == {'FINISHED'}
     assert lights.world_setup(bpy.context.scene).rotation == 'MAPPING'
+    for _ in range(2):
+        assert bpy.ops.lighthouse.mute_world() == {'FINISHED'}
+    assert not lights.world_muted(lights.world_setup(bpy.context.scene))
     print("SMOKE ok", bpy.context.scene.render.engine)

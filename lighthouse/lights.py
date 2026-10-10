@@ -566,3 +566,15 @@ def add_world_rotation(node_tree, environment):
     node_tree.links.new(coords.outputs["Generated"], mapping.inputs["Vector"])
     node_tree.links.new(mapping.outputs["Vector"], environment.inputs["Vector"])
     return mapping
+
+
+def world_mute_node(setup):
+    """The node World mute acts on: the Background of a SIMPLE setup, else None.
+    Muting a Mix Shader passes its first shader through instead of turning the world off
+    (checked by rendering, see ARCHITECTURE.md), so CUSTOM setups can't be muted."""
+    return setup.background if setup.state == 'SIMPLE' else None
+
+
+def world_muted(setup):
+    node = world_mute_node(setup)
+    return node is not None and node.mute

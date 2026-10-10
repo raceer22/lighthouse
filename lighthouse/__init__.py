@@ -49,6 +49,8 @@ from .lights import (
     update_snapshot,
     world_setup,
     add_world_rotation,
+    world_mute_node,
+    world_muted,
 )
 from .presets import (
     apply_preset,
@@ -980,6 +982,24 @@ class LIGHTHOUSE_OT_add_world_rotation(bpy.types.Operator):
         return {'FINISHED'}
 
 
+class LIGHTHOUSE_OT_mute_world(bpy.types.Operator):
+    """Turn the world's light off or on by muting its Background node"""
+    bl_idname = "lighthouse.mute_world"
+    bl_label = "Mute World"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    def execute(self, context):
+        node = world_mute_node(world_setup(context.scene))
+        if node is None:
+            self.report({'WARNING'}, "Mute needs a world with a Background node feeding World Output")
+            return {'CANCELLED'}
+        if is_read_only(context.scene.world):
+            self.report({'ERROR'}, f"{context.scene.world.name} is read-only (linked from a library)")
+            return {'CANCELLED'}
+        node.mute = not node.mute
+        return {'FINISHED'}
+
+
 class LIGHTHOUSE_PT_world(bpy.types.Panel):
     bl_label = "World"
     bl_space_type = 'VIEW_3D'
@@ -990,11 +1010,25 @@ class LIGHTHOUSE_PT_world(bpy.types.Panel):
         setup = world_setup(context.scene)
         if setup.state == 'NONE':
             self.layout.label(text="No world in this scene")
-        elif setup.state == 'CUSTOM':
+            return
+        world = context.scene.world
+        muted = world_muted(setup)
+        row = self.layout.row(align=True)
+        row.label(text=world.name, icon='WORLD')
+        toggles = row.row(align=True)
+        toggles.enabled = world_mute_node(setup) is not None and not is_read_only(world)
+        toggles.operator(
+            LIGHTHOUSE_OT_mute_world.bl_idname,
+            text="",
+            icon='HIDE_ON' if muted else 'HIDE_OFF',
+            depress=muted,
+        )
+        if setup.state == 'CUSTOM':
             self.layout.label(text="Custom world setup, edit in Shader Editor")
         else:
             col = self.layout.column()
-            col.enabled = not is_read_only(context.scene.world)
+            col.enabled = not is_read_only(world)
+            col.active = not muted
             col.prop(setup.background.inputs["Strength"], "default_value", text="Strength")
             if setup.rotation == 'MAPPING':
                 col.prop(setup.mapping.inputs["Rotation"], "default_value", index=2, text="Rotation")
@@ -1367,6 +1401,7 @@ classes = (
     LIGHTHOUSE_OT_light_info,
     LIGHTHOUSE_OT_power_unit,
     LIGHTHOUSE_OT_add_world_rotation,
+    LIGHTHOUSE_OT_mute_world,
     LIGHTHOUSE_MT_new_light,
     LIGHTHOUSE_MT_new,
     LIGHTHOUSE_PT_lights,

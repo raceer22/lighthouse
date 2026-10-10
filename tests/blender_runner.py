@@ -73,17 +73,20 @@ RECORDER = """
 class Recorder:
     \"\"\"A stand-in for bpy's UILayout that records what draw() puts on it, in order.\"\"\"
     def __init__(self, log, parent=None):
-        self.log, self.parent, self.enabled = log, parent, True
+        self.log, self.parent, self.enabled, self.active = log, parent, True, True
     def is_enabled(self):
         return self.enabled and (self.parent is None or self.parent.is_enabled())
+    def is_active(self):
+        return self.active and (self.parent is None or self.parent.is_active())
     def row(self, **kwargs):
         return Recorder(self.log, self)
     column = box = row
     def _add(self, *entry, props=None):
         self.log.append((self, list(entry), props))
         return props
-    def operator(self, idname, text="", **kwargs):
-        return self._add("operator", idname, text, props=type("Props", (), {})())
+    def operator(self, idname, text="", depress=False, **kwargs):
+        return self._add("operator", idname, text, *(["pressed"] if depress else []),
+                         props=type("Props", (), {})())
     def operator_menu_enum(self, idname, prop, text="", **kwargs):
         self._add("operator_menu_enum", idname, prop, text)
     def menu(self, idname, text="", icon="NONE", **kwargs):
@@ -106,12 +109,14 @@ class FakeContext:
 
 def drawn(draw, context=None):
     \"\"\"What draw(self, context) puts on a layout: one list per call, such as ["operator", idname, text],
-    followed by the operator properties draw set (if any) and "disabled" if drawn on a disabled layout.\"\"\"
+    followed by the operator properties draw set (if any), "disabled" if drawn on a disabled layout
+    and "inactive" if drawn on an inactive one. A pressed operator (depress=True) gets "pressed" after its text.\"\"\"
     log = []
     holder = type("Holder", (), {"layout": Recorder(log)})()
     draw(holder, context or bpy.context)
     return [entry + ([vars(props)] if props is not None and vars(props) else [])
             + ([] if layout.is_enabled() else ["disabled"])
+            + ([] if layout.is_active() else ["inactive"])
             for layout, entry, props in log]
 """
 
