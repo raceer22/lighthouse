@@ -108,9 +108,9 @@ def test_the_new_collection_is_listed_at_zero_under_its_parent():
 
 def test_new_collection_takes_the_given_name_and_falls_back_when_blank():
     result = run("""
-        bpy.ops.lighthouse.new_collection(name="  Props ")
+        bpy.ops.lighthouse.new_collection(new_name="  Props ")
         bpy.ops.lighthouse.set_active_collection(name="")
-        bpy.ops.lighthouse.new_collection(name="   ")
+        bpy.ops.lighthouse.new_collection(new_name="   ")
         report([c.name for c in bpy.context.scene.collection.children])
     """)
 

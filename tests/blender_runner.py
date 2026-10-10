@@ -68,6 +68,54 @@ def add_mesh(name):
 """
 
 
+# Prepend to a snippet to check draw code headless.
+RECORDER = """
+class Recorder:
+    \"\"\"A stand-in for bpy's UILayout that records what draw() puts on it, in order.\"\"\"
+    def __init__(self, log, parent=None):
+        self.log, self.parent, self.enabled = log, parent, True
+    def is_enabled(self):
+        return self.enabled and (self.parent is None or self.parent.is_enabled())
+    def row(self, **kwargs):
+        return Recorder(self.log, self)
+    column = box = row
+    def _add(self, *entry, props=None):
+        self.log.append((self, list(entry), props))
+        return props
+    def operator(self, idname, text="", **kwargs):
+        return self._add("operator", idname, text, props=type("Props", (), {})())
+    def operator_menu_enum(self, idname, prop, text="", **kwargs):
+        self._add("operator_menu_enum", idname, prop, text)
+    def menu(self, idname, text="", **kwargs):
+        self._add("menu", idname, text)
+    def label(self, text="", **kwargs):
+        self._add("label", text)
+    def prop(self, data, name, **kwargs):
+        self._add("prop", name)
+    def separator(self, **kwargs):
+        self._add("separator")
+    def context_pointer_set(self, name, value):
+        self._add("context_pointer_set", name, value.name)
+
+class FakeContext:
+    \"\"\"bpy.context with some members added or replaced, such as button_operator.\"\"\"
+    def __init__(self, **members):
+        self.__dict__.update(members)
+    def __getattr__(self, name):
+        return getattr(bpy.context, name)
+
+def drawn(draw, context=None):
+    \"\"\"What draw(self, context) puts on a layout: one list per call, such as ["operator", idname, text],
+    followed by the operator properties draw set (if any) and "disabled" if drawn on a disabled layout.\"\"\"
+    log = []
+    holder = type("Holder", (), {"layout": Recorder(log)})()
+    draw(holder, context or bpy.context)
+    return [entry + ([vars(props)] if props is not None and vars(props) else [])
+            + ([] if layout.is_enabled() else ["disabled"])
+            for layout, entry, props in log]
+"""
+
+
 INSTALLED_PRELUDE = """
 bpy.ops.preferences.addon_enable(module="bl_ext.user_default.lighthouse")
 

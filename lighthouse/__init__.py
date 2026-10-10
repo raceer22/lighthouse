@@ -272,6 +272,16 @@ def scene_or_collection(context, name, library):
     return context.scene.collection if name == "" else find_collection(name, library)
 
 
+def target_layer_collection(context, name, library):
+    """The view layer's layer collection for a header button's target (name "" is the Scene
+    Collection), or None when the collection doesn't exist or is excluded."""
+    root = context.view_layer.layer_collection
+    if name == "":
+        return root
+    collection = find_collection(name, library)
+    return collection and find_layer_collection(root, collection)
+
+
 def target(op, id):
     """Point a row or header button's operator at this exact light or collection."""
     op.name, op.library = id_key(id)
@@ -298,10 +308,20 @@ class LIGHTHOUSE_OT_add_light(bpy.types.Operator):
     bl_options = {'REGISTER', 'UNDO'}
 
     type: bpy.props.EnumProperty(name="Type", items=LIGHT_TYPES)
+    # The target collection, used when use_active is off. SKIP_SAVE so a call never reuses the last one's.
+    name: bpy.props.StringProperty(options={'HIDDEN', 'SKIP_SAVE'})
+    library: bpy.props.StringProperty(options={'HIDDEN', 'SKIP_SAVE'})
+    use_active: bpy.props.BoolProperty(default=True, options={'HIDDEN', 'SKIP_SAVE'})
 
     def execute(self, context):
         layer = context.view_layer
-        collection = layer.active_layer_collection.collection
+        if self.use_active:
+            layer_collection = layer.active_layer_collection
+        else:
+            layer_collection = target_layer_collection(context, self.name, self.library)
+            if layer_collection is None:
+                return {'CANCELLED'}
+        collection = layer_collection.collection
         if is_read_only(collection):
             self.report({'ERROR'}, f"{collection.name} is read-only (linked from a library)")
             return {'CANCELLED'}
@@ -314,6 +334,7 @@ class LIGHTHOUSE_OT_add_light(bpy.types.Operator):
             other.select_set(False)
         obj.select_set(True)
         layer.objects.active = obj
+        layer.active_layer_collection = layer_collection
         return {'FINISHED'}
 
 
@@ -323,18 +344,28 @@ class LIGHTHOUSE_OT_new_collection(bpy.types.Operator):
     bl_label = "New Collection"
     bl_options = {'REGISTER', 'UNDO'}
 
-    name: bpy.props.StringProperty(name="Name", default="Collection")
+    new_name: bpy.props.StringProperty(name="Name", default="Collection")
+    # The parent collection, used when use_active is off. SKIP_SAVE so a call never reuses the last one's.
+    name: bpy.props.StringProperty(options={'HIDDEN', 'SKIP_SAVE'})
+    library: bpy.props.StringProperty(options={'HIDDEN', 'SKIP_SAVE'})
+    use_active: bpy.props.BoolProperty(default=True, options={'HIDDEN', 'SKIP_SAVE'})
 
     def invoke(self, context, event):
         return context.window_manager.invoke_props_dialog(self)
 
     def execute(self, context):
         layer = context.view_layer
-        parent = layer.active_layer_collection.collection
+        if self.use_active:
+            parent = layer.active_layer_collection.collection
+        else:
+            parent_layer = target_layer_collection(context, self.name, self.library)
+            if parent_layer is None:
+                return {'CANCELLED'}
+            parent = parent_layer.collection
         if is_read_only(parent):
             self.report({'ERROR'}, f"{parent.name} is read-only (linked from a library)")
             return {'CANCELLED'}
-        collection = bpy.data.collections.new(self.name.strip() or "Collection")
+        collection = bpy.data.collections.new(self.new_name.strip() or "Collection")
         parent.children.link(collection)
         layer.active_layer_collection = find_layer_collection(layer.layer_collection, collection)
         return {'FINISHED'}
@@ -939,6 +970,46 @@ class LIGHTHOUSE_AP_preferences(bpy.types.AddonPreferences):
         self.layout.label(text="Brings back deleted defaults. Defaults you edited are kept.")
 
 
+def target_collection(op, context, collection):
+    """Point an add_light or new_collection button at this collection instead of the active one."""
+    op.name, op.library = ("", "") if collection == context.scene.collection else id_key(collection)
+    op.use_active = False
+
+
+class LIGHTHOUSE_MT_new_light(bpy.types.Menu):
+    """Add a light at the 3D cursor"""
+    bl_idname = "LIGHTHOUSE_MT_new_light"
+    bl_label = "New Light"
+
+    def draw(self, context):
+        # Set by layout.context_pointer_set() in the group menu. Without it, lights go to the active collection.
+        collection = getattr(context, "lighthouse_collection", None)
+        for key, label, _description, icon, _number in LIGHT_TYPES:
+            op = self.layout.operator(LIGHTHOUSE_OT_add_light.bl_idname, text=label, icon=icon)
+            op.type = key
+            if collection is not None:
+                target_collection(op, context, collection)
+
+
+def draw_group_menu(self, context):
+    """Prepended to Blender's right-click menu (UI_MT_button_context_menu): New Light and New Collection
+    for the collection whose header name button (or the Scene Collection row's) is under the cursor."""
+    op = getattr(context, "button_operator", None)
+    if op is None or op.bl_rna.identifier != LIGHTHOUSE_OT_set_active_collection.bl_rna.identifier:
+        return
+    collection = scene_or_collection(context, op.name, op.library)
+    if collection is None:
+        return
+    entries = self.layout.column()
+    entries.enabled = not is_read_only(collection)
+    entries.context_pointer_set("lighthouse_collection", collection)
+    entries.menu(LIGHTHOUSE_MT_new_light.bl_idname, text="New Light", icon='LIGHT')
+    target_collection(
+        entries.operator(LIGHTHOUSE_OT_new_collection.bl_idname, text="New Collection", icon='COLLECTION_NEW'),
+        context, collection)
+    self.layout.separator()
+
+
 INDENT_STEP = 1.5
 # Fixed widths for a light row's unit label and color swatch (or Kelvin field), so power fills the rest with no gap.
 UNIT_WIDTH = 1.5
@@ -1180,6 +1251,7 @@ classes = (
     LIGHTHOUSE_OT_restore_default_presets,
     LIGHTHOUSE_OT_light_info,
     LIGHTHOUSE_OT_power_unit,
+    LIGHTHOUSE_MT_new_light,
     LIGHTHOUSE_PT_intensity,
     LIGHTHOUSE_PT_presets,
     LIGHTHOUSE_PT_lights,
@@ -1200,9 +1272,11 @@ def register():
         name="Lights Folded",
         description="Hide this collection's own lights in the Lights list, keeping its sub-collections",
     )
+    bpy.types.UI_MT_button_context_menu.prepend(draw_group_menu)
 
 
 def unregister():
+    bpy.types.UI_MT_button_context_menu.remove(draw_group_menu)
     del bpy.types.Collection.lighthouse_lights_collapsed
     del bpy.types.Collection.lighthouse_collapsed
     del bpy.types.Scene.lighthouse_solo

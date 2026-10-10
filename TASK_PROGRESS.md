@@ -95,3 +95,10 @@
 ## v4 TICKET-12: Restore moves to Preferences
 - The Restore button left the presets row, which now has only Save and Delete. It is in Edit > Preferences > Add-ons > Lighthouse as "Restore Default Presets", with a one-line hint. The operator is unchanged.
 - 3 new tests in `tests/test_restore_in_preferences.py` (preferences registered, preferences draw Restore and the hint, the panel draws Apply/Save/Delete only) using a recording fake layout. Not done yet: the manual GUI check of the Preferences panel.
+
+# v5 tickets
+
+## v5 TICKET-01: Right-click a collection to add there
+- `draw_group_menu` is prepended to `UI_MT_button_context_menu`. When the button under the cursor is a header's name button (`set_active_collection`: group headers and the Scene Collection row), it draws New Light ▸ (`LIGHTHOUSE_MT_new_light`, target passed by `context_pointer_set("lighthouse_collection", …)`), New Collection and a separator, disabled on read-only collections. Other buttons get nothing.
+- `add_light` and `new_collection` gain hidden `SKIP_SAVE` `name`/`library`/`use_active` (default on, so the header buttons are unchanged). A target (`""` = Scene Collection) is found by `target_layer_collection()`. A missing target cancels and a read-only one raises as before. `add_light` makes its target active. `new_collection`'s dialog field is now `new_name`. `Recorder` moved to `blender_runner.RECORDER` (menus, separators, pointers, `enabled`, operator props, `FakeContext`). Added the smoke steps and an ARCHITECTURE.md entry.
+- 11 new tests in `tests/test_group_menu.py`. `test_packaging` was fixed first, in its own commit, to read the version from the manifest (it broke on the 1.2.1 bump). `make test`: 200 pass. Engine smoke run and the new tests pass on 4.2.23. Not done yet: the manual GUI check (`button_operator` in the real right-click menu, the pointer reaching the submenu, greyed-out library entries).
