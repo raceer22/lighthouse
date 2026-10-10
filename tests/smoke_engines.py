@@ -126,4 +126,5 @@ for engine in ('CYCLES', eevee):
     assert bpy.ops.lighthouse.apply_preset(preset=saved) == {'FINISHED'}
     assert bpy.ops.lighthouse.delete_preset(preset=saved) == {'FINISHED'}
     assert bpy.ops.lighthouse.restore_default_presets() == {'FINISHED'}
+    assert lights.world_setup(bpy.context.scene).state == 'SIMPLE'
     print("SMOKE ok", bpy.context.scene.render.engine)

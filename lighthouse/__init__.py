@@ -47,6 +47,7 @@ from .lights import (
     toggled_mode,
     unsolo,
     update_snapshot,
+    world_setup,
 )
 from .presets import (
     apply_preset,
@@ -960,6 +961,24 @@ class LIGHTHOUSE_OT_power_unit(bpy.types.Operator):
 EV_STEPS = ((-1.0, "−1"), (-0.5, "−½"), (-0.25, "−¼"), (0.25, "+¼"), (0.5, "+½"), (1.0, "+1"))
 
 
+class LIGHTHOUSE_PT_world(bpy.types.Panel):
+    bl_label = "World"
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = 'UI'
+    bl_category = "Lights"
+
+    def draw(self, context):
+        setup = world_setup(context.scene)
+        if setup.state == 'NONE':
+            self.layout.label(text="No world in this scene")
+        elif setup.state == 'CUSTOM':
+            self.layout.label(text="Custom world setup, edit in Shader Editor")
+        else:
+            col = self.layout.column()
+            col.enabled = not is_read_only(context.scene.world)
+            col.prop(setup.background.inputs["Strength"], "default_value", text="Strength")
+
+
 class LIGHTHOUSE_PT_intensity(bpy.types.Panel):
     bl_label = "Intensity"
     bl_space_type = 'VIEW_3D'
@@ -1326,9 +1345,10 @@ classes = (
     LIGHTHOUSE_OT_power_unit,
     LIGHTHOUSE_MT_new_light,
     LIGHTHOUSE_MT_new,
+    LIGHTHOUSE_PT_lights,
+    LIGHTHOUSE_PT_world,
     LIGHTHOUSE_PT_intensity,
     LIGHTHOUSE_PT_presets,
-    LIGHTHOUSE_PT_lights,
     LIGHTHOUSE_AP_preferences,
 )
 

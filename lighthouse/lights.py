@@ -516,3 +516,31 @@ def supports_temperature():
     """Whether lights have a color temperature (Blender 5.0+)."""
     import bpy
     return "use_temperature" in bpy.types.Light.bl_rna.properties
+
+
+class WorldSetup(NamedTuple):
+    state: str  # 'NONE' (no world), 'CUSTOM' or 'SIMPLE'
+    source: object  # the node linked to the active World Output's Surface, or None
+    background: object  # source, when it is a Background node whose Strength isn't linked
+    environment: object  # the Environment Texture linked to the Background's Color, or None
+
+
+def _linked_node(socket):
+    return socket.links[0].from_node if socket.is_linked else None
+
+
+def world_setup(scene):
+    """How the scene's world is built. SIMPLE when World Output > Surface reaches a Background node
+    directly and its Strength is a plain value (a linked Strength would make the slider do nothing)."""
+    world = scene.world
+    if world is None:
+        return WorldSetup('NONE', None, None, None)
+    tree = world.node_tree if world.use_nodes else None
+    output = tree.get_output_node('ALL') if tree else None
+    source = _linked_node(output.inputs["Surface"]) if output else None
+    if source is None or source.bl_idname != 'ShaderNodeBackground' or source.inputs["Strength"].is_linked:
+        return WorldSetup('CUSTOM', source, None, None)
+    environment = _linked_node(source.inputs["Color"])
+    if environment is not None and environment.bl_idname != 'ShaderNodeTexEnvironment':
+        environment = None
+    return WorldSetup('SIMPLE', source, source, environment)
