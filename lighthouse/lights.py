@@ -102,7 +102,7 @@ def list_entries(view_layer, name_filter="", type_filter='ALL', grouped=True):
 def group_lights(view_layer, collection, type_filter='ALL'):
     """The listed lights in a collection and its sub-collections, each once, in list order.
     The same lights its header counts."""
-    layer_collection = _find_layer_collection(view_layer.layer_collection, collection)
+    layer_collection = find_layer_collection(view_layer.layer_collection, collection)
     if layer_collection is None:
         return []
     listed = set(listed_lights(view_layer, type_filter=type_filter))
@@ -127,13 +127,14 @@ def listed_groups(view_layer, type_filter='ALL'):
     return groups
 
 
-def _find_layer_collection(layer_collection, collection):
+def find_layer_collection(layer_collection, collection):
+    """The non-excluded layer collection of the collection below this one, or None."""
     for child in layer_collection.children:
         if child.exclude:
             continue
         if child.collection == collection:
             return child
-        found = _find_layer_collection(child, collection)
+        found = find_layer_collection(child, collection)
         if found is not None:
             return found
     return None

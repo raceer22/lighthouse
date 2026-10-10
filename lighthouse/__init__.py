@@ -8,6 +8,7 @@ import bpy
 from .lights import (
     DETAIL_LABELS,
     find_collection,
+    find_layer_collection,
     find_object,
     id_key,
     GroupEntry,
@@ -384,6 +385,27 @@ class LIGHTHOUSE_OT_toggle_group(bpy.types.Operator):
         if collection is None:
             return {'CANCELLED'}
         collection.lighthouse_collapsed = not collection.lighthouse_collapsed
+        return {'FINISHED'}
+
+
+class LIGHTHOUSE_OT_set_active_collection(bpy.types.Operator):
+    """Make this the active collection, where new lights are added"""
+    bl_idname = "lighthouse.set_active_collection"
+    bl_label = "Set Active Collection"
+    # Like clicking a collection in the Outliner (outliner.item_activate), which pushes an undo step.
+    bl_options = {'REGISTER', 'UNDO'}
+
+    name: bpy.props.StringProperty()
+    library: bpy.props.StringProperty(options={'HIDDEN'})
+
+    def execute(self, context):
+        collection = find_collection(self.name, self.library)
+        if collection is None:
+            return {'CANCELLED'}
+        layer_collection = find_layer_collection(context.view_layer.layer_collection, collection)
+        if layer_collection is None:
+            return {'CANCELLED'}
+        context.view_layer.active_layer_collection = layer_collection
         return {'FINISHED'}
 
 
@@ -836,7 +858,14 @@ class LIGHTHOUSE_PT_lights(bpy.types.Panel):
             icon='DISCLOSURE_TRI_RIGHT' if collection.lighthouse_collapsed else 'DISCLOSURE_TRI_DOWN',
             emboss=False,
         ), collection)
-        row.label(text=f"{collection.name} ({entry.count})", icon='OUTLINER_COLLECTION')
+        active = context.view_layer.active_layer_collection.collection == collection
+        target(row.operator(
+            LIGHTHOUSE_OT_set_active_collection.bl_idname,
+            text=f"{collection.name} ({entry.count})",
+            icon='OUTLINER_COLLECTION',
+            emboss=active,
+            depress=active,
+        ), collection)
         actions = row.row(align=True)
         target(actions.operator(LIGHTHOUSE_OT_select_group.bl_idname, text="", icon='RESTRICT_SELECT_OFF'), collection)
         target(actions.operator(LIGHTHOUSE_OT_move_to_group.bl_idname, text="", icon='IMPORT'), collection)
@@ -950,6 +979,7 @@ classes = (
     LIGHTHOUSE_OT_toggle_details,
     LIGHTHOUSE_OT_toggle_group,
     LIGHTHOUSE_OT_toggle_lights_row,
+    LIGHTHOUSE_OT_set_active_collection,
     LIGHTHOUSE_OT_toggle_all_groups,
     LIGHTHOUSE_OT_clear_filters,
     LIGHTHOUSE_OT_select_group,

@@ -46,3 +46,8 @@
 - When `toggle_all_groups` expands (every listed collection collapsed), it also unfolds every listed collection's lights row. Collapse leaves lights rows alone. The tooltip now mentions lights rows.
 - The "all collapsed?" check (action and header icon) still reads only `lighthouse_collapsed`. A test pins that folded rows alone don't make the next press expand. Added an ARCHITECTURE.md entry.
 - 3 new tests in `tests/test_lights_row.py`. `make test`: 143 pass. Not done yet: the manual GUI check (the header icon doesn't change when a lights row is folded, since the draw code can't run headless).
+
+## v4 TICKET-03: Active collection as the target folder
+- New `lighthouse.set_active_collection` (`REGISTER`, `UNDO`, like the Outliner's `item_activate`) sets `view_layer.active_layer_collection`. It cancels for unknown or excluded collections and never changes the selection. `find_layer_collection()` is now public.
+- A group's `Name (N)` label is now this button, pressed when its collection is active, so `+` and Shift+A add there. Library collections can be made active, and `+` then refuses as before. Added the smoke step and an ARCHITECTURE.md entry.
+- 4 new tests in `tests/test_active_collection.py`. `make test`: 147 pass. The engine smoke run passes. Not done yet: the manual GUI check (pressed state, sync with the Outliner, Shift+A).

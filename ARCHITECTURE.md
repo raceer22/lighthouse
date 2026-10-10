@@ -358,3 +358,8 @@ Checked on Blender 4.2.23 LTS (portable build) against 5.2.2 LTS. The add-on cod
 ## v4 task 02: Expand All and lights rows
 - `lighthouse.toggle_all_groups` also sets `lighthouse_lights_collapsed = False` on every collection from `listed_groups()` when it expands. When it collapses, lights rows are left as they are.
 - The "all collapsed?" check, used for both the action and the `FULLSCREEN_ENTER` / `FULLSCREEN_EXIT` header icon, still reads only `lighthouse_collapsed`. A folded lights row never changes what the button does.
+
+## v4 task 03: active collection
+- New components: `lights.find_layer_collection(layer_collection, collection)` (was `_find_layer_collection`, now public) and `lighthouse.set_active_collection` (`name` + `library`), which sets `view_layer.active_layer_collection` to the collection's non-excluded layer collection. It never touches the selection or the active object, and it cancels when the collection is unknown or excluded. `draw_group()` draws the `Name (N)` label as this operator's button with the collection icon: flat normally, embossed and pressed when it is the active collection.
+- Undo: clicking a collection in the Outliner runs `outliner.item_activate`, whose `bl_options` are `{'REGISTER', 'UNDO'}` (checked on 5.2.2), so `set_active_collection` is `{'REGISTER', 'UNDO'}` too.
+- Because it is Blender's own active collection, the choice stays in sync with the Outliner and Shift+A, and `add_light` already links there. A library collection can be made active (the Outliner allows it), and `+` then refuses with its read-only error.
