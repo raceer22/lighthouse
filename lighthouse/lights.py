@@ -523,6 +523,8 @@ class WorldSetup(NamedTuple):
     source: object  # the node linked to the active World Output's Surface, or None
     background: object  # source, when it is a Background node whose Strength isn't linked
     environment: object  # the Environment Texture linked to the Background's Color, or None
+    mapping: object = None  # the Mapping node linked to the environment's Vector, or None
+    rotation: str = None  # 'MAPPING', 'ADDABLE' (Vector unlinked), 'CUSTOM' or None (no environment)
 
 
 def _linked_node(socket):
@@ -543,4 +545,24 @@ def world_setup(scene):
     environment = _linked_node(source.inputs["Color"])
     if environment is not None and environment.bl_idname != 'ShaderNodeTexEnvironment':
         environment = None
-    return WorldSetup('SIMPLE', source, source, environment)
+    if environment is None:
+        return WorldSetup('SIMPLE', source, source, None)
+    vector = _linked_node(environment.inputs["Vector"])
+    if vector is None:
+        return WorldSetup('SIMPLE', source, source, environment, None, 'ADDABLE')
+    if vector.bl_idname == 'ShaderNodeMapping':
+        return WorldSetup('SIMPLE', source, source, environment, vector, 'MAPPING')
+    return WorldSetup('SIMPLE', source, source, environment, None, 'CUSTOM')
+
+
+def add_world_rotation(node_tree, environment):
+    """Texture Coordinate (Generated) > Mapping > the environment's Vector, placed left of the texture.
+    Returns the Mapping node."""
+    coords = node_tree.nodes.new('ShaderNodeTexCoord')
+    mapping = node_tree.nodes.new('ShaderNodeMapping')
+    x, y = environment.location
+    mapping.location = (x - 200, y)
+    coords.location = (x - 400, y)
+    node_tree.links.new(coords.outputs["Generated"], mapping.inputs["Vector"])
+    node_tree.links.new(mapping.outputs["Vector"], environment.inputs["Vector"])
+    return mapping

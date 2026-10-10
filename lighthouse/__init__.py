@@ -48,6 +48,7 @@ from .lights import (
     unsolo,
     update_snapshot,
     world_setup,
+    add_world_rotation,
 )
 from .presets import (
     apply_preset,
@@ -961,6 +962,24 @@ class LIGHTHOUSE_OT_power_unit(bpy.types.Operator):
 EV_STEPS = ((-1.0, "−1"), (-0.5, "−½"), (-0.25, "−¼"), (0.25, "+¼"), (0.5, "+½"), (1.0, "+1"))
 
 
+class LIGHTHOUSE_OT_add_world_rotation(bpy.types.Operator):
+    """Add Texture Coordinate and Mapping nodes in front of the world's Environment Texture, to rotate it"""
+    bl_idname = "lighthouse.add_world_rotation"
+    bl_label = "Add Rotation"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    def execute(self, context):
+        setup = world_setup(context.scene)
+        if setup.state != 'SIMPLE' or setup.rotation != 'ADDABLE':
+            self.report({'WARNING'}, "The world's Environment Texture already has a Vector input")
+            return {'CANCELLED'}
+        if is_read_only(context.scene.world):
+            self.report({'ERROR'}, f"{context.scene.world.name} is read-only (linked from a library)")
+            return {'CANCELLED'}
+        add_world_rotation(context.scene.world.node_tree, setup.environment)
+        return {'FINISHED'}
+
+
 class LIGHTHOUSE_PT_world(bpy.types.Panel):
     bl_label = "World"
     bl_space_type = 'VIEW_3D'
@@ -977,6 +996,10 @@ class LIGHTHOUSE_PT_world(bpy.types.Panel):
             col = self.layout.column()
             col.enabled = not is_read_only(context.scene.world)
             col.prop(setup.background.inputs["Strength"], "default_value", text="Strength")
+            if setup.rotation == 'MAPPING':
+                col.prop(setup.mapping.inputs["Rotation"], "default_value", index=2, text="Rotation")
+            elif setup.rotation == 'ADDABLE':
+                col.operator(LIGHTHOUSE_OT_add_world_rotation.bl_idname, text="Add Rotation")
 
 
 class LIGHTHOUSE_PT_intensity(bpy.types.Panel):
@@ -1343,6 +1366,7 @@ classes = (
     LIGHTHOUSE_OT_restore_default_presets,
     LIGHTHOUSE_OT_light_info,
     LIGHTHOUSE_OT_power_unit,
+    LIGHTHOUSE_OT_add_world_rotation,
     LIGHTHOUSE_MT_new_light,
     LIGHTHOUSE_MT_new,
     LIGHTHOUSE_PT_lights,

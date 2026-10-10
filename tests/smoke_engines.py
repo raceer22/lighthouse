@@ -126,5 +126,13 @@ for engine in ('CYCLES', eevee):
     assert bpy.ops.lighthouse.apply_preset(preset=saved) == {'FINISHED'}
     assert bpy.ops.lighthouse.delete_preset(preset=saved) == {'FINISHED'}
     assert bpy.ops.lighthouse.restore_default_presets() == {'FINISHED'}
-    assert lights.world_setup(bpy.context.scene).state == 'SIMPLE'
+    world = lights.world_setup(bpy.context.scene)
+    assert world.state == 'SIMPLE'
+    tree = bpy.context.scene.world.node_tree
+    if world.environment is None:
+        env = tree.nodes.new('ShaderNodeTexEnvironment')
+        tree.links.new(env.outputs["Color"], world.background.inputs["Color"])
+    if lights.world_setup(bpy.context.scene).rotation == 'ADDABLE':
+        assert bpy.ops.lighthouse.add_world_rotation() == {'FINISHED'}
+    assert lights.world_setup(bpy.context.scene).rotation == 'MAPPING'
     print("SMOKE ok", bpy.context.scene.render.engine)

@@ -441,3 +441,8 @@ Checked on Blender 4.2.23 LTS (portable build) against 5.2.2 LTS. The add-on cod
 - `LIGHTHOUSE_PT_world` draws Strength for `SIMPLE` (disabled on a read-only world), "Custom world setup, edit in Shader Editor" for `CUSTOM` and "No world in this scene" for `NONE`.
 - Panel order: with no `bl_order`, registration order sets the default order, so `classes` registers Lights, World, Intensity, Presets. In new layouts Lights now comes before Intensity and Presets. Layouts where the user dragged the panels keep their order.
 - Intensity actions only touch lights, so scope All leaves the World strength alone (item 18, pinned by a test).
+
+## v5 task 06: World rotation
+- `WorldSetup` gains `mapping` and `rotation` (both default `None`). With an environment, `rotation` is `'MAPPING'` when a Mapping node feeds its Vector, `'ADDABLE'` when Vector is unlinked, and `'CUSTOM'` for anything else. With no environment it is `None`.
+- `add_world_rotation(node_tree, environment)` adds Texture Coordinate (Generated) → Mapping → Vector, placed 400 and 200 units left of the texture. `lighthouse.add_world_rotation` (`REGISTER`, `UNDO`, so one Ctrl+Z removes both nodes) cancels unless the world is `SIMPLE` and `ADDABLE`, and refuses a read-only world.
+- The World panel draws the Mapping's Rotation Z (`index=2`, an Euler socket, so it shows in degrees) for `MAPPING`, Add Rotation for `ADDABLE`, and nothing for `CUSTOM` or no environment.
