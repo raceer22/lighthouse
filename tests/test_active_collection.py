@@ -134,3 +134,29 @@ def test_move_to_an_empty_name_moves_selected_lights_into_the_scene_collection()
     """)
 
     assert result == {"finished": ["FINISHED"], "collections": ["Scene Collection"]}
+
+
+def test_rename_action_renames_the_collection_and_refuses_blank_names_and_the_scene_collection():
+    result = run("""
+        before = active_collection()
+        renamed = bpy.ops.lighthouse.set_active_collection(name="Lamps", action='RENAME', new_name="  Bulbs ")
+        try:
+            bpy.ops.lighthouse.set_active_collection(name="Bulbs", action='RENAME', new_name="  ")
+            blank = None
+        except RuntimeError as e:
+            blank = str(e)
+        scene = bpy.ops.lighthouse.set_active_collection(name="", action='RENAME', new_name="Other")
+        report({
+            "renamed": sorted(renamed),
+            "names": sorted(c.name for c in bpy.data.collections if c.name in ("Lamps", "Bulbs", "Set")),
+            "blank": blank,
+            "scene": sorted(scene),
+            "active unchanged": active_collection() == before,
+        })
+    """)
+
+    assert result["renamed"] == ["FINISHED"]
+    assert result["names"] == ["Bulbs", "Set"]
+    assert "can't be empty" in result["blank"]
+    assert result["scene"] == ["CANCELLED"]
+    assert result["active unchanged"] is True

@@ -86,6 +86,9 @@ for engine in ('CYCLES', eevee):
     assert bpy.ops.lighthouse.exit_solo() == {'FINISHED'}
     assert bpy.ops.lighthouse.set_active_collection(name=group.name) == {'FINISHED'}
     assert bpy.ops.lighthouse.set_active_collection(name="") == {'FINISHED'}
+    old_name = group.name
+    assert bpy.ops.lighthouse.set_active_collection(name=old_name, action='RENAME', new_name=old_name + " R") == {'FINISHED'}
+    assert bpy.ops.lighthouse.set_active_collection(name=group.name, action='RENAME', new_name=old_name) == {'FINISHED'}
     assert bpy.ops.lighthouse.new_collection() == {'FINISHED'}
     bpy.data.collections.remove(bpy.context.view_layer.active_layer_collection.collection)
     assert bpy.ops.lighthouse.set_active_collection(name="") == {'FINISHED'}

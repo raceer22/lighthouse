@@ -426,7 +426,8 @@ class LIGHTHOUSE_OT_toggle_group(bpy.types.Operator):
 
 
 class LIGHTHOUSE_OT_set_active_collection(bpy.types.Operator):
-    """Make this the active collection, where new lights are added"""
+    """Click: make this the active collection, where new lights are added.
+    Ctrl+click: rename it"""
     bl_idname = "lighthouse.set_active_collection"
     bl_label = "Set Active Collection"
     # Like clicking a collection in the Outliner (outliner.item_activate), which pushes an undo step.
@@ -434,8 +435,43 @@ class LIGHTHOUSE_OT_set_active_collection(bpy.types.Operator):
 
     name: bpy.props.StringProperty()
     library: bpy.props.StringProperty(options={'HIDDEN'})
+    action: bpy.props.EnumProperty(
+        name="Action",
+        items=(
+            ('ACTIVATE', "Activate", "Make this the active collection"),
+            ('RENAME', "Rename", "Rename this collection"),
+        ),
+    )
+    new_name: bpy.props.StringProperty(name="Name")
+
+    def invoke(self, context, event):
+        self.action = 'RENAME' if event.ctrl else 'ACTIVATE'
+        if self.action == 'RENAME':
+            # The Scene Collection can't be renamed, so Ctrl+click on it does nothing.
+            collection = find_collection(self.name, self.library) if self.name else None
+            if collection is None:
+                return {'CANCELLED'}
+            self.new_name = collection.name
+            return context.window_manager.invoke_props_dialog(self, title="Rename Collection")
+        return self.execute(context)
+
+    def draw(self, context):
+        self.layout.prop(self, "new_name", text="")
 
     def execute(self, context):
+        if self.action == 'RENAME':
+            collection = find_collection(self.name, self.library) if self.name else None
+            if collection is None:
+                return {'CANCELLED'}
+            if is_read_only(collection):
+                self.report({'ERROR'}, f"{collection.name} is read-only (linked from a library)")
+                return {'CANCELLED'}
+            name = self.new_name.strip()
+            if not name:
+                self.report({'ERROR'}, "Collection name can't be empty")
+                return {'CANCELLED'}
+            collection.name = name
+            return {'FINISHED'}
         root = context.view_layer.layer_collection
         if self.name == "":
             layer_collection = root
