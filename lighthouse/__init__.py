@@ -368,8 +368,15 @@ class LIGHTHOUSE_OT_move_to_group(bpy.types.Operator):
         if is_read_only(collection):
             self.report({'ERROR'}, f"{collection.name} is read-only (linked from a library)")
             return {'CANCELLED'}
-        lights = [obj for obj in light_objects(context.view_layer) if obj.select_get()]
-        self.report({'INFO'}, move_summary(*move_lights(lights, collection), collection.name))
+        lights, empty = _lights_in_scope(context, 'SELECTED')
+        if not lights:
+            self.report({'WARNING'}, empty)
+            return {'CANCELLED'}
+        moved, skipped = move_lights(lights, collection)
+        if not moved:
+            self.report({'WARNING'}, move_summary(moved, skipped, collection.name))
+            return {'CANCELLED'}
+        self.report({'INFO'}, move_summary(moved, skipped, collection.name))
         return {'FINISHED'}
 
 
@@ -408,6 +415,15 @@ class LIGHTHOUSE_OT_solo_group(bpy.types.Operator):
         return {'FINISHED'}
 
 
+def _lights_in_scope(context, scope):
+    """The view layer's lights for scope ALL, or the selected ones for SELECTED,
+    and the warning to report if there are none."""
+    lights = light_objects(context.view_layer)
+    if scope == 'SELECTED':
+        return [obj for obj in lights if obj.select_get()], "No lights selected"
+    return lights, "No lights in the view layer"
+
+
 class LIGHTHOUSE_OT_scale_lights(bpy.types.Operator):
     """Multiply the power of the lights in scope by the factor.
     On keyframed lights, every power keyframe is scaled"""
@@ -419,10 +435,17 @@ class LIGHTHOUSE_OT_scale_lights(bpy.types.Operator):
     scope: bpy.props.EnumProperty(name="Scope", items=SCOPE_ITEMS)
 
     def execute(self, context):
-        lights = light_objects(context.view_layer)
-        if self.scope == 'SELECTED':
-            lights = [obj for obj in lights if obj.select_get()]
-        self.report({'INFO'}, scale_summary(*scale_lights(lights, self.factor)))
+        if self.factor == 1.0:
+            return {'CANCELLED'}
+        lights, empty = _lights_in_scope(context, self.scope)
+        if not lights:
+            self.report({'WARNING'}, empty)
+            return {'CANCELLED'}
+        scaled, keyframed = scale_lights(lights, self.factor)
+        if not scaled:
+            self.report({'WARNING'}, scale_summary(scaled, keyframed))
+            return {'CANCELLED'}
+        self.report({'INFO'}, scale_summary(scaled, keyframed))
         return {'FINISHED'}
 
 
@@ -440,10 +463,15 @@ class LIGHTHOUSE_OT_step_exposure(bpy.types.Operator):
     def execute(self, context):
         if self.steps == 0.0:
             return {'CANCELLED'}
-        lights = light_objects(context.view_layer)
-        if self.scope == 'SELECTED':
-            lights = [obj for obj in lights if obj.select_get()]
-        self.report({'INFO'}, scale_summary(*scale_lights(lights, 2.0 ** self.steps)))
+        lights, empty = _lights_in_scope(context, self.scope)
+        if not lights:
+            self.report({'WARNING'}, empty)
+            return {'CANCELLED'}
+        scaled, keyframed = scale_lights(lights, 2.0 ** self.steps)
+        if not scaled:
+            self.report({'WARNING'}, scale_summary(scaled, keyframed))
+            return {'CANCELLED'}
+        self.report({'INFO'}, scale_summary(scaled, keyframed))
         return {'FINISHED'}
 
 
@@ -457,9 +485,16 @@ class LIGHTHOUSE_OT_apply_preset(bpy.types.Operator):
     preset: bpy.props.EnumProperty(name="Preset", items=preset_items)
 
     def execute(self, context):
-        lights = [obj for obj in light_objects(context.view_layer) if obj.select_get()]
+        lights, empty = _lights_in_scope(context, 'SELECTED')
+        if not lights:
+            self.report({'WARNING'}, empty)
+            return {'CANCELLED'}
         preset = all_presets()[self.preset]
-        self.report({'INFO'}, preset_summary(preset, *apply_preset(lights, preset)))
+        changed, *skipped = apply_preset(lights, preset)
+        if not changed:
+            self.report({'WARNING'}, preset_summary(preset, changed, *skipped))
+            return {'CANCELLED'}
+        self.report({'INFO'}, preset_summary(preset, changed, *skipped))
         return {'FINISHED'}
 
 

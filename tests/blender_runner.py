@@ -66,15 +66,17 @@ def run_installed(snippet, user_dir):
     return _run(INSTALLED_PRELUDE + textwrap.dedent(snippet), env)
 
 
-def run_in_blender_with_reports(snippet):
-    """Like run_in_blender, but also return the info messages operators reported."""
+def run_in_blender_with_reports(snippet, level="Info"):
+    """Like run_in_blender, but also return the messages operators reported at the level."""
     value, output = _run(snippet)
-    return value, info_reports(output)
+    return value, reports(output, level)
 
 
-def info_reports(output):
-    """The info messages operators reported in a run's output."""
-    return [l[len("Info: "):] for l in output.splitlines() if l.startswith("Info: ")]
+def reports(output, level="Info"):
+    """The messages operators reported at the level in a run's output.
+    In --background Blender prints them as "Info: ..." or "Warning: ..."."""
+    prefix = f"{level}: "
+    return [l[len(prefix):] for l in output.splitlines() if l.startswith(prefix)]
 
 
 def _run(snippet, env=None):

@@ -1,6 +1,6 @@
 from pytest import approx
 
-from blender_runner import info_reports, run_installed
+from blender_runner import reports, run_installed
 
 
 def test_60w_bulb_changes_a_selected_point_light_but_not_a_selected_sun(tmp_path):
@@ -41,7 +41,7 @@ def test_unselected_lights_are_untouched_and_skipped_lights_are_reported(tmp_pat
     """, tmp_path)
 
     assert energies == {"Desk": 60, "Hall": 7, "Sun": 7, "Moon": 7}
-    assert info_reports(output) == ["Applied 60W Bulb to 1 light (2 skipped: incompatible type)"]
+    assert reports(output) == ["Applied 60W Bulb to 1 light (2 skipped: incompatible type)"]
 
 
 def test_candle_sets_an_area_light_size_to_the_preset_diameter(tmp_path):
@@ -116,4 +116,4 @@ def test_a_library_light_is_skipped_as_read_only_and_reported(tmp_path):
     counts, energies = energies
     assert counts == [1, 0, 1]
     assert energies == {"Local": 60, "Library": 10}
-    assert info_reports(output) == ["Applied 60W Bulb to 1 light (1 skipped: read-only)"]
+    assert reports(output) == ["Applied 60W Bulb to 1 light (1 skipped: read-only)"]

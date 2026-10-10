@@ -312,3 +312,17 @@ Dropdown value (CRC of the key) → `all_presets()` → `cached_user_presets()` 
 - A dynamic enum stores the item number. Numbers derived from keys keep the selection stable.
 - When the stored number has no item (for example, the file was removed outside Blender), the property reads `''`, and assigning `''` to another enum raises `TypeError`. That is why the panel guards it.
 - Not verified: whether the save dialog redraws while you type. The overwrite warning may only update after the field is confirmed (Enter or Tab). Check this in the manual GUI test.
+
+## v3 task 03: empty-scope feedback
+
+**Components**
+- `_lights_in_scope(context, scope)` in `__init__.py` returns the lights in scope and the warning to give when there are none: `No lights selected` for SELECTED, `No lights in the view layer` for ALL. `apply_preset` and `move_to_group` always use SELECTED.
+- `scale_lights`, `step_exposure`, `apply_preset` and `move_to_group` report that warning and return `{'CANCELLED'}` when the scope is empty. When lights are in scope but none changed (all read-only or of an incompatible type), they report the usual summary as a WARNING and also cancel.
+- `scale_lights` with `factor == 1.0` cancels silently, like `step_exposure` with `steps == 0`.
+- The checks live in `execute()`, not `poll()`, because `poll()` can't read the `scope` property, and a greyed-out button doesn't say why.
+
+**Data flow**
+A cancelled operator pushes no undo step, so Ctrl+Z after a press that did nothing undoes the previous real change.
+
+**Blender API quirks**
+- In `--background`, reports are printed as `Info: <message>` and `Warning: <message>`. `tests/blender_runner.py` reads them with `reports(output, level="Info")`, and `run_in_blender_with_reports(snippet, level=...)` passes the level through.
