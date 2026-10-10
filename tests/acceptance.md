@@ -74,3 +74,25 @@ Start Blender from a terminal with the extension installed. Each step should lea
 - [ ] **AC 19**: apply Candle to a point light. The row shows 1850 K, and Properties › Light shows the color white. Save a preset from it, restart Blender, apply it to another light, and Kelvin and exposure come back.
 - [ ] **AC 20**: `+` › New Light › each type adds a light at the 3D cursor in the active collection, selected and active.
 - [ ] **AC 21**: every step above, under both engines, leaves the console free of Lighthouse errors.
+
+# v5 release (1.3.0)
+
+Automated evidence and the engine smoke run for this release are in ARCHITECTURE.md (`## v5 release`) and TASK_PROGRESS.md. Every v5 operator runs in `tests/smoke_engines.py` under Cycles and EEVEE. The items below need the GUI. Do each on 5.2, and on 4.2 unless marked 5.0+.
+
+**Header and adding**
+- [ ] **v5 01**: right-clicking a header shows the Lighthouse entries above Copy Python Command and Assign Shortcut, with a separator between them. New Light ▸ Area adds an Area light to that collection and its header becomes pressed. The Scene Collection row works the same way. A library collection shows both entries greyed out. Right-clicking a light row or the search field shows no Lighthouse entries. Click still activates and Ctrl+click still renames.
+- [ ] **v5 02**: `+` ▸ New Light ▸ Point adds a light to the active collection. `+` ▸ New Collection opens the name dialog. Both work in flat mode, while searching, and with a type filter that hides everything. One Ctrl+Z undoes each.
+- [ ] **v5 03** (5.0+): the Color/Kelvin toggle fills the freed slot without shifting the header, its tooltip reads correctly in both modes, and a new light's row shows the Kelvin field in Kelvin mode.
+- [ ] **v5 04** (5.0+): change the default in Preferences, and the header toggle of an untouched file flips with it. Toggle it, change the default again, and the pinned file keeps its value.
+
+**World**
+- [ ] **v5 05**: the panel order is Lights, World, Intensity, Presets in a fresh layout. Dragging Strength updates the viewport, and Ctrl+Z reverts it.
+- [ ] **v5 06**: Add Rotation once, then drag the slider and the HDRI turns in the viewport. The new nodes sit tidily left of the texture in the Shader Editor. One Ctrl+Z removes both nodes.
+- [ ] **v5 07**: Mute darkens the viewport in Rendered shading, the muted node shows red in the Shader Editor, and Ctrl+Z restores it.
+- [ ] **v5 08**: solo a lamp and the HDRI stays lit. Mute the World and solo it: only the HDRI lights the scene. Exit Solo brings everything back, with the World muted again.
+
+**Light linking**
+- [ ] **v5 09** (Cycles): Link Selected with one cube selected, and in a Rendered viewport only that cube gets the light. `×` removes it and the whole scene is lit again. Ctrl+Z works for both.
+- [ ] **v5 10** (Cycles): exclude one object and it goes dark under that light. Two lights sharing a receiver collection both show the label, and an edit in one shows in the other.
+- [ ] **v5 11**: the link icon appears without shifting the power, color and toggle columns. The tooltip reads correctly, and clicking it opens the details at the Light Linking section.
+- [ ] **v5 12**: switch the engine with the details open, and the note appears and disappears while the links stay (on 4.2 it shows under EEVEE too).

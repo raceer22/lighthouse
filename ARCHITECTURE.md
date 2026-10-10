@@ -488,3 +488,12 @@ Checked on Blender 4.2.23 LTS (portable build) against 5.2.2 LTS. The add-on cod
 - Versions between 4.2 and 5.2 weren't checked, so `EEVEE_LIGHT_LINKING = (5, 0)` (EEVEE may already render it in 4.3/4.4, where the note would then be wrong). `light_linking_note(engine)` returns `None` for Cycles (and EEVEE from 5.0), else "Not rendered in <engine>, Cycles only" / "…, Cycles and EEVEE only". Unknown engines get the note (open question default).
 - `engine_name()`: the RenderSettings engine enum lists only some built-ins headless (5.2 shows just `BLENDER_EEVEE`), so built-ins come from `ENGINE_NAMES` and third-party engines from their registered `RenderEngine.bl_label`.
 - `draw_linking(box, obj, engine)` draws the note with `INFO` under the "Light Linking" label; buttons and rows stay enabled. The probe is kept as `test_excluding_the_cube_darkens_it_in_engines_without_a_note` (Cycles and EEVEE, ~1 s). The draw tests set Cycles, since 4.2's factory engine is EEVEE. Not yet checked: the manual GUI pass (switching engines with details open).
+
+## v5 release
+- Version 1.3.0 (the open question's default). `make test`: 5.2.2 266 pass, 1 skip; 4.2.23 254 pass, 13 skip (the 5.0+/4.4+ property tests and the 4.2 `read_userpref` crash). `make validate` passes on both, `make build` writes `dist/lighthouse-1.3.0.zip`.
+- `make install` now installs `dist/lighthouse-$(VERSION).zip` (read from the manifest). The old `lighthouse-*.zip` glob passed every zip in `dist/` and failed once an older one was left there. On 4.2.23, `make install` into a clean `BLENDER_USER_RESOURCES` profile and the engine smoke (Cycles, EEVEE Next) pass. On this machine's system 5.2.2 (Fedora package) the extension system can't load (`bl_pkg` needs `cattrs`, so `bl_ext` doesn't exist), so neither the install nor the smoke can run there. The 5.2.2 pytest suite runs the add-on from source.
+- Known limits:
+  - Light linking edits receivers only (no shadow linking). Link Selected doesn't pick up collections selected in the Outliner (task 09).
+  - Light linking renders in Cycles, and in EEVEE from 5.0 (checked on 5.2.2; 4.2's EEVEE Next doesn't). Versions between 4.2 and 5.2 weren't probed, so the EEVEE note may be wrong on 4.3/4.4. Workbench never renders it (task 12).
+  - World Mute uses the fallback: it mutes the detected Background of a simple world only and is greyed out for custom setups, since a muted Mix Shader passes its first input through (task 07).
+- Not done: the manual GUI pass (tests/acceptance.md, v5 section) on 5.2 and 4.2, which needs someone at Blender.

@@ -1,5 +1,6 @@
 BLENDER ?= blender
 DIST    := dist
+VERSION := $(shell sed -n 's/^version = "\(.*\)"/\1/p' lighthouse/blender_manifest.toml)
 
 .PHONY: test validate build install
 
@@ -14,4 +15,4 @@ build:
 
 # Installs into the user_default repo and enables it in the user's Blender config.
 install: build
-	$(BLENDER) --factory-startup --command extension install-file -r user_default -e $(DIST)/lighthouse-*.zip
+	$(BLENDER) --factory-startup --command extension install-file -r user_default -e $(DIST)/lighthouse-$(VERSION).zip
