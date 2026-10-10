@@ -11,6 +11,8 @@ from .lights import (
     _lookup,
     find_layer_collection,
     find_object,
+    linking_counts,
+    linking_tooltip,
     clear_receivers,
     shared_label,
     link_receivers,
@@ -983,6 +985,40 @@ class LIGHTHOUSE_OT_light_info(bpy.types.Operator):
         return {'CANCELLED'}
 
 
+class LIGHTHOUSE_OT_light_linking_info(bpy.types.Operator):
+    """Light linking summary. Click to open the light's details.
+    Shift+click to keep other lights' details open"""
+    bl_idname = "lighthouse.light_linking_info"
+    bl_label = "Light Linking"
+    bl_options = {'INTERNAL'}
+
+    name: bpy.props.StringProperty()
+    library: bpy.props.StringProperty(options={'HIDDEN'})
+    included: bpy.props.IntProperty()
+    excluded: bpy.props.IntProperty()
+    included_collections: bpy.props.IntProperty()
+    excluded_collections: bpy.props.IntProperty()
+    keep_others: bpy.props.BoolProperty(name="Keep Others", description="Leave other lights' details open")
+
+    @classmethod
+    def description(cls, context, properties):
+        return linking_tooltip(properties.included, properties.excluded,
+                               properties.included_collections, properties.excluded_collections)
+
+    def invoke(self, context, event):
+        self.keep_others = event.shift
+        return self.execute(context)
+
+    def execute(self, context):
+        obj = find_object(context.view_layer, self.name, self.library)
+        if obj is None:
+            return {'CANCELLED'}
+        settings = context.window_manager.lighthouse
+        if not details_open(settings, obj):
+            toggle_details(settings, obj, self.keep_others)
+        return {'FINISHED'}
+
+
 POWER_UNIT_NAMES = {"W": "watts", "W/m²": "watts per square metre"}
 
 
@@ -1468,6 +1504,11 @@ class LIGHTHOUSE_PT_lights(bpy.types.Panel):
             op = row.operator(LIGHTHOUSE_OT_light_info.bl_idname, text="", icon='INFO', emboss=False)
             op.other_users = light.users - 1
             op.other_collections = entry.other_collections
+        counts = linking_counts(obj)
+        if linking_tooltip(*counts):
+            op = row.operator(LIGHTHOUSE_OT_light_linking_info.bl_idname, text="", icon='LINKED', emboss=False)
+            target(op, obj)
+            op.included, op.excluded, op.included_collections, op.excluded_collections = counts
         controls = row.row(align=True)
         controls.enabled = not state.read_only
         controls.prop(light, "energy", text="")
@@ -1540,6 +1581,7 @@ classes = (
     LIGHTHOUSE_OT_delete_preset,
     LIGHTHOUSE_OT_restore_default_presets,
     LIGHTHOUSE_OT_light_info,
+    LIGHTHOUSE_OT_light_linking_info,
     LIGHTHOUSE_OT_power_unit,
     LIGHTHOUSE_OT_add_world_rotation,
     LIGHTHOUSE_OT_mute_world,

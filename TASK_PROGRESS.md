@@ -147,3 +147,8 @@
 - Exclude Selected is `link_receivers(state='EXCLUDE')`, so listed items only change state. `Receiver` gains `link`, and each row draws its `link_state` directly (expanded Include/Exclude, undo for free).
 - New `clear_receivers()` (keeps the collection assigned, the open question's default), `lighthouse.clear_receivers` (greyed out when the list is empty), `receiver_users()` and `shared_label()` ("Shared with Key, Rim (3 lights)", at most 3 names then "…"), drawn with `INFO` under the buttons. Added smoke steps, README and an ARCHITECTURE.md entry.
 - 5 new tests, and the task 09 draw test was rewritten for the new section (`tests/test_light_linking.py`, 11 now). `make test`: 5.2.2 260 pass, 1 skip; 4.2.23 248 pass, 13 skip. The engine smoke run passes on 4.2.23. Not done yet: the manual GUI check (Cycles exclude, both sharing lights show the label).
+
+## v5 TICKET-11: Light linking icon on the row
+- New `linking_tooltip()` ("Lights only 3 objects, excludes 1", singular wording, child collections named separately as the open question's default) and `linking_counts()` in `lights.py`.
+- New `lighthouse.light_linking_info` (`INTERNAL`, tooltip from `description()`). Its click opens the details (Shift keeps others) and never closes them. `draw_light()` draws it as `LINKED` after ⓘ and before power, only when there are receivers. Added a smoke step and an ARCHITECTURE.md entry.
+- 3 new tests in `tests/test_light_linking.py`. `make test`: 5.2.2 263 pass, 1 skip; 4.2.23 251 pass, 13 skip. The engine smoke run passes on 4.2.23. Not done yet: the manual GUI check (columns don't shift, tooltip, click opens details).

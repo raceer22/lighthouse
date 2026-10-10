@@ -189,3 +189,73 @@ def test_shared_label_names_the_other_lights_and_counts_all():
     """)
 
     assert result == ["Shared with Key, Rim (3 lights)", "", ""]
+
+
+def test_linking_tooltip_summarizes_included_and_excluded_counts():
+    result = run("""
+        from lighthouse.lights import linking_tooltip
+        report([linking_tooltip(*case) for case in
+                [(3, 0), (3, 1), (0, 2), (1, 0), (0, 1), (0, 0), (2, 1, 1, 0), (0, 0, 0, 1)]])
+    """)
+
+    assert result == [
+        "Lights only 3 objects",
+        "Lights only 3 objects, excludes 1",
+        "Excludes 2 objects",
+        "Lights only 1 object",
+        "Excludes 1 object",
+        "",
+        "Lights only 2 objects and 1 collection, excludes 1",
+        "Excludes 1 collection",
+    ]
+
+
+def test_linking_info_opens_the_details_closing_others_and_never_closes_them():
+    result = run("""
+        from lighthouse.lights import details_open
+        rim = add_light("Rim")
+        settings = bpy.context.window_manager.lighthouse
+        bpy.ops.lighthouse.toggle_details(name="Rim")
+        def open_now():
+            return [details_open(settings, key), details_open(settings, rim)]
+        out = []
+        for _ in range(2):
+            status = sorted(bpy.ops.lighthouse.light_linking_info(name="Key"))
+            out.append([status, open_now()])
+        report(out)
+    """)
+
+    assert result == [[["FINISHED"], [True, False]], [["FINISHED"], [True, False]]]
+
+
+def test_rows_draw_the_link_button_after_info_and_before_power_only_with_receivers():
+    result = run(prelude=RECORDER, snippet="""
+        rim, fill = add_light("Rim"), add_light("Fill")
+        twin = bpy.data.objects.new("Twin", key.data)
+        bpy.context.scene.collection.objects.link(twin)
+        select(cube)
+        bpy.ops.lighthouse.link_receivers(name="Key")
+        select(cube, sphere)
+        bpy.ops.lighthouse.link_receivers(name="Rim", state='EXCLUDE')
+        fill.light_linking.receiver_collection = bpy.data.collections.new("Empty")
+        def panel_draw(holder, context):
+            panel = bpy.types.LIGHTHOUSE_PT_lights
+            methods = {name: value for name, value in vars(panel).items() if name.startswith("draw")}
+            panel.draw(type("Panel", (), {**methods, "layout": holder.layout})(), context)
+        entries = drawn(panel_draw)
+        def between_name_and_power(name):
+            start = next(i for i, e in enumerate(entries) if e[1:3] == ["lighthouse.select_light", name])
+            end = next(i for i, e in enumerate(entries) if i > start and e[:2] == ["prop", "energy"])
+            return [[e[1]] + e[3:] for e in entries[start + 1:end]]
+        report({name: between_name_and_power(name) for name in ("Key", "Rim", "Fill", "Twin")})
+    """)
+
+    link = {"name": "Key", "library": "", "included": 1, "excluded": 0,
+            "included_collections": 0, "excluded_collections": 0}
+    assert result == {
+        "Key": [["lighthouse.light_info", {"other_users": 1, "other_collections": 0}],
+                ["lighthouse.light_linking_info", link]],
+        "Rim": [["lighthouse.light_linking_info", dict(link, name="Rim", included=0, excluded=2)]],
+        "Fill": [],
+        "Twin": [["lighthouse.light_info", {"other_users": 1, "other_collections": 0}]],
+    }

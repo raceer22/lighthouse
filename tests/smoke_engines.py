@@ -161,6 +161,9 @@ for engine in ('CYCLES', eevee):
         assert len(lights.receivers(lamp)) == len(others) - 1
         assert bpy.ops.lighthouse.link_receivers(name=lamp.name, state='EXCLUDE') == {'FINISHED'}
         assert {r.state for r in lights.receivers(lamp)} == {'EXCLUDE'}
+        assert lights.linking_tooltip(*lights.linking_counts(lamp)).startswith("Excludes")
+        assert bpy.ops.lighthouse.light_linking_info(name=lamp.name) == {'FINISHED'}
+        assert lights.details_open(bpy.context.window_manager.lighthouse, lamp)
         assert bpy.ops.lighthouse.clear_receivers(name=lamp.name) == {'FINISHED'}
         assert lights.receivers(lamp) == []
     print("SMOKE ok", bpy.context.scene.render.engine)

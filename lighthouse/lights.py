@@ -720,3 +720,32 @@ def shared_label(obj):
         return ""
     names = ", ".join(others[:SHARED_NAMES]) + (", …" if len(others) > SHARED_NAMES else "")
     return f"Shared with {names} ({len(users)} lights)"
+
+
+def _counted(objects, collections):
+    """ "3 objects", "1 collection" or "2 objects and 1 collection"."""
+    parts = [f"{count} {noun}{'' if count == 1 else 's'}"
+             for count, noun in ((objects, "object"), (collections, "collection")) if count]
+    return " and ".join(parts)
+
+
+def linking_tooltip(included, excluded, included_collections=0, excluded_collections=0):
+    """Tooltip for a row's light linking icon, from receivers() counts: "Lights only 3 objects, excludes 1",
+    "Excludes 2 objects", … Child collections are named separately. Empty without receivers (no icon)."""
+    if included or included_collections:
+        summary = f"Lights only {_counted(included, included_collections)}"
+        if excluded_collections:
+            return f"{summary}, excludes {_counted(excluded, excluded_collections)}"
+        return f"{summary}, excludes {excluded}" if excluded else summary
+    if excluded or excluded_collections:
+        return f"Excludes {_counted(excluded, excluded_collections)}"
+    return ""
+
+
+def linking_counts(obj):
+    """(included objects, excluded objects, included collections, excluded collections) of receivers(obj),
+    in linking_tooltip()'s argument order."""
+    listed = receivers(obj)
+    return tuple(sum(1 for r in listed if r.kind == kind and r.state == state)
+                 for kind, state in (('OBJECT', 'INCLUDE'), ('OBJECT', 'EXCLUDE'),
+                                     ('COLLECTION', 'INCLUDE'), ('COLLECTION', 'EXCLUDE')))
