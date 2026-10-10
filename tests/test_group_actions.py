@@ -4,7 +4,7 @@ from blender_runner import run_in_blender, run_in_blender_with_reports
 
 HELPERS = """
 import lighthouse
-from lighthouse.lights import GroupEntry, list_entries
+from lighthouse.lights import GroupEntry, SceneEntry, list_entries
 lighthouse.register()
 
 def new_collection(name, parent=None):
@@ -21,7 +21,8 @@ def move_to(obj, *collections):
 
 def entries(**options):
     return [
-        ["group", e.collection.name, e.depth, e.count] if isinstance(e, GroupEntry)
+        ["scene", e.count] if isinstance(e, SceneEntry)
+        else ["group", e.collection.name, e.depth, e.count] if isinstance(e, GroupEntry)
         else ["light", e.obj.name, e.depth]
         for e in list_entries(bpy.context.view_layer, **options)
     ]
@@ -66,6 +67,7 @@ def test_collapsed_group_keeps_its_header_and_count_but_hides_everything_below_i
     """)
 
     assert rows == [
+        ["scene", 0],
         ["group", "Set", 0, 2],
         ["group", "Studio", 0, 1],
         ["light", "Key", 1],

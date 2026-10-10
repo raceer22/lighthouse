@@ -67,6 +67,12 @@ class GroupEntry(NamedTuple):
     count: int
 
 
+class SceneEntry(NamedTuple):
+    """The Scene Collection's header, first in the grouped list. count is its own listed lights."""
+    collection: object
+    count: int
+
+
 class LightsEntry(NamedTuple):
     """The foldable row above a collection's own lights, when it also has listed sub-collections."""
     collection: object
@@ -85,13 +91,19 @@ def list_entries(view_layer, name_filter="", type_filter='ALL', grouped=True):
     (only those on the path to a listed light), each followed by its own lights sorted by name
     ignoring case, then its sub-collections. A collapsed collection keeps its header and count but
     nothing below it. A collection with both its own lights and sub-collections puts its lights under a
-    foldable LightsEntry row; folding it drops only those lights. Scene Collection lights come first,
-    with no header.
+    foldable LightsEntry row; folding it drops only those lights. A SceneEntry header comes first,
+    then the Scene Collection's own lights (unless its lights are folded) at depth 0, so top-level
+    collections stay at depth 0.
     When not grouped, or while searching, it is the flat listed_lights() order with no headers."""
     if not grouped or name_filter:
         return [LightEntry(obj, 0, 0) for obj in listed_lights(view_layer, name_filter, type_filter)]
     listed = set(listed_lights(view_layer, type_filter=type_filter))
+    scene_collection = view_layer.layer_collection.collection
     entries = _collection_entries(view_layer.layer_collection, listed, 0)[0]
+    own = [entry for entry in entries if isinstance(entry, LightEntry) and entry.depth == 0]
+    if is_lights_folded(scene_collection):
+        entries = entries[len(own):]
+    entries = [SceneEntry(scene_collection, len(own))] + entries
     places = Counter(entry.obj for entry in entries if isinstance(entry, LightEntry))
     return [
         entry._replace(other_collections=places[entry.obj] - 1) if isinstance(entry, LightEntry) else entry

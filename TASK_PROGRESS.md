@@ -51,3 +51,8 @@
 - New `lighthouse.set_active_collection` (`REGISTER`, `UNDO`, like the Outliner's `item_activate`) sets `view_layer.active_layer_collection`. It cancels for unknown or excluded collections and never changes the selection. `find_layer_collection()` is now public.
 - A group's `Name (N)` label is now this button, pressed when its collection is active, so `+` and Shift+A add there. Library collections can be made active, and `+` then refuses as before. Added the smoke step and an ARCHITECTURE.md entry.
 - 4 new tests in `tests/test_active_collection.py`. `make test`: 147 pass. The engine smoke run passes. Not done yet: the manual GUI check (pressed state, sync with the Outliner, Shift+A).
+
+## v4 TICKET-04: Scene Collection row
+- The grouped list now starts with `SceneEntry`: a `Scene Collection` header with a fold for its own lights (blank when it has none), its name as the `set_active_collection` button, and Move here aligned with the other headers (blank slots for Select, Hide and Solo). Top-level collections stay at depth 0.
+- `name=""` targets the master collection in `toggle_lights_row`, `move_to_group` and `set_active_collection`. Expand All unfolds it, and its fold is saved with the scene. Updated 10 existing list expectations for the new header, and added the smoke steps and an ARCHITECTURE.md entry.
+- 6 new tests. `make test`: 153 pass. The engine smoke run passes, and a stub-layout draw check ran clean (not committed). Open questions took their defaults (no Select, no count). Not done yet: the manual GUI check.

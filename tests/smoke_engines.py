@@ -85,7 +85,7 @@ for engine in ('CYCLES', eevee):
     assert bpy.ops.lighthouse.solo_group(name=group.name) == {'FINISHED'}
     assert bpy.ops.lighthouse.exit_solo() == {'FINISHED'}
     assert bpy.ops.lighthouse.set_active_collection(name=group.name) == {'FINISHED'}
-    bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection
+    assert bpy.ops.lighthouse.set_active_collection(name="") == {'FINISHED'}
     for _ in range(2):
         assert bpy.ops.lighthouse.toggle_all_groups() == {'FINISHED'}
     assert bpy.ops.lighthouse.clear_filters() == {'FINISHED'}
@@ -95,6 +95,8 @@ for engine in ('CYCLES', eevee):
         assert bpy.ops.lighthouse.select_group(name=group.name, extend=extend) == {'FINISHED'}
     select_all_lights()
     assert bpy.ops.lighthouse.move_to_group(name=other.name) == {'FINISHED'}
+    assert bpy.ops.lighthouse.move_to_group(name="") == {'FINISHED'}
+    select_all_lights()
     assert bpy.ops.lighthouse.move_to_group(name=group.name) == {'FINISHED'}
 
     select_all_lights()

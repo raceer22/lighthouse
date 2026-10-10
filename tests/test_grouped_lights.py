@@ -3,7 +3,7 @@ import textwrap
 from blender_runner import run_in_blender
 
 HELPERS = """
-from lighthouse.lights import GroupEntry, LightEntry, LightsEntry, list_entries
+from lighthouse.lights import GroupEntry, SceneEntry, LightEntry, LightsEntry, list_entries
 
 def new_collection(name, parent=None):
     collection = bpy.data.collections.new(name)
@@ -19,7 +19,8 @@ def move_to(obj, *collections):
 
 def entries(**options):
     return [
-        ["group", e.collection.name, e.depth, e.count] if isinstance(e, GroupEntry)
+        ["scene", e.count] if isinstance(e, SceneEntry)
+        else ["group", e.collection.name, e.depth, e.count] if isinstance(e, GroupEntry)
         else ["lights", e.collection.name, e.depth, e.count] if isinstance(e, LightsEntry)
         else ["light", e.obj.name, e.depth, e.other_collections]
         for e in list_entries(bpy.context.view_layer, **options)
@@ -42,6 +43,7 @@ def test_collections_on_the_path_to_a_light_are_kept_as_nested_groups():
     """)
 
     assert rows == [
+        ["scene", 0],
         ["group", "Set", 0, 1],
         ["group", "Interior", 1, 1],
         ["group", "Lamps", 2, 1],
@@ -49,7 +51,7 @@ def test_collections_on_the_path_to_a_light_are_kept_as_nested_groups():
     ]
 
 
-def test_collections_without_lights_are_left_out_and_scene_collection_lights_have_no_header():
+def test_collections_without_lights_are_left_out_and_scene_collection_lights_follow_its_header():
     rows = run("""
         empty_scene()
         new_collection("Empty")
@@ -60,6 +62,7 @@ def test_collections_without_lights_are_left_out_and_scene_collection_lights_hav
     """)
 
     assert rows == [
+        ["scene", 1],
         ["light", "Sun", 0, 0],
         ["group", "Lights", 0, 1],
         ["light", "Key", 1, 0],
@@ -76,6 +79,7 @@ def test_excluded_collection_has_no_header_and_its_lights_are_not_listed():
     """)
 
     assert rows == [
+        ["scene", 0],
         ["group", "Shown", 0, 1],
         ["light", "Key", 1, 0],
     ]
@@ -93,6 +97,7 @@ def test_search_flattens_the_list_and_clearing_it_restores_groups():
     assert result == {
         "search": [["light", "Key Lamp", 0, 0], ["light", "key sun", 0, 0]],
         "cleared": [
+            ["scene", 2],
             ["light", "Fill", 0, 0],
             ["light", "key sun", 0, 0],
             ["group", "Lamps", 0, 1],
@@ -121,6 +126,7 @@ def test_light_in_two_collections_is_listed_under_each_and_once_when_flat():
 
     assert result == {
         "grouped": [
+            ["scene", 0],
             ["group", "A", 0, 1],
             ["light", "Key", 1, 1],
             ["group", "B", 0, 1],
@@ -186,6 +192,7 @@ def test_a_collections_own_lights_come_before_its_sub_collections():
     """)
 
     assert rows == [
+        ["scene", 1],
         ["light", "Sun", 0, 0],
         ["group", "Set", 0, 2],
         ["lights", "Set", 1, 1],
@@ -206,6 +213,7 @@ def test_own_lights_next_to_sub_collections_go_under_a_lights_row():
     """)
 
     assert rows == [
+        ["scene", 0],
         ["group", "Set", 0, 3],
         ["lights", "Set", 1, 2],
         ["light", "Fill", 2, 0],
@@ -225,7 +233,33 @@ def test_a_leaf_collection_lists_its_lights_with_no_lights_row():
     """)
 
     assert rows == [
+        ["scene", 0],
         ["group", "Props", 0, 2],
         ["light", "Candle", 1, 0],
         ["light", "Lamp", 1, 0],
     ]
+
+
+def test_the_grouped_list_starts_with_the_scene_collection_and_keeps_the_tree_depths():
+    rows = run("""
+        empty_scene()
+        add_light("Sun", "SUN")
+        set_ = new_collection("Set")
+        move_to(add_light("Key"), set_)
+        move_to(add_light("Bulb"), new_collection("Lamps", set_))
+        report({"grouped": entries(), "flat": entries(grouped=False), "search": entries(name_filter="u")})
+    """)
+
+    assert rows == {
+        "grouped": [
+            ["scene", 1],
+            ["light", "Sun", 0, 0],
+            ["group", "Set", 0, 2],
+            ["lights", "Set", 1, 1],
+            ["light", "Key", 2, 0],
+            ["group", "Lamps", 1, 1],
+            ["light", "Bulb", 2, 0],
+        ],
+        "flat": [["light", "Bulb", 0, 0], ["light", "Key", 0, 0], ["light", "Sun", 0, 0]],
+        "search": [["light", "Bulb", 0, 0], ["light", "Sun", 0, 0]],
+    }

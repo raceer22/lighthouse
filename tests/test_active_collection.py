@@ -107,3 +107,30 @@ def test_an_unknown_or_excluded_collection_is_cancelled_and_the_active_one_kept(
     """)
 
     assert result == {"unknown": ["CANCELLED"], "excluded": ["CANCELLED"], "active collection": "Set"}
+
+
+def test_an_empty_name_makes_the_scene_collection_active_and_new_lights_land_there():
+    result = run("""
+        layer.active_layer_collection = layer.layer_collection.children["Set"]
+        finished = sorted(bpy.ops.lighthouse.set_active_collection(name=""))
+        bpy.ops.lighthouse.add_light(type='POINT')
+        report({
+            "finished": finished,
+            "master active": layer.active_layer_collection == layer.layer_collection,
+            "collections": [c.name for c in layer.objects.active.users_collection],
+        })
+    """)
+
+    assert result == {"finished": ["FINISHED"], "master active": True, "collections": ["Scene Collection"]}
+
+
+def test_move_to_an_empty_name_moves_selected_lights_into_the_scene_collection():
+    result = run("""
+        bulb = bpy.data.objects["Bulb"]
+        bulb.select_set(True)
+        layer.objects.active = bulb
+        finished = sorted(bpy.ops.lighthouse.move_to_group(name=""))
+        report({"finished": finished, "collections": [c.name for c in bulb.users_collection]})
+    """)
+
+    assert result == {"finished": ["FINISHED"], "collections": ["Scene Collection"]}

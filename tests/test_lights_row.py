@@ -4,7 +4,7 @@ from blender_runner import run_in_blender
 
 HELPERS = """
 import lighthouse
-from lighthouse.lights import GroupEntry, LightsEntry, group_lights, list_entries
+from lighthouse.lights import GroupEntry, SceneEntry, LightsEntry, group_lights, list_entries
 lighthouse.register()
 
 def new_collection(name, parent=None):
@@ -21,7 +21,8 @@ def move_to(obj, *collections):
 
 def entries(**options):
     return [
-        ["group", e.collection.name, e.depth, e.count] if isinstance(e, GroupEntry)
+        ["scene", e.count] if isinstance(e, SceneEntry)
+        else ["group", e.collection.name, e.depth, e.count] if isinstance(e, GroupEntry)
         else ["lights", e.collection.name, e.depth, e.count] if isinstance(e, LightsEntry)
         else ["light", e.obj.name, e.depth]
         for e in list_entries(bpy.context.view_layer, **options)
@@ -52,6 +53,7 @@ def test_folding_the_lights_row_hides_own_lights_but_keeps_sub_collections_and_c
 
     assert result == {
         "rows": [
+            ["scene", 1],
             ["light", "Sun", 0],
             ["group", "Set", 0, 3],
             ["lights", "Set", 1, 2],
@@ -146,3 +148,49 @@ def test_folded_lights_rows_do_not_count_as_collapsed():
     """)
 
     assert result == ["Lamps", "Props", "Set"]
+
+
+def test_folding_the_scene_collection_hides_only_its_own_lights():
+    rows = run("""
+        bpy.ops.lighthouse.toggle_lights_row(name="")
+        report(entries())
+    """)
+
+    assert rows == [
+        ["scene", 1],
+        ["group", "Set", 0, 3],
+        ["lights", "Set", 1, 2],
+        ["light", "Fill", 2],
+        ["light", "Key", 2],
+        ["group", "Lamps", 1, 1],
+        ["light", "Bulb", 2],
+    ]
+
+
+def test_expand_all_unfolds_the_scene_collection_and_collapse_all_leaves_it_unfolded():
+    result = run(TOGGLE_ALL + """
+        scene_collection = bpy.context.scene.collection
+        for collection in (set_, lamps, props):
+            collection.lighthouse_collapsed = True
+        scene_collection.lighthouse_lights_collapsed = True
+        bpy.ops.lighthouse.toggle_all_groups()
+        expanded = scene_collection.lighthouse_lights_collapsed
+        bpy.ops.lighthouse.toggle_all_groups()
+        report({"after expand": expanded, "after collapse": scene_collection.lighthouse_lights_collapsed,
+                "collapsed": state()["collapsed"]})
+    """)
+
+    assert result == {"after expand": False, "after collapse": False, "collapsed": ["Lamps", "Props", "Set"]}
+
+
+def test_scene_collection_fold_stays_after_saving_and_reopening(tmp_path):
+    folded = run(f"""
+        bpy.ops.lighthouse.toggle_lights_row(name="")
+        path = {str(tmp_path / "scene.blend")!r}
+        bpy.ops.wm.save_as_mainfile(filepath=path)
+        bpy.ops.wm.read_homefile(use_factory_startup=True)
+        bpy.ops.wm.open_mainfile(filepath=path)
+        report(bpy.context.scene.collection.lighthouse_lights_collapsed)
+    """)
+
+    assert folded is True

@@ -26,6 +26,7 @@ from .lights import (
     light_info_tooltip,
     LightEntry,
     LightsEntry,
+    SceneEntry,
     light_objects,
     list_entries,
     listed_groups,
@@ -246,6 +247,12 @@ class LIGHTHOUSE_OT_select_light(bpy.types.Operator):
         return {'FINISHED'}
 
 
+def scene_or_collection(context, name, library):
+    """The collection a header button targets: name "" (no ID has an empty name) is the scene's
+    master collection, which is not in bpy.data.collections."""
+    return context.scene.collection if name == "" else find_collection(name, library)
+
+
 def target(op, id):
     """Point a row or header button's operator at this exact light or collection."""
     op.name, op.library = id_key(id)
@@ -399,10 +406,12 @@ class LIGHTHOUSE_OT_set_active_collection(bpy.types.Operator):
     library: bpy.props.StringProperty(options={'HIDDEN'})
 
     def execute(self, context):
-        collection = find_collection(self.name, self.library)
-        if collection is None:
-            return {'CANCELLED'}
-        layer_collection = find_layer_collection(context.view_layer.layer_collection, collection)
+        root = context.view_layer.layer_collection
+        if self.name == "":
+            layer_collection = root
+        else:
+            collection = find_collection(self.name, self.library)
+            layer_collection = collection and find_layer_collection(root, collection)
         if layer_collection is None:
             return {'CANCELLED'}
         context.view_layer.active_layer_collection = layer_collection
@@ -419,7 +428,7 @@ class LIGHTHOUSE_OT_toggle_lights_row(bpy.types.Operator):
     library: bpy.props.StringProperty(options={'HIDDEN'})
 
     def execute(self, context):
-        collection = find_collection(self.name, self.library)
+        collection = scene_or_collection(context, self.name, self.library)
         if collection is None:
             return {'CANCELLED'}
         collection.lighthouse_lights_collapsed = not collection.lighthouse_lights_collapsed
@@ -454,6 +463,8 @@ class LIGHTHOUSE_OT_toggle_all_groups(bpy.types.Operator):
             collection.lighthouse_collapsed = collapse
             if not collapse:
                 collection.lighthouse_lights_collapsed = False
+        if not collapse:
+            context.scene.collection.lighthouse_lights_collapsed = False
         return {'FINISHED'}
 
 
@@ -499,7 +510,7 @@ class LIGHTHOUSE_OT_move_to_group(bpy.types.Operator):
     library: bpy.props.StringProperty(options={'HIDDEN'})
 
     def execute(self, context):
-        collection = find_collection(self.name, self.library)
+        collection = scene_or_collection(context, self.name, self.library)
         if collection is None:
             return {'CANCELLED'}
         if is_read_only(collection):
@@ -841,12 +852,41 @@ class LIGHTHOUSE_PT_lights(bpy.types.Panel):
 
         entries = list_entries(context.view_layer, filters.name_filter, filters.type_filter, filters.grouped)
         for entry in entries:
-            if isinstance(entry, GroupEntry):
+            if isinstance(entry, SceneEntry):
+                self.draw_scene_row(context, entry)
+            elif isinstance(entry, GroupEntry):
                 self.draw_group(context, entry)
             elif isinstance(entry, LightsEntry):
                 self.draw_lights_row(entry)
             else:
                 self.draw_light(context, entry)
+
+    def draw_scene_row(self, context, entry):
+        # name "" targets the Scene Collection, set explicitly so a button never reuses the last name.
+        row = self.layout.row(align=True)
+        if entry.count:
+            row.operator(
+                LIGHTHOUSE_OT_toggle_lights_row.bl_idname,
+                text="",
+                icon='DISCLOSURE_TRI_RIGHT' if is_lights_folded(entry.collection) else 'DISCLOSURE_TRI_DOWN',
+                emboss=False,
+            ).name = ""
+        else:
+            row.label(text="", icon='BLANK1')
+        active = context.view_layer.active_layer_collection == context.view_layer.layer_collection
+        row.operator(
+            LIGHTHOUSE_OT_set_active_collection.bl_idname,
+            text="Scene Collection",
+            icon='OUTLINER_COLLECTION',
+            emboss=active,
+            depress=active,
+        ).name = ""
+        # Blanks where other headers have Select, Hide and Solo, so Move here lines up with theirs.
+        actions = row.row(align=True)
+        actions.label(text="", icon='BLANK1')
+        actions.operator(LIGHTHOUSE_OT_move_to_group.bl_idname, text="", icon='IMPORT').name = ""
+        actions.label(text="", icon='BLANK1')
+        actions.label(text="", icon='BLANK1')
 
     def draw_group(self, context, entry):
         collection = entry.collection
