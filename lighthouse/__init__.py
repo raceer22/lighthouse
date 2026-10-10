@@ -283,6 +283,13 @@ class LIGHTHOUSE_OT_exit_solo(bpy.types.Operator):
     def poll(cls, context):
         return context.scene.lighthouse_solo.active
 
+    @classmethod
+    def description(cls, context, properties):
+        solo = context.scene.lighthouse_solo
+        if not solo.active:
+            return "Solo is off"
+        return f"Exit Solo ({solo_label(solo)}): restore every light's and collection's visibility from before solo"
+
     def execute(self, context):
         unsolo(context.scene.lighthouse_solo)
         return {'FINISHED'}
@@ -329,7 +336,7 @@ class LIGHTHOUSE_OT_toggle_group(bpy.types.Operator):
 class LIGHTHOUSE_OT_clear_filters(bpy.types.Operator):
     """Clear the search and show every light type"""
     bl_idname = "lighthouse.clear_filters"
-    bl_label = "Clear Filters"
+    bl_label = "Clear Filter"
     bl_options = {'INTERNAL'}
 
     def execute(self, context):
@@ -717,12 +724,12 @@ class LIGHTHOUSE_PT_lights(bpy.types.Panel):
             all_collapsed = bool(groups) and all(is_collapsed(collection) for collection in groups)
             row.operator(LIGHTHOUSE_OT_toggle_all_groups.bl_idname, text="",
                          icon='FULLSCREEN_ENTER' if all_collapsed else 'FULLSCREEN_EXIT')
+        # Always drawn (greyed out by poll when solo is off) so the list never shifts.
+        solo_active = context.scene.lighthouse_solo.active
+        row.operator(LIGHTHOUSE_OT_exit_solo.bl_idname, text="",
+                     icon='SOLO_ON' if solo_active else 'SOLO_OFF', depress=solo_active)
         row.operator_menu_enum(LIGHTHOUSE_OT_add_light.bl_idname, "type", text="", icon='ADD')
         self.layout.row(align=True).prop(filters, "type_filter", expand=True)
-        solo = context.scene.lighthouse_solo
-        if solo.active:
-            self.layout.operator(LIGHTHOUSE_OT_exit_solo.bl_idname, text=f"Exit Solo ({solo_label(solo)})",
-                                 icon='SOLO_ON', depress=True)
 
         message = empty_message(context.view_layer, filters.name_filter, filters.type_filter)
         if message:
