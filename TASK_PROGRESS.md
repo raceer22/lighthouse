@@ -24,3 +24,8 @@
 - While solo is on, the panel draws `Exit Solo (<name or "deleted">)` (`lighthouse.exit_solo`, `UNDO`, polls on `solo.active`). It calls the now public `lights.unsolo()`, and `lights.solo_label()` supplies the name.
 - `mute_light` and `hide_group` call `lights.update_snapshot()`, which writes the new flags into the matching snapshot item while solo is on, so un-solo keeps changes made during solo. Collections with no snapshot item are left alone. Updated ARCHITECTURE.md (known limits marked fixed, new entry) and added an `exit_solo` step to the smoke script.
 - 5 new tests in `tests/test_exit_solo.py`. `make test`: 126 pass, plus 1 failure in `test_empty_list` caused by the uncommitted "filter" wording edit, which passes without that edit. Not done yet: the manual GUI check and an engine smoke re-run.
+
+## TICKET-06: Operators find the exact light or collection
+- The new `id_key()`, `find_object()` and `find_collection()` look up by `(name, library)`. The 9 row and header operators gain a hidden `library` property (default `""`), and the panel fills both properties through `target(op, id)`. On 5.2 the tuple keys work as long as local IDs use `None` (`""` finds nothing). 4.2 was not checked.
+- When `library=""` finds no local ID, the lookup falls back to the name alone, so name-only calls such as `move_to_group(name="Linked")` still reach linked data. Added an ARCHITECTURE.md entry.
+- 6 new tests in `tests/test_library_lookup.py`. `make test`: 132 pass, plus the `test_empty_list` failure that was already there before this ticket (it fails on the untouched tree too). The engine smoke run passes. Not done yet: the manual GUI check.

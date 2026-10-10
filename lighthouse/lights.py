@@ -10,6 +10,32 @@ class RowState(NamedTuple):
     soloed: bool
 
 
+def id_key(id):
+    """(name, library filepath) of an ID, with "" for local IDs. Names are only unique per library."""
+    return (id.name, id.library.filepath if id.library else "")
+
+
+def _lookup(ids, name, library):
+    # bpy.data collections take (name, library filepath) keys, with None (not "") for local IDs.
+    # With no library and no local match, fall back to the first ID with that name,
+    # so name-only calls still reach linked data that has no local namesake.
+    found = ids.get((name, library or None))
+    return found if found is not None or library else ids.get(name)
+
+
+def find_object(view_layer, name, library=""):
+    """The object with this name from this library ("" for local, see _lookup), only if it is in the view layer."""
+    import bpy
+    obj = _lookup(bpy.data.objects, name, library)
+    return obj if obj is not None and obj in view_layer.objects[:] else None
+
+
+def find_collection(name, library=""):
+    """The collection with this name from this library ("" for local, see _lookup)."""
+    import bpy
+    return _lookup(bpy.data.collections, name, library)
+
+
 def light_objects(view_layer):
     """Every light object in the given view layer."""
     return [obj for obj in view_layer.objects if obj.type == 'LIGHT']

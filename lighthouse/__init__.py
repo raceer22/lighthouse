@@ -4,7 +4,7 @@ import zlib
 
 import bpy
 
-from .lights import DETAIL_LABELS, GroupEntry, color_control, detail_properties, detail_target, details_open, empty_message, group_lights, group_soloed, indent_level, is_collapsed, is_read_only, light_info_tooltip, light_objects, list_entries, listed_groups, move_lights, move_summary, power_unit, row_state, scale_lights, scale_summary, solo_label, toggle_details, toggle_solo_group, toggle_solo_light, unsolo, update_snapshot
+from .lights import DETAIL_LABELS, find_collection, find_object, id_key, GroupEntry, color_control, detail_properties, detail_target, details_open, empty_message, group_lights, group_soloed, indent_level, is_collapsed, is_read_only, light_info_tooltip, light_objects, list_entries, listed_groups, move_lights, move_summary, power_unit, row_state, scale_lights, scale_summary, solo_label, toggle_details, toggle_solo_group, toggle_solo_light, unsolo, update_snapshot
 from pathlib import Path
 
 from .presets import BUILTIN_PRESETS, apply_preset, delete_user_preset, preset_from_light, preset_path, preset_summary, save_user_preset, USER_PREFIX, user_presets
@@ -126,6 +126,7 @@ class LIGHTHOUSE_OT_select_light(bpy.types.Operator):
     bl_options = {'REGISTER', 'UNDO'}
 
     name: bpy.props.StringProperty()
+    library: bpy.props.StringProperty(options={'HIDDEN'})
     action: bpy.props.EnumProperty(
         name="Action",
         items=(
@@ -150,7 +151,7 @@ class LIGHTHOUSE_OT_select_light(bpy.types.Operator):
         else:
             self.action = 'SELECT'
         if self.action == 'RENAME':
-            obj = context.view_layer.objects.get(self.name)
+            obj = find_object(context.view_layer, self.name, self.library)
             if obj is None:
                 return {'CANCELLED'}
             self.new_name = obj.name
@@ -162,7 +163,7 @@ class LIGHTHOUSE_OT_select_light(bpy.types.Operator):
 
     def execute(self, context):
         layer = context.view_layer
-        obj = layer.objects.get(self.name)
+        obj = find_object(layer, self.name, self.library)
         if obj is None:
             return {'CANCELLED'}
         if self.action == 'RENAME':
@@ -198,6 +199,11 @@ class LIGHTHOUSE_OT_select_light(bpy.types.Operator):
         if self.action == 'FRAME':
             frame_selected(context)
         return {'FINISHED'}
+
+
+def target(op, id):
+    """Point a row or header button's operator at this exact light or collection."""
+    op.name, op.library = id_key(id)
 
 
 def frame_selected(context):
@@ -246,9 +252,10 @@ class LIGHTHOUSE_OT_mute_light(bpy.types.Operator):
     bl_options = {'REGISTER', 'UNDO'}
 
     name: bpy.props.StringProperty()
+    library: bpy.props.StringProperty(options={'HIDDEN'})
 
     def execute(self, context):
-        obj = context.view_layer.objects.get(self.name)
+        obj = find_object(context.view_layer, self.name, self.library)
         if obj is None:
             return {'CANCELLED'}
         hide = not (obj.hide_render and obj.hide_viewport)
@@ -264,9 +271,10 @@ class LIGHTHOUSE_OT_solo_light(bpy.types.Operator):
     bl_options = {'REGISTER', 'UNDO'}
 
     name: bpy.props.StringProperty()
+    library: bpy.props.StringProperty(options={'HIDDEN'})
 
     def execute(self, context):
-        obj = context.view_layer.objects.get(self.name)
+        obj = find_object(context.view_layer, self.name, self.library)
         if obj is None:
             return {'CANCELLED'}
         toggle_solo_light(context.scene.lighthouse_solo, context.view_layer, obj)
@@ -303,6 +311,7 @@ class LIGHTHOUSE_OT_toggle_details(bpy.types.Operator):
     bl_options = {'INTERNAL'}
 
     name: bpy.props.StringProperty()
+    library: bpy.props.StringProperty(options={'HIDDEN'})
     keep_others: bpy.props.BoolProperty(name="Keep Others", description="Leave other lights' details open")
 
     def invoke(self, context, event):
@@ -310,7 +319,7 @@ class LIGHTHOUSE_OT_toggle_details(bpy.types.Operator):
         return self.execute(context)
 
     def execute(self, context):
-        obj = context.view_layer.objects.get(self.name)
+        obj = find_object(context.view_layer, self.name, self.library)
         if obj is None:
             return {'CANCELLED'}
         toggle_details(context.window_manager.lighthouse, obj, self.keep_others)
@@ -324,9 +333,10 @@ class LIGHTHOUSE_OT_toggle_group(bpy.types.Operator):
     bl_options = {'INTERNAL'}
 
     name: bpy.props.StringProperty()
+    library: bpy.props.StringProperty(options={'HIDDEN'})
 
     def execute(self, context):
-        collection = bpy.data.collections.get(self.name)
+        collection = find_collection(self.name, self.library)
         if collection is None:
             return {'CANCELLED'}
         collection.lighthouse_collapsed = not collection.lighthouse_collapsed
@@ -368,6 +378,7 @@ class LIGHTHOUSE_OT_select_group(bpy.types.Operator):
     bl_options = {'REGISTER', 'UNDO'}
 
     name: bpy.props.StringProperty()
+    library: bpy.props.StringProperty(options={'HIDDEN'})
     extend: bpy.props.BoolProperty(name="Extend", description="Add to the selection instead of replacing it")
 
     def invoke(self, context, event):
@@ -375,7 +386,7 @@ class LIGHTHOUSE_OT_select_group(bpy.types.Operator):
         return self.execute(context)
 
     def execute(self, context):
-        collection = bpy.data.collections.get(self.name)
+        collection = find_collection(self.name, self.library)
         if collection is None:
             return {'CANCELLED'}
         layer = context.view_layer
@@ -398,9 +409,10 @@ class LIGHTHOUSE_OT_move_to_group(bpy.types.Operator):
     bl_options = {'REGISTER', 'UNDO'}
 
     name: bpy.props.StringProperty()
+    library: bpy.props.StringProperty(options={'HIDDEN'})
 
     def execute(self, context):
-        collection = bpy.data.collections.get(self.name)
+        collection = find_collection(self.name, self.library)
         if collection is None:
             return {'CANCELLED'}
         if is_read_only(collection):
@@ -426,9 +438,10 @@ class LIGHTHOUSE_OT_hide_group(bpy.types.Operator):
     bl_options = {'REGISTER', 'UNDO'}
 
     name: bpy.props.StringProperty()
+    library: bpy.props.StringProperty(options={'HIDDEN'})
 
     def execute(self, context):
-        collection = bpy.data.collections.get(self.name)
+        collection = find_collection(self.name, self.library)
         if collection is None:
             return {'CANCELLED'}
         hide = not (collection.hide_render and collection.hide_viewport)
@@ -445,9 +458,10 @@ class LIGHTHOUSE_OT_solo_group(bpy.types.Operator):
     bl_options = {'REGISTER', 'UNDO'}
 
     name: bpy.props.StringProperty()
+    library: bpy.props.StringProperty(options={'HIDDEN'})
 
     def execute(self, context):
-        collection = bpy.data.collections.get(self.name)
+        collection = find_collection(self.name, self.library)
         if collection is None:
             return {'CANCELLED'}
         toggle_solo_group(context.scene.lighthouse_solo, context.view_layer, collection)
@@ -749,30 +763,30 @@ class LIGHTHOUSE_PT_lights(bpy.types.Panel):
         collection = entry.collection
         row = self.layout.row(align=True)
         indent(row, entry.depth)
-        row.operator(
+        target(row.operator(
             LIGHTHOUSE_OT_toggle_group.bl_idname,
             text="",
             icon='DISCLOSURE_TRI_RIGHT' if collection.lighthouse_collapsed else 'DISCLOSURE_TRI_DOWN',
             emboss=False,
-        ).name = collection.name
+        ), collection)
         row.label(text=f"{collection.name} ({entry.count})", icon='OUTLINER_COLLECTION')
         actions = row.row(align=True)
-        actions.operator(LIGHTHOUSE_OT_select_group.bl_idname, text="", icon='RESTRICT_SELECT_OFF').name = collection.name
-        actions.operator(LIGHTHOUSE_OT_move_to_group.bl_idname, text="", icon='IMPORT').name = collection.name
+        target(actions.operator(LIGHTHOUSE_OT_select_group.bl_idname, text="", icon='RESTRICT_SELECT_OFF'), collection)
+        target(actions.operator(LIGHTHOUSE_OT_move_to_group.bl_idname, text="", icon='IMPORT'), collection)
         hidden = collection.hide_render and collection.hide_viewport
-        actions.operator(
+        target(actions.operator(
             LIGHTHOUSE_OT_hide_group.bl_idname,
             text="",
             icon='HIDE_ON' if hidden else 'HIDE_OFF',
             depress=hidden,
-        ).name = collection.name
+        ), collection)
         soloed = group_soloed(context.scene, collection)
-        actions.operator(
+        target(actions.operator(
             LIGHTHOUSE_OT_solo_group.bl_idname,
             text="",
             icon='SOLO_ON' if soloed else 'SOLO_OFF',
             depress=soloed,
-        ).name = collection.name
+        ), collection)
 
     def draw_light(self, context, entry):
         obj = entry.obj
@@ -782,12 +796,12 @@ class LIGHTHOUSE_PT_lights(bpy.types.Panel):
         row.active = not state.dimmed
         indent(row, entry.depth)
         expanded = details_open(context.window_manager.lighthouse, obj)
-        row.operator(
+        target(row.operator(
             LIGHTHOUSE_OT_toggle_details.bl_idname,
             text="",
             icon='DISCLOSURE_TRI_DOWN' if expanded else 'DISCLOSURE_TRI_RIGHT',
             emboss=False,
-        ).name = obj.name
+        ), obj)
         light_type = row.row(align=True)
         light_type.enabled = not state.read_only
         light_type.prop(light, "type", icon_only=True)
@@ -799,7 +813,7 @@ class LIGHTHOUSE_PT_lights(bpy.types.Panel):
             emboss=selected or active,
             depress=active,
         )
-        op.name = obj.name
+        target(op, obj)
         if light_info_tooltip(light.users - 1, entry.other_collections):
             op = row.operator(LIGHTHOUSE_OT_light_info.bl_idname, text="", icon='INFO', emboss=False)
             op.other_users = light.users - 1
@@ -820,14 +834,14 @@ class LIGHTHOUSE_PT_lights(bpy.types.Panel):
             icon='HIDE_ON' if state.muted else 'HIDE_OFF',
             depress=state.muted,
         )
-        op.name = obj.name
+        target(op, obj)
         op = toggles.operator(
             LIGHTHOUSE_OT_solo_light.bl_idname,
             text="",
             icon='SOLO_ON' if state.soloed else 'SOLO_OFF',
             depress=state.soloed,
         )
-        op.name = obj.name
+        target(op, obj)
         if expanded:
             self.draw_details(obj, state, context.scene.render.engine)
 
