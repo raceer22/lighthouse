@@ -32,8 +32,8 @@ def test_empty_message_names_why_the_list_is_empty():
 
     assert result == {
         "no_lights": "No lights in this view layer",
-        "search": "No lights match the filter",
-        "type": "No lights match the filter",
+        "search": "No lights match the filter(s)",
+        "type": "No lights match the filter(s)",
         "listed": None,
     }
 
