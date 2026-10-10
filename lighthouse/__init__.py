@@ -4,7 +4,7 @@ import zlib
 
 import bpy
 
-from .lights import DETAIL_LABELS, GroupEntry, color_control, detail_properties, detail_target, details_open, group_lights, group_soloed, indent_level, is_read_only, light_info_tooltip, light_objects, list_entries, move_lights, move_summary, power_unit, row_state, scale_lights, scale_summary, toggle_details, toggle_solo_group, toggle_solo_light
+from .lights import DETAIL_LABELS, GroupEntry, color_control, detail_properties, detail_target, details_open, empty_message, group_lights, group_soloed, indent_level, is_collapsed, is_read_only, light_info_tooltip, light_objects, list_entries, listed_groups, move_lights, move_summary, power_unit, row_state, scale_lights, scale_summary, toggle_details, toggle_solo_group, toggle_solo_light
 from pathlib import Path
 
 from .presets import BUILTIN_PRESETS, apply_preset, delete_user_preset, preset_from_light, preset_path, preset_summary, save_user_preset, USER_PREFIX, user_presets
@@ -310,15 +310,30 @@ class LIGHTHOUSE_OT_toggle_group(bpy.types.Operator):
         return {'FINISHED'}
 
 
-class LIGHTHOUSE_OT_collapse_all_groups(bpy.types.Operator):
-    """Collapse every collection in the list"""
-    bl_idname = "lighthouse.collapse_all_groups"
-    bl_label = "Collapse All Groups"
+class LIGHTHOUSE_OT_clear_filters(bpy.types.Operator):
+    """Clear the search and show every light type"""
+    bl_idname = "lighthouse.clear_filters"
+    bl_label = "Clear Filters"
     bl_options = {'INTERNAL'}
 
     def execute(self, context):
-        for collection in context.view_layer.layer_collection.collection.children_recursive:
-            collection.lighthouse_collapsed = True
+        filters = context.window_manager.lighthouse
+        filters.name_filter = ""
+        filters.type_filter = 'ALL'
+        return {'FINISHED'}
+
+
+class LIGHTHOUSE_OT_toggle_all_groups(bpy.types.Operator):
+    """Expand every collection in the list when all are collapsed, otherwise collapse them all"""
+    bl_idname = "lighthouse.toggle_all_groups"
+    bl_label = "Collapse or Expand All Groups"
+    bl_options = {'INTERNAL'}
+
+    def execute(self, context):
+        groups = listed_groups(context.view_layer, context.window_manager.lighthouse.type_filter)
+        collapse = not all(is_collapsed(collection) for collection in groups)
+        for collection in groups:
+            collection.lighthouse_collapsed = collapse
         return {'FINISHED'}
 
 
@@ -681,9 +696,19 @@ class LIGHTHOUSE_PT_lights(bpy.types.Panel):
         row.prop(filters, "name_filter", text="", icon='VIEWZOOM')
         row.prop(filters, "grouped", text="", icon='OUTLINER')
         if filters.grouped and not filters.name_filter:
-            row.operator(LIGHTHOUSE_OT_collapse_all_groups.bl_idname, text="", icon='FULLSCREEN_EXIT')
+            groups = listed_groups(context.view_layer, filters.type_filter)
+            all_collapsed = bool(groups) and all(is_collapsed(collection) for collection in groups)
+            row.operator(LIGHTHOUSE_OT_toggle_all_groups.bl_idname, text="",
+                         icon='FULLSCREEN_ENTER' if all_collapsed else 'FULLSCREEN_EXIT')
         row.operator_menu_enum(LIGHTHOUSE_OT_add_light.bl_idname, "type", text="", icon='ADD')
         self.layout.row(align=True).prop(filters, "type_filter", expand=True)
+
+        message = empty_message(context.view_layer, filters.name_filter, filters.type_filter)
+        if message:
+            self.layout.label(text=message, icon='INFO')
+            if light_objects(context.view_layer):
+                self.layout.operator(LIGHTHOUSE_OT_clear_filters.bl_idname)
+            return
 
         entries = list_entries(context.view_layer, filters.name_filter, filters.type_filter, filters.grouped)
         for entry in entries:
@@ -802,7 +827,8 @@ classes = (
     LIGHTHOUSE_OT_solo_light,
     LIGHTHOUSE_OT_toggle_details,
     LIGHTHOUSE_OT_toggle_group,
-    LIGHTHOUSE_OT_collapse_all_groups,
+    LIGHTHOUSE_OT_toggle_all_groups,
+    LIGHTHOUSE_OT_clear_filters,
     LIGHTHOUSE_OT_select_group,
     LIGHTHOUSE_OT_move_to_group,
     LIGHTHOUSE_OT_hide_group,

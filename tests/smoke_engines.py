@@ -80,7 +80,9 @@ for engine in ('CYCLES', 'BLENDER_EEVEE'):
     for op in (bpy.ops.lighthouse.toggle_group, bpy.ops.lighthouse.hide_group, bpy.ops.lighthouse.solo_group):
         for _ in range(2):
             assert op(name=group.name) == {'FINISHED'}
-    assert bpy.ops.lighthouse.collapse_all_groups() == {'FINISHED'}
+    for _ in range(2):
+        assert bpy.ops.lighthouse.toggle_all_groups() == {'FINISHED'}
+    assert bpy.ops.lighthouse.clear_filters() == {'FINISHED'}
     for collection in (group, other):
         collection.lighthouse_collapsed = False
     for extend in (False, True):

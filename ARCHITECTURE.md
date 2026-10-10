@@ -191,7 +191,7 @@ All three panels read `WindowManager.lighthouse`. EV buttons pass their float `s
 - `move_lights(objects, collection)` links each object into the target and unlinks it from every other `users_collection` entry, the Scene Collection included. It skips `is_read_only()` objects and returns `(moved, skipped)`. `move_summary()` builds the Info report. `is_read_only()` now takes any ID (light data, object or collection).
 - `row_state().dimmed` is `obj.hide_render or not obj.visible_get(view_layer=...)`. `visible_get` covers the object's viewport flag, its eye toggle and hidden or excluded collections. `hide_render` stays because `visible_get` ignores it. `muted` still only reads the object's own flags.
 - `lighthouse/__init__.py`: `Collection.lighthouse_collapsed` (BoolProperty, removed in `unregister()`). Operators, all taking a collection `name`:
-  - `toggle_group` and `collapse_all_groups` have `bl_options = {'INTERNAL'}`, with no `UNDO`. Collapse all sets the flag on every collection in `view_layer.layer_collection.collection.children_recursive`.
+  - `toggle_group` and `toggle_all_groups` (formerly `collapse_all_groups`) have `bl_options = {'INTERNAL'}`, with no `UNDO`. See v3 task 04 for toggle all.
   - `select_group` (`UNDO`): `invoke()` copies `event.shift` into `extend`. When it replaces the selection, it deselects everything and makes `lights[0]` active unless the active object is already one of the group's lights.
   - `move_to_group` (`UNDO`) refuses a read-only target with an `ERROR` report before touching anything.
   - `hide_group` (`UNDO`) toggles the collection's `hide_render` and `hide_viewport` together, like mute.
@@ -326,3 +326,8 @@ A cancelled operator pushes no undo step, so Ctrl+Z after a press that did nothi
 
 **Blender API quirks**
 - In `--background`, reports are printed as `Info: <message>` and `Warning: <message>`. `tests/blender_runner.py` reads them with `reports(output, level="Info")`, and `run_in_blender_with_reports(snippet, level=...)` passes the level through.
+
+## v3 task 04: empty state and expand/collapse all
+- `lights.empty_message(view_layer, name_filter, type_filter)` returns `None` whenever `listed_lights()` has a match, because a light inside a collapsed group still draws its group header. Otherwise it returns "No lights match the filters" when the view layer has lights, and "No lights in this view layer" when it has none. The panel draws the message with the `INFO` icon and returns early. In the filter case it also adds `lighthouse.clear_filters` (`INTERNAL`, no undo), which resets `name_filter` and `type_filter`.
+- `lights.listed_groups(view_layer, type_filter)` walks the non-excluded layer collections and keeps every collection whose `all_objects` holds a listed light, whatever its collapse state.
+- `lighthouse.toggle_all_groups` (`INTERNAL`, no undo) replaces `collapse_all_groups`. It expands every listed group when all of them are collapsed and collapses all of them otherwise. The header icon is `FULLSCREEN_ENTER` when everything is collapsed and `FULLSCREEN_EXIT` otherwise.

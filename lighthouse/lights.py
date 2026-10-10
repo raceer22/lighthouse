@@ -26,6 +26,16 @@ def listed_lights(view_layer, name_filter="", type_filter='ALL'):
     return sorted(matches, key=lambda obj: obj.name.casefold())
 
 
+def empty_message(view_layer, name_filter="", type_filter='ALL'):
+    """Why the Lights panel draws no rows, or None when list_entries() has rows to draw
+    (a listed light inside a collapsed group still draws its group header)."""
+    if listed_lights(view_layer, name_filter, type_filter):
+        return None
+    if light_objects(view_layer):
+        return "No lights match the filters"
+    return "No lights in this view layer"
+
+
 class GroupEntry(NamedTuple):
     collection: object
     depth: int
@@ -63,6 +73,24 @@ def group_lights(view_layer, collection, type_filter='ALL'):
         return []
     listed = set(listed_lights(view_layer, type_filter=type_filter))
     return list(_collection_entries(layer_collection, listed, 0)[1])
+
+
+def listed_groups(view_layer, type_filter='ALL'):
+    """Every collection holding a listed light, directly or in a sub-collection, in list order.
+    Collapse state is ignored, so a collapsed parent does not hide its sub-collections."""
+    listed = set(listed_lights(view_layer, type_filter=type_filter))
+    groups = []
+
+    def walk(layer_collection):
+        for child in layer_collection.children:
+            if child.exclude:
+                continue
+            if listed.intersection(child.collection.all_objects):
+                groups.append(child.collection)
+                walk(child)
+
+    walk(view_layer.layer_collection)
+    return groups
 
 
 def _find_layer_collection(layer_collection, collection):

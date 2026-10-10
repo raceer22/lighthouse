@@ -87,22 +87,43 @@ def test_collapsed_group_stays_collapsed_after_saving_and_reopening(tmp_path):
     assert collapsed is True
 
 
-def test_collapse_all_collapses_every_collection_in_the_tree_without_an_undo_step():
-    result = run("""
+TOGGLE_ALL = """
         empty_scene()
         set_ = new_collection("Set")
         lamps = new_collection("Lamps", set_)
-        new_collection("Bulbs", lamps)
-        new_collection("Props")
-        bpy.ops.lighthouse.collapse_all_groups()
+        props = new_collection("Props")
+        move_to(add_light("Bulb"), lamps)
+        move_to(add_light("Desk"), props)
+
+        def collapsed():
+            return sorted(c.name for c in bpy.context.scene.collection.children_recursive
+                          if c.lighthouse_collapsed)
+"""
+
+
+def test_toggle_all_collapses_every_listed_group_then_expands_them_without_an_undo_step():
+    result = run(TOGGLE_ALL + """
+        bpy.ops.lighthouse.toggle_all_groups()
+        first = collapsed()
+        bpy.ops.lighthouse.toggle_all_groups()
         report({
-            "collapsed": sorted(c.name for c in bpy.context.scene.collection.children_recursive
-                                if c.lighthouse_collapsed),
-            "undo": "UNDO" in bpy.types.LIGHTHOUSE_OT_collapse_all_groups.bl_options,
+            "first": first,
+            "second": collapsed(),
+            "undo": "UNDO" in bpy.types.LIGHTHOUSE_OT_toggle_all_groups.bl_options,
         })
     """)
 
-    assert result == {"collapsed": ["Bulbs", "Collection", "Lamps", "Props", "Set"], "undo": False}
+    assert result == {"first": ["Lamps", "Props", "Set"], "second": [], "undo": False}
+
+
+def test_toggle_all_collapses_the_rest_when_only_some_groups_are_collapsed():
+    result = run(TOGGLE_ALL + """
+        props.lighthouse_collapsed = True
+        bpy.ops.lighthouse.toggle_all_groups()
+        report(collapsed())
+    """)
+
+    assert result == ["Lamps", "Props", "Set"]
 
 
 SELECTION = """
