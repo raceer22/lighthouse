@@ -476,3 +476,15 @@ Checked on Blender 4.2.23 LTS (portable build) against 5.2.2 LTS. The add-on cod
 ## v5 task 11: linking row icon
 - `linking_tooltip(included, excluded, included_collections=0, excluded_collections=0)` ("Lights only 3 objects, excludes 1", "Excludes 2 objects", "" for none). Child collections are named separately (open question default): "Lights only 2 objects and 1 collection, excludes 1". `linking_counts(obj)` returns the four counts from `receivers()` in that argument order.
 - `draw_light()` draws `lighthouse.light_linking_info` (`INTERNAL`, `LINKED`, no emboss) right after ⓘ and before power, only when the tooltip isn't "". Like ⓘ, the name button gives up the room, so the power/color/toggle columns stay put. Its `description()` is the tooltip, and its `invoke` opens the details (Shift keeps others open, as `toggle_details`) but never closes open ones. Not yet checked: the manual GUI pass (column alignment, tooltip, click opens details).
+
+## v5 task 12: engine note
+- Verify result (16×16 px factory scene, world strength 0, the Cube excluded from the Light, rendered 2026-10-10; max RGB lit → excluded):
+
+  | Blender | Cycles | EEVEE | Workbench |
+  |---|---|---|---|
+  | 4.2.23 | renders (0.83 → 0.01) | **not rendered** (0.84 → 0.84, EEVEE Next) | not rendered (0.56 → 0.56, ignores scene lights) |
+  | 5.2.2 | renders (1.0 → 0.02) | renders (1.0 → 0.004) | not rendered (0.57 → 0.57) |
+
+- Versions between 4.2 and 5.2 weren't checked, so `EEVEE_LIGHT_LINKING = (5, 0)` (EEVEE may already render it in 4.3/4.4, where the note would then be wrong). `light_linking_note(engine)` returns `None` for Cycles (and EEVEE from 5.0), else "Not rendered in <engine>, Cycles only" / "…, Cycles and EEVEE only". Unknown engines get the note (open question default).
+- `engine_name()`: the RenderSettings engine enum lists only some built-ins headless (5.2 shows just `BLENDER_EEVEE`), so built-ins come from `ENGINE_NAMES` and third-party engines from their registered `RenderEngine.bl_label`.
+- `draw_linking(box, obj, engine)` draws the note with `INFO` under the "Light Linking" label; buttons and rows stay enabled. The probe is kept as `test_excluding_the_cube_darkens_it_in_engines_without_a_note` (Cycles and EEVEE, ~1 s). The draw tests set Cycles, since 4.2's factory engine is EEVEE. Not yet checked: the manual GUI pass (switching engines with details open).

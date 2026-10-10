@@ -11,6 +11,7 @@ from .lights import (
     _lookup,
     find_layer_collection,
     find_object,
+    light_linking_note,
     linking_counts,
     linking_tooltip,
     clear_receivers,
@@ -309,11 +310,15 @@ def target(op, id):
     op.name, op.library = id_key(id)
 
 
-def draw_linking(box, obj):
-    """The Light Linking section at the end of a light's details."""
+def draw_linking(box, obj, engine):
+    """The Light Linking section at the end of a light's details, with a note (still editable)
+    under an engine that doesn't render light linking."""
     linking = box.column()
     linking.use_property_split = False
     linking.label(text="Light Linking")
+    note = light_linking_note(engine)
+    if note:
+        linking.label(text=note, icon='INFO')
     listed = receivers(obj)
     buttons = linking.row(align=True)
     target(buttons.operator("lighthouse.link_receivers", text="Link Selected"), obj)
@@ -1546,7 +1551,7 @@ class LIGHTHOUSE_PT_lights(bpy.types.Panel):
         for path in detail_properties(light, engine):
             label = DETAIL_LABELS.get(path)
             box.prop(*detail_target(light, path), **({"text": label} if label else {}))
-        draw_linking(box, obj)
+        draw_linking(box, obj, engine)
 
 
 

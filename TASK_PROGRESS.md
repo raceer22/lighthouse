@@ -152,3 +152,8 @@
 - New `linking_tooltip()` ("Lights only 3 objects, excludes 1", singular wording, child collections named separately as the open question's default) and `linking_counts()` in `lights.py`.
 - New `lighthouse.light_linking_info` (`INTERNAL`, tooltip from `description()`). Its click opens the details (Shift keeps others) and never closes them. `draw_light()` draws it as `LINKED` after ⓘ and before power, only when there are receivers. Added a smoke step and an ARCHITECTURE.md entry.
 - 3 new tests in `tests/test_light_linking.py`. `make test`: 5.2.2 263 pass, 1 skip; 4.2.23 251 pass, 13 skip. The engine smoke run passes on 4.2.23. Not done yet: the manual GUI check (columns don't shift, tooltip, click opens details).
+
+## v5 TICKET-12: Light linking engine note
+- Verify step (render probe): Cycles renders light linking on 4.2.23 and 5.2.2, EEVEE only on 5.2.2 (not 4.2's EEVEE Next), Workbench never. The table is in ARCHITECTURE.md, and the probe is kept as a ~1 s test. Versions in between weren't checked, so EEVEE counts from 5.0.
+- New `light_linking_note(engine)` and `engine_name()` (a fixed name table, since the engine enum lists only some built-ins headless). `draw_linking()` draws the note with `INFO` under the section label, and the buttons stay enabled. Unknown engines get the note (the open question's default). README requirements updated.
+- 3 new tests. The draw tests now set Cycles (4.2's factory engine is EEVEE). `make test`: 5.2.2 266 pass, 1 skip; 4.2.23 254 pass, 13 skip. The engine smoke run passes on 4.2.23. Not done yet: the manual GUI check (switch engines with details open).

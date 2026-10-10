@@ -749,3 +749,37 @@ def linking_counts(obj):
     return tuple(sum(1 for r in listed if r.kind == kind and r.state == state)
                  for kind, state in (('OBJECT', 'INCLUDE'), ('OBJECT', 'EXCLUDE'),
                                      ('COLLECTION', 'INCLUDE'), ('COLLECTION', 'EXCLUDE')))
+
+
+# Render probe (ARCHITECTURE.md, v5 task 12): EEVEE renders light linking on 5.2.2 but not on 4.2.23.
+# Versions in between weren't checked, so EEVEE counts from 5.0.
+EEVEE_LIGHT_LINKING = (5, 0)
+
+
+ENGINE_NAMES = {"CYCLES": "Cycles", "BLENDER_EEVEE": "EEVEE", "BLENDER_EEVEE_NEXT": "EEVEE",
+                "BLENDER_WORKBENCH": "Workbench"}
+
+
+def engine_name(engine):
+    """Display name of a render engine id: built-ins from ENGINE_NAMES (RenderSettings' engine enum
+    only lists some of them headless), others from their registered RenderEngine's bl_label."""
+    import bpy
+    if engine in ENGINE_NAMES:
+        return ENGINE_NAMES[engine]
+    registered = {getattr(cls, "bl_idname", None): getattr(cls, "bl_label", None)
+                  for cls in bpy.types.RenderEngine.__subclasses__()}
+    return registered.get(engine) or engine
+
+
+def light_linking_note(engine):
+    """"Not rendered in <engine>, Cycles only" for a render engine that doesn't render light linking,
+    or None for one that does. Unknown (third-party) engines get the note."""
+    import bpy
+    renders = ["CYCLES"]
+    if bpy.app.version >= EEVEE_LIGHT_LINKING:
+        renders.append("BLENDER_EEVEE")
+    if engine in renders:
+        return None
+    name = engine_name(engine)
+    supported = " and ".join(engine_name(e) for e in renders)
+    return f"Not rendered in {name}, {supported} only"

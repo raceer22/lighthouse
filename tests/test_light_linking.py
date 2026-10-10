@@ -1,6 +1,6 @@
 import textwrap
 
-from blender_runner import RECORDER, run_in_blender, run_in_blender_with_reports
+from blender_runner import RECORDER, blender_version, run_in_blender, run_in_blender_with_reports
 
 SETUP = """
     import lighthouse
@@ -83,6 +83,7 @@ def test_child_collections_are_listed_before_objects():
 DRAW_SECTION = """
     from lighthouse.lights import RowState
     state = RowState(dimmed=False, read_only=False, muted=False, soloed=False)
+    bpy.context.scene.render.engine = 'CYCLES'  # no engine note
 
     def section(light):
         def draw(self, context):
@@ -259,3 +260,67 @@ def test_rows_draw_the_link_button_after_info_and_before_power_only_with_receive
         "Fill": [],
         "Twin": [["lighthouse.light_info", {"other_users": 1, "other_collections": 0}]],
     }
+
+
+def test_engine_note_matches_the_verified_render_table():
+    result = run("""
+        from lighthouse.lights import light_linking_note
+        report([light_linking_note(engine) for engine in ("CYCLES", EEVEE, "BLENDER_WORKBENCH", "OTHER_ENGINE")])
+    """)
+
+    if blender_version() >= (5, 0):
+        assert result == [None, None, "Not rendered in Workbench, Cycles and EEVEE only",
+                          "Not rendered in OTHER_ENGINE, Cycles and EEVEE only"]
+    else:
+        assert result == [None, "Not rendered in EEVEE, Cycles only", "Not rendered in Workbench, Cycles only",
+                          "Not rendered in OTHER_ENGINE, Cycles only"]
+
+
+def test_note_is_drawn_above_the_buttons_only_without_light_linking_and_buttons_stay_enabled():
+    result = run(prelude=RECORDER + textwrap.dedent(DRAW_SECTION), snippet="""
+        out = {}
+        for engine in ("CYCLES", "BLENDER_WORKBENCH"):
+            bpy.context.scene.render.engine = engine
+            out[engine] = section(key)[:3]
+        report(out)
+    """)
+
+    assert result == {
+        "CYCLES": BUTTONS,
+        "BLENDER_WORKBENCH": [BUTTONS[0], ["label", result["BLENDER_WORKBENCH"][1][1]]] + BUTTONS[1:2],
+    }
+    assert result["BLENDER_WORKBENCH"][1][1].startswith("Not rendered in Workbench")
+
+
+def test_excluding_the_cube_darkens_it_in_engines_without_a_note(tmp_path):
+    # The verify step behind light_linking_note(): which engines render light linking.
+    result = run_in_blender(textwrap.dedent(f"""
+        from lighthouse.lights import light_linking_note
+        scene = bpy.context.scene
+        cube, light = bpy.data.objects["Cube"], bpy.data.objects["Light"]
+        light.data.energy = 5000
+        scene.world.node_tree.nodes["Background"].inputs["Strength"].default_value = 0
+        scene.render.resolution_x = scene.render.resolution_y = 16
+        scene.render.filepath = {str(tmp_path / "probe.png")!r}
+        scene.cycles.samples = 1
+
+        def brightness():
+            bpy.ops.render.render(write_still=True)
+            pixels = bpy.data.images.load(scene.render.filepath, check_existing=False).pixels[:]
+            return max(v for i, v in enumerate(pixels) if i % 4 != 3)
+
+        out = {{}}
+        for engine in ("CYCLES", EEVEE):
+            scene.render.engine = engine
+            light.light_linking.receiver_collection = None
+            lit = brightness()
+            receivers = bpy.data.collections.new("Receivers")
+            receivers.objects.link(cube)
+            light.light_linking.receiver_collection = receivers
+            receivers.collection_objects[0].light_linking.link_state = 'EXCLUDE'
+            out[engine] = [brightness() < lit / 4, light_linking_note(engine) is None]
+        report(out)
+    """))
+
+    assert all(darkened == no_note for darkened, no_note in result.values())
+    assert result["CYCLES"] == [True, True]
