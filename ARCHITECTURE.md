@@ -417,3 +417,8 @@ Checked on Blender 4.2.23 LTS (portable build) against 5.2.2 LTS. The add-on cod
 - A button's operator properties (`context.button_operator`) tell their operator apart by `bl_rna.identifier`, for example `LIGHTHOUSE_OT_set_active_collection` (the same as `Class.bl_rna.identifier`). This was checked headless only. Reading it in the real right-click menu, and the context pointer reaching the submenu, still need the GUI check.
 - `bpy.ops` calls from Python never reuse an operator's last properties, so `SKIP_SAVE` can only be seen headless as `is_skip_save` on the RNA properties.
 - Menu draw functions added with `prepend()` live in `Menu.draw._draw_funcs`.
+
+## v5 task 02: compact header +
+- New component: `LIGHTHOUSE_MT_new`, drawn in the Lights panel header as `row.menu(..., text="", icon='ADD')` where the `+` enum menu was. It holds New Light ▸ (`LIGHTHOUSE_MT_new_light` with no context pointer, so it adds to the active collection) and New Collection (`use_active` on), in a column disabled when the active collection `is_read_only`.
+- The separate New Collection button is gone, so the header row has one button fewer (7 when grouped and not searching). That slot is free for task 03. The menu is drawn in every mode, so adding works flat, while searching and with a type filter that hides every header.
+- Tests: `tests/test_header_new_menu.py` draws the panel through the Recorder with a stand-in that carries the panel's `draw_*` methods, and takes everything before the type filter row as the header. The Recorder's `menu()` now records the icon when one is given.

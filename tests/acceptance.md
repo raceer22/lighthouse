@@ -47,7 +47,7 @@ Run 2026-10-09: `STATUS Installed "lighthouse"`, exit code 0, both engines OK.
 | 17 | No gap between power and color; unit label visible | none (layout only) | manual ☐ |
 | 18 | Kelvin field instead of swatch; details show Exposure and Temperature | `test_row_shows_kelvin_only_for_a_light_using_temperature`, `test_eevee_details_show_only_properties_each_light_type_uses` | ✅ Pass (choice, paths); drawn field: manual ☐ |
 | 19 | Built-ins apply Kelvin on 5.0+, RGB on older; user Kelvin preset round-trips; pre-v2 file loads | `test_built_ins_set_their_kelvin_with_a_white_color_that_does_not_tint_it`, `test_built_ins_set_only_the_rgb_color_on_a_light_without_temperature`, `test_a_preset_saved_from_a_kelvin_light_restores_its_kelvin_and_exposure_after_restarting`, `test_a_preset_file_saved_before_v2_applies_with_no_exposure_and_temperature_off` | ✅ Pass |
-| 20 | `+` adds a light at the cursor in the active collection, selected and active | `test_add_light_puts_each_type_at_the_cursor_in_the_active_collection_selected_and_active` | ✅ Pass (operator); `+` menu: manual ☐ |
+| 20 | `+` adds a light at the cursor in the active collection, selected and active | `test_add_light_puts_each_type_at_the_cursor_in_the_active_collection_selected_and_active` | ✅ Pass (operator); `+` ▸ New Light menu: manual ☐ |
 | 21 | No errors on Cycles or EEVEE for any type, on 5.2.2 and without temperature properties | engine smoke above; `test_details_leave_out_properties_an_older_blender_lacks`, `test_built_ins_set_only_the_rgb_color_…`, `test_row_shows_kelvin_…` (stub) | ✅ Pass (headless 5.2.2); real 4.2: not run; panel draw: manual ☐ |
 
 ## Manual checklist (Blender 5.2.2 GUI, console open)
@@ -72,5 +72,5 @@ Start Blender from a terminal with the extension installed. Each step should lea
 - [ ] **AC 17**: power runs straight into the color swatch with no gap, and the W or W/m² label is visible. Widen and narrow the sidebar.
 - [ ] **AC 18**: turn on Use Temperature for a light. Its row shows a Kelvin field (e.g. "6500 K") in place of the swatch, readable in full at the default sidebar width. Its details show Exposure, Use Temperature and Temperature.
 - [ ] **AC 19**: apply Candle to a point light. The row shows 1850 K, and Properties › Light shows the color white. Save a preset from it, restart Blender, apply it to another light, and Kelvin and exposure come back.
-- [ ] **AC 20**: `+` › each type adds a light at the 3D cursor in the active collection, selected and active.
+- [ ] **AC 20**: `+` › New Light › each type adds a light at the 3D cursor in the active collection, selected and active.
 - [ ] **AC 21**: every step above, under both engines, leaves the console free of Lighthouse errors.

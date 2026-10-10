@@ -86,8 +86,8 @@ class Recorder:
         return self._add("operator", idname, text, props=type("Props", (), {})())
     def operator_menu_enum(self, idname, prop, text="", **kwargs):
         self._add("operator_menu_enum", idname, prop, text)
-    def menu(self, idname, text="", **kwargs):
-        self._add("menu", idname, text)
+    def menu(self, idname, text="", icon="NONE", **kwargs):
+        self._add("menu", idname, text, *([icon] if icon != "NONE" else []))
     def label(self, text="", **kwargs):
         self._add("label", text)
     def prop(self, data, name, **kwargs):

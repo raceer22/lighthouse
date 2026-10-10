@@ -991,6 +991,18 @@ class LIGHTHOUSE_MT_new_light(bpy.types.Menu):
                 target_collection(op, context, collection)
 
 
+class LIGHTHOUSE_MT_new(bpy.types.Menu):
+    """Add a light or a collection in the active collection"""
+    bl_idname = "LIGHTHOUSE_MT_new"
+    bl_label = "New"
+
+    def draw(self, context):
+        entries = self.layout.column()
+        entries.enabled = not is_read_only(context.view_layer.active_layer_collection.collection)
+        entries.menu(LIGHTHOUSE_MT_new_light.bl_idname, text="New Light", icon='LIGHT')
+        entries.operator(LIGHTHOUSE_OT_new_collection.bl_idname, text="New Collection", icon='COLLECTION_NEW')
+
+
 def draw_group_menu(self, context):
     """Prepended to Blender's right-click menu (UI_MT_button_context_menu): New Light and New Collection
     for the collection whose header name button (or the Scene Collection row's) is under the cursor."""
@@ -1044,8 +1056,7 @@ class LIGHTHOUSE_PT_lights(bpy.types.Panel):
         solo_active = context.scene.lighthouse_solo.active
         row.operator(LIGHTHOUSE_OT_exit_solo.bl_idname, text="",
                      icon='SOLO_ON' if solo_active else 'SOLO_OFF', depress=solo_active)
-        row.operator_menu_enum(LIGHTHOUSE_OT_add_light.bl_idname, "type", text="", icon='ADD')
-        row.operator(LIGHTHOUSE_OT_new_collection.bl_idname, text="", icon='COLLECTION_NEW')
+        row.menu(LIGHTHOUSE_MT_new.bl_idname, text="", icon='ADD')
         self.layout.row(align=True).prop(filters, "type_filter", expand=True)
 
         message = empty_message(context.view_layer, filters.name_filter, filters.type_filter)
@@ -1252,6 +1263,7 @@ classes = (
     LIGHTHOUSE_OT_light_info,
     LIGHTHOUSE_OT_power_unit,
     LIGHTHOUSE_MT_new_light,
+    LIGHTHOUSE_MT_new,
     LIGHTHOUSE_PT_intensity,
     LIGHTHOUSE_PT_presets,
     LIGHTHOUSE_PT_lights,

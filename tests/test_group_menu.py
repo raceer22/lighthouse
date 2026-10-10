@@ -163,14 +163,14 @@ def test_a_header_name_button_gets_new_light_and_new_collection_above_a_separato
     assert result == {
         "Set": [
             ["context_pointer_set", "lighthouse_collection", "Set"],
-            ["menu", "LIGHTHOUSE_MT_new_light", "New Light"],
+            ["menu", "LIGHTHOUSE_MT_new_light", "New Light", "LIGHT"],
             ["operator", "lighthouse.new_collection", "New Collection",
              {"name": "Set", "library": "", "use_active": False}],
             ["separator"],
         ],
         "Scene Collection": [
             ["context_pointer_set", "lighthouse_collection", "Scene Collection"],
-            ["menu", "LIGHTHOUSE_MT_new_light", "New Light"],
+            ["menu", "LIGHTHOUSE_MT_new_light", "New Light", "LIGHT"],
             ["operator", "lighthouse.new_collection", "New Collection",
              {"name": "", "library": "", "use_active": False}],
             ["separator"],
