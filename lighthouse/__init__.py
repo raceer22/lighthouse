@@ -929,7 +929,14 @@ class LIGHTHOUSE_PT_presets(bpy.types.Panel):
         row.operator(LIGHTHOUSE_OT_save_preset.bl_idname, text="Save")
         if settings.preset:
             row.operator(LIGHTHOUSE_OT_delete_preset.bl_idname, text="Delete").preset = settings.preset
-        row.operator(LIGHTHOUSE_OT_restore_default_presets.bl_idname, text="Restore")
+
+
+class LIGHTHOUSE_AP_preferences(bpy.types.AddonPreferences):
+    bl_idname = __package__
+
+    def draw(self, context):
+        self.layout.operator(LIGHTHOUSE_OT_restore_default_presets.bl_idname, text="Restore Default Presets")
+        self.layout.label(text="Brings back deleted defaults. Defaults you edited are kept.")
 
 
 INDENT_STEP = 1.5
@@ -1176,6 +1183,7 @@ classes = (
     LIGHTHOUSE_PT_intensity,
     LIGHTHOUSE_PT_presets,
     LIGHTHOUSE_PT_lights,
+    LIGHTHOUSE_AP_preferences,
 )
 
 

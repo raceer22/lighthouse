@@ -400,5 +400,9 @@ Checked on Blender 4.2.23 LTS (portable build) against 5.2.2 LTS. The add-on cod
 - Known cost (item 17): a default's key changed from `CANDLE` to `USER:Candle`, so a .blend saved with a built-in selected opens with nothing selected. The panel handles `''`. There is no migration.
 
 ## v4 task 11: restore default presets
-- New component: `lighthouse.restore_default_presets` (no confirm, no `UNDO`, because preset files aren't part of undo), a Restore button next to Save and Delete. It calls `restore_default_presets(presets_folder())` and clears the presets cache. It reports `INFO` "Restored Candle, Daylight", or "Every default preset is already there".
+- New component: `lighthouse.restore_default_presets` (no confirm, no `UNDO`, because preset files aren't part of undo), a Restore button next to Save and Delete *(superseded by v4 TICKET-12: the button is in the add-on Preferences)*. It calls `restore_default_presets(presets_folder())` and clears the presets cache. It reports `INFO` "Restored Candle, Daylight", or "Every default preset is already there".
 - It only writes missing files, so edited defaults and other presets are left alone and a full folder isn't touched (same mtime). To reset an edited default, delete it and press Restore. The selection is left alone even when the dropdown is empty (the open question's default).
+
+## v4 TICKET-12: Restore moves to Preferences
+- The presets panel row is back to Save and Delete. New `LIGHTHOUSE_AP_preferences` (`AddonPreferences`, `bl_idname = __package__`) draws a "Restore Default Presets" button for the same operator and the hint "Brings back deleted defaults. Defaults you edited are kept."
+- The operator, `restore_default_presets()` and seeding are unchanged.

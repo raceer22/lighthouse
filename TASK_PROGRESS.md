@@ -91,3 +91,7 @@
 - New `lighthouse.restore_default_presets` (no confirm, no `UNDO`), a Restore button next to Save and Delete. It calls `restore_default_presets(presets_folder())`, clears the cache and reports "Restored Candle, …" or "Every default preset is already there".
 - It only writes missing defaults, so edited defaults and your own presets are untouched. The selection is left alone (the open question's default). Added the smoke step and an ARCHITECTURE.md entry.
 - 3 new tests in `tests/test_restore_presets.py`. `make test`: 186 pass. Engine smoke run passes on 4.2.23. Not done yet: the manual GUI check (button placement, restored presets show up in the dropdown right away).
+
+## v4 TICKET-12: Restore moves to Preferences
+- The Restore button left the presets row, which now has only Save and Delete. It is in Edit > Preferences > Add-ons > Lighthouse as "Restore Default Presets", with a one-line hint. The operator is unchanged.
+- 3 new tests in `tests/test_restore_in_preferences.py` (preferences registered, preferences draw Restore and the hint, the panel draws Apply/Save/Delete only) using a recording fake layout. Not done yet: the manual GUI check of the Preferences panel.
