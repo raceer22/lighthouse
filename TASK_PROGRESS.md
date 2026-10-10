@@ -66,3 +66,8 @@
 - New `lights.tree_under_message(grouped, name_filter, show_empty)`. When no lights match, the panel draws the message (plus Clear Filters for a filter cause) and then the `(0)` collection tree, but only when grouped, not searching and `show_empty` is on. Otherwise it draws the message and returns, as before.
 - The message wording is unchanged. Updated the v3 task 04 note in ARCHITECTURE.md and added a v4 task 06 entry.
 - 3 new tests in `tests/test_show_empty.py` (a view layer with no lights, a type filter matching nothing, the helper's truth table). `make test`: 163 pass. Engine smoke run passes on 4.2.23 (system 5.2.2 still can't install: `cattrs`). Not done yet: the manual GUI check.
+
+## v4 TICKET-07: New Collection button
+- New `lighthouse.new_collection` (`REGISTER`, `UNDO`, `COLLECTION_NEW` button next to `+`). It creates `Collection` inside the active collection (the Scene Collection when the master is active), makes it active and leaves the selection alone. It refuses a library parent with an `ERROR` before creating anything, like `add_light`.
+- Folding is left alone (the open question's default). With `show_empty` on, the new collection shows up right away as `(0)`. Added the smoke step and an ARCHITECTURE.md entry.
+- 5 new tests in `tests/test_new_collection.py`. `make test`: 168 pass. Engine smoke run passes on 4.2.23 (system 5.2.2 still can't install: `cattrs`). Not done yet: the manual GUI check (New Collection then `+`, one Ctrl+Z removes it).

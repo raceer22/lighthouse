@@ -376,3 +376,7 @@ Checked on Blender 4.2.23 LTS (portable build) against 5.2.2 LTS. The add-on cod
 
 ## v4 task 06: empty-state message above the collection tree
 - `lights.tree_under_message(grouped, name_filter, show_empty)` decides what the panel draws when `empty_message()` returns a message. In the grouped, unsearched list with `show_empty` on, it draws the message (and Clear Filters when a filter is the cause) and then the usual `list_entries()` tree, all at `(0)`, so `+`, Move here and making a collection active still work. Otherwise it draws the message and returns, as before. The message wording is unchanged.
+
+## v4 task 07: New Collection
+- New component: `lighthouse.new_collection` (`REGISTER`, `UNDO`), drawn as a `COLLECTION_NEW` icon button next to `+`. It creates `bpy.data.collections.new("Collection")` (Blender adds `.001` on a clash) inside `view_layer.active_layer_collection.collection`, which is the Scene Collection when the master is active, and makes the new collection's layer collection active through `find_layer_collection()`. It never touches the selection.
+- A library parent is refused with an `ERROR` report ("… is read-only (linked from a library)") before anything is created, the same as `add_light`. Creating inside a collapsed collection leaves folding alone (the open question's default). With `show_empty` on, the new collection is listed right away as `(0)`.

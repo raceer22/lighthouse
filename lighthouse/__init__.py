@@ -304,6 +304,24 @@ class LIGHTHOUSE_OT_add_light(bpy.types.Operator):
         return {'FINISHED'}
 
 
+class LIGHTHOUSE_OT_new_collection(bpy.types.Operator):
+    """Add a collection inside the active collection and make it active"""
+    bl_idname = "lighthouse.new_collection"
+    bl_label = "New Collection"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    def execute(self, context):
+        layer = context.view_layer
+        parent = layer.active_layer_collection.collection
+        if is_read_only(parent):
+            self.report({'ERROR'}, f"{parent.name} is read-only (linked from a library)")
+            return {'CANCELLED'}
+        collection = bpy.data.collections.new("Collection")
+        parent.children.link(collection)
+        layer.active_layer_collection = find_layer_collection(layer.layer_collection, collection)
+        return {'FINISHED'}
+
+
 class LIGHTHOUSE_OT_mute_light(bpy.types.Operator):
     """Hide or show this light in the viewport and in renders"""
     bl_idname = "lighthouse.mute_light"
@@ -856,6 +874,7 @@ class LIGHTHOUSE_PT_lights(bpy.types.Panel):
         row.operator(LIGHTHOUSE_OT_exit_solo.bl_idname, text="",
                      icon='SOLO_ON' if solo_active else 'SOLO_OFF', depress=solo_active)
         row.operator_menu_enum(LIGHTHOUSE_OT_add_light.bl_idname, "type", text="", icon='ADD')
+        row.operator(LIGHTHOUSE_OT_new_collection.bl_idname, text="", icon='COLLECTION_NEW')
         self.layout.row(align=True).prop(filters, "type_filter", expand=True)
 
         message = empty_message(context.view_layer, filters.name_filter, filters.type_filter)
@@ -1038,6 +1057,7 @@ classes = (
     LIGHTHOUSE_PG_solo,
     LIGHTHOUSE_OT_select_light,
     LIGHTHOUSE_OT_add_light,
+    LIGHTHOUSE_OT_new_collection,
     LIGHTHOUSE_OT_mute_light,
     LIGHTHOUSE_OT_solo_light,
     LIGHTHOUSE_OT_exit_solo,
