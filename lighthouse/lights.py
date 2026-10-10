@@ -40,9 +40,9 @@ class LightEntry(NamedTuple):
 
 def list_entries(view_layer, name_filter="", type_filter='ALL', grouped=True):
     """The rows the Lights panel draws, in order: collections nested as in the outliner
-    (only those on the path to a listed light), each followed by its sub-collections then its
-    lights sorted by name ignoring case. A collapsed collection keeps its header and count but
-    nothing below it. Scene Collection lights come last, with no header.
+    (only those on the path to a listed light), each followed by its own lights sorted by name
+    ignoring case, then its sub-collections. A collapsed collection keeps its header and count but
+    nothing below it. Scene Collection lights come first, with no header.
     When not grouped, or while searching, it is the flat listed_lights() order with no headers."""
     if not grouped or name_filter:
         return [LightEntry(obj, 0, 0) for obj in listed_lights(view_layer, name_filter, type_filter)]
@@ -80,7 +80,10 @@ def _find_layer_collection(layer_collection, collection):
 def _collection_entries(layer_collection, listed, depth):
     """The entries inside a layer collection, at the given depth, and the listed lights they hold
     (a dict used as an ordered set, in list order)."""
-    entries, lights = [], {}
+    own = sorted((obj for obj in layer_collection.collection.objects if obj in listed),
+                 key=lambda obj: obj.name.casefold())
+    entries = [LightEntry(obj, depth, 0) for obj in own]
+    lights = dict.fromkeys(own)
     for child in layer_collection.children:
         if child.exclude:
             continue
@@ -90,10 +93,6 @@ def _collection_entries(layer_collection, listed, depth):
             if not is_collapsed(child.collection):
                 entries += child_entries
             lights |= child_lights
-    own = sorted((obj for obj in layer_collection.collection.objects if obj in listed),
-                 key=lambda obj: obj.name.casefold())
-    entries += [LightEntry(obj, depth, 0) for obj in own]
-    lights |= dict.fromkeys(own)
     return entries, lights
 
 

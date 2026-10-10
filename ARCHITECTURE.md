@@ -286,3 +286,11 @@ A triangle click runs `toggle_details`. It first drops entries whose `obj` is `N
 
 **Blender API quirks**
 - Without `draw_header()`, presets can't be applied while the panel is collapsed. That trade-off was chosen for a cleaner header.
+
+## v3 task 01: own lights first
+
+**Components**
+- `_collection_entries()` builds a collection's own lights (sorted by name, ignoring case) first, then appends each child's `GroupEntry` and, unless it is collapsed, the child's entries. The `list_entries()` docstring says the same.
+
+**Data flow**
+`lights` stays an ordered dict, so `group_lights()`, group select and Shift+click ranges all follow the new order with no further changes. The ordering note in "Post-v2 polish" above now matches the code.
