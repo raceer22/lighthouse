@@ -626,3 +626,60 @@ def world_mute_node(setup):
 def world_muted(setup):
     node = world_mute_node(setup)
     return node is not None and node.mute
+
+
+class Receiver(NamedTuple):
+    id: object
+    kind: str  # 'OBJECT' or 'COLLECTION'
+    state: str  # 'INCLUDE' or 'EXCLUDE'
+
+
+def receivers(obj):
+    """The light's receiver collection: child collections first, then objects, each sorted by name
+    ignoring case. Empty without a receiver collection."""
+    collection = obj.light_linking.receiver_collection
+    if collection is None:
+        return []
+    # collection_children / collection_objects take only indices, in the same order as children / objects.
+    def listed(members, links, kind):
+        states = [link.light_linking.link_state for link in links]
+        return [Receiver(id, kind, state)
+                for id, state in sorted(zip(members, states), key=lambda pair: pair[0].name.lower())]
+    return (listed(collection.children, collection.collection_children, 'COLLECTION')
+            + listed(collection.objects, collection.collection_objects, 'OBJECT'))
+
+
+def link_receivers(light_obj, ids, state):
+    """Link each object or collection into the light's receiver collection (created like Blender's,
+    "Light Linking for <light>", when missing) and set its link state. The light itself is skipped.
+    Returns (added, updated)."""
+    import bpy
+    collection = light_obj.light_linking.receiver_collection
+    if collection is None:
+        collection = bpy.data.collections.new(f"Light Linking for {light_obj.name}")
+        light_obj.light_linking.receiver_collection = collection
+    added = updated = 0
+    for id in ids:
+        if id == light_obj:
+            continue
+        is_collection = isinstance(id, bpy.types.Collection)
+        members, links = ((collection.children, collection.collection_children) if is_collection
+                          else (collection.objects, collection.collection_objects))
+        if id in members[:]:
+            updated += 1
+        else:
+            members.link(id)
+            added += 1
+        links[members[:].index(id)].light_linking.link_state = state
+    return added, updated
+
+
+def remove_receiver(light_obj, id):
+    """Unlink one object or child collection from the light's receiver collection."""
+    import bpy
+    collection = light_obj.light_linking.receiver_collection
+    if collection is None:
+        return
+    members = collection.children if isinstance(id, bpy.types.Collection) else collection.objects
+    if id in members[:]:
+        members.unlink(id)

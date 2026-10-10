@@ -8,8 +8,12 @@ import bpy
 from .lights import (
     DETAIL_LABELS,
     find_collection,
+    _lookup,
     find_layer_collection,
     find_object,
+    link_receivers,
+    receivers,
+    remove_receiver,
     new_light_mode,
     id_key,
     GroupEntry,
@@ -299,6 +303,22 @@ def target_layer_collection(context, name, library):
 def target(op, id):
     """Point a row or header button's operator at this exact light or collection."""
     op.name, op.library = id_key(id)
+
+
+def draw_linking(box, obj):
+    """The Light Linking section at the end of a light's details."""
+    linking = box.column()
+    linking.use_property_split = False
+    linking.label(text="Light Linking")
+    target(linking.operator("lighthouse.link_receivers", text="Link Selected"), obj)
+    for receiver in receivers(obj):
+        row = linking.row(align=True)
+        icon = 'OUTLINER_COLLECTION' if receiver.kind == 'COLLECTION' else 'OBJECT_DATA'
+        row.label(text=receiver.id.name, icon=icon)
+        remove = row.operator("lighthouse.remove_receiver", text="", icon='X', emboss=False)
+        target(remove, obj)
+        remove.receiver, remove.receiver_library = id_key(receiver.id)
+        remove.kind = receiver.kind
 
 
 def frame_selected(context):
@@ -1020,6 +1040,63 @@ class LIGHTHOUSE_OT_solo_world(bpy.types.Operator):
         return {'FINISHED'}
 
 
+class LIGHTHOUSE_OT_link_receivers(bpy.types.Operator):
+    """Light only the selected objects with this light (Light Linking receivers)"""
+    bl_idname = "lighthouse.link_receivers"
+    bl_label = "Link Selected"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    name: bpy.props.StringProperty(options={'HIDDEN'})
+    library: bpy.props.StringProperty(options={'HIDDEN'})
+    state: bpy.props.EnumProperty(items=(('INCLUDE', "Include", ""), ('EXCLUDE', "Exclude", "")),
+                                  default='INCLUDE')
+
+    def execute(self, context):
+        obj = find_object(context.view_layer, self.name, self.library)
+        if obj is None:
+            return {'CANCELLED'}
+        selected = [o for o in context.selected_objects if o != obj]
+        if not selected:
+            self.report({'WARNING'}, "No objects selected")
+            return {'CANCELLED'}
+        collection = obj.light_linking.receiver_collection
+        for id in (obj, collection):
+            if id is not None and is_read_only(id):
+                self.report({'ERROR'}, f"{id.name} is read-only (linked from a library)")
+                return {'CANCELLED'}
+        link_receivers(obj, selected, self.state)
+        return {'FINISHED'}
+
+
+class LIGHTHOUSE_OT_remove_receiver(bpy.types.Operator):
+    """Stop linking this object or collection to the light"""
+    bl_idname = "lighthouse.remove_receiver"
+    bl_label = "Remove Receiver"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    name: bpy.props.StringProperty(options={'HIDDEN'})
+    library: bpy.props.StringProperty(options={'HIDDEN'})
+    receiver: bpy.props.StringProperty(options={'HIDDEN'})
+    receiver_library: bpy.props.StringProperty(options={'HIDDEN'})
+    kind: bpy.props.EnumProperty(items=(('OBJECT', "Object", ""), ('COLLECTION', "Collection", "")),
+                                 options={'HIDDEN'})
+
+    def execute(self, context):
+        obj = find_object(context.view_layer, self.name, self.library)
+        if obj is None or obj.light_linking.receiver_collection is None:
+            return {'CANCELLED'}
+        id = (find_collection(self.receiver, self.receiver_library) if self.kind == 'COLLECTION'
+              else _lookup(bpy.data.objects, self.receiver, self.receiver_library))
+        for data in (obj, obj.light_linking.receiver_collection):
+            if is_read_only(data):
+                self.report({'ERROR'}, f"{data.name} is read-only (linked from a library)")
+                return {'CANCELLED'}
+        if id is None:
+            return {'CANCELLED'}
+        remove_receiver(obj, id)
+        return {'FINISHED'}
+
+
 class LIGHTHOUSE_PT_world(bpy.types.Panel):
     bl_label = "World"
     bl_space_type = 'VIEW_3D'
@@ -1393,6 +1470,8 @@ class LIGHTHOUSE_PT_lights(bpy.types.Panel):
         for path in detail_properties(light, engine):
             label = DETAIL_LABELS.get(path)
             box.prop(*detail_target(light, path), **({"text": label} if label else {}))
+        draw_linking(box, obj)
+
 
 
 classes = (
@@ -1430,6 +1509,8 @@ classes = (
     LIGHTHOUSE_OT_add_world_rotation,
     LIGHTHOUSE_OT_mute_world,
     LIGHTHOUSE_OT_solo_world,
+    LIGHTHOUSE_OT_link_receivers,
+    LIGHTHOUSE_OT_remove_receiver,
     LIGHTHOUSE_MT_new_light,
     LIGHTHOUSE_MT_new,
     LIGHTHOUSE_PT_lights,

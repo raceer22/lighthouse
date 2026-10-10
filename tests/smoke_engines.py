@@ -149,4 +149,14 @@ for engine in ('CYCLES', eevee):
     assert bpy.ops.lighthouse.exit_solo() == {'FINISHED'}
     assert lights.world_muted(lights.world_setup(bpy.context.scene))
     assert bpy.ops.lighthouse.mute_world() == {'FINISHED'}
+    # Light linking: link every other object to the first lamp, then remove one again.
+    others = [o for o in bpy.context.view_layer.objects if o.type != 'LIGHT']
+    if lamp is not None and others:
+        for obj in bpy.context.view_layer.objects:
+            obj.select_set(obj in others)
+        assert bpy.ops.lighthouse.link_receivers(name=lamp.name) == {'FINISHED'}
+        assert len(lights.receivers(lamp)) == len(others)
+        assert bpy.ops.lighthouse.remove_receiver(
+            name=lamp.name, receiver=others[0].name, kind='OBJECT') == {'FINISHED'}
+        assert len(lights.receivers(lamp)) == len(others) - 1
     print("SMOKE ok", bpy.context.scene.render.engine)
