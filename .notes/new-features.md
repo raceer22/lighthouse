@@ -6,6 +6,7 @@
 - douplicate object
     - middle mouse click
 - add menu for custom bindings
+- default presets can be deleted as well
 
 # Collections
 - select collection
