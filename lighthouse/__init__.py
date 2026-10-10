@@ -11,6 +11,8 @@ from .lights import (
     _lookup,
     find_layer_collection,
     find_object,
+    clear_receivers,
+    shared_label,
     link_receivers,
     receivers,
     remove_receiver,
@@ -310,11 +312,23 @@ def draw_linking(box, obj):
     linking = box.column()
     linking.use_property_split = False
     linking.label(text="Light Linking")
-    target(linking.operator("lighthouse.link_receivers", text="Link Selected"), obj)
-    for receiver in receivers(obj):
+    listed = receivers(obj)
+    buttons = linking.row(align=True)
+    target(buttons.operator("lighthouse.link_receivers", text="Link Selected"), obj)
+    exclude = buttons.operator("lighthouse.link_receivers", text="Exclude Selected")
+    target(exclude, obj)
+    exclude.state = 'EXCLUDE'
+    clear = buttons.row(align=True)
+    clear.enabled = bool(listed)
+    target(clear.operator("lighthouse.clear_receivers", text="Clear"), obj)
+    shared = shared_label(obj)
+    if shared:
+        linking.label(text=shared, icon='INFO')
+    for receiver in listed:
         row = linking.row(align=True)
         icon = 'OUTLINER_COLLECTION' if receiver.kind == 'COLLECTION' else 'OBJECT_DATA'
         row.label(text=receiver.id.name, icon=icon)
+        row.prop(receiver.link.light_linking, "link_state", text="", expand=True)
         remove = row.operator("lighthouse.remove_receiver", text="", icon='X', emboss=False)
         target(remove, obj)
         remove.receiver, remove.receiver_library = id_key(receiver.id)
@@ -1068,6 +1082,27 @@ class LIGHTHOUSE_OT_link_receivers(bpy.types.Operator):
         return {'FINISHED'}
 
 
+class LIGHTHOUSE_OT_clear_receivers(bpy.types.Operator):
+    """Remove every object and collection from this light's linking (and from every light sharing it)"""
+    bl_idname = "lighthouse.clear_receivers"
+    bl_label = "Clear"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    name: bpy.props.StringProperty(options={'HIDDEN'})
+    library: bpy.props.StringProperty(options={'HIDDEN'})
+
+    def execute(self, context):
+        obj = find_object(context.view_layer, self.name, self.library)
+        if obj is None or obj.light_linking.receiver_collection is None:
+            return {'CANCELLED'}
+        for data in (obj, obj.light_linking.receiver_collection):
+            if is_read_only(data):
+                self.report({'ERROR'}, f"{data.name} is read-only (linked from a library)")
+                return {'CANCELLED'}
+        clear_receivers(obj)
+        return {'FINISHED'}
+
+
 class LIGHTHOUSE_OT_remove_receiver(bpy.types.Operator):
     """Stop linking this object or collection to the light"""
     bl_idname = "lighthouse.remove_receiver"
@@ -1511,6 +1546,7 @@ classes = (
     LIGHTHOUSE_OT_solo_world,
     LIGHTHOUSE_OT_link_receivers,
     LIGHTHOUSE_OT_remove_receiver,
+    LIGHTHOUSE_OT_clear_receivers,
     LIGHTHOUSE_MT_new_light,
     LIGHTHOUSE_MT_new,
     LIGHTHOUSE_PT_lights,

@@ -159,4 +159,8 @@ for engine in ('CYCLES', eevee):
         assert bpy.ops.lighthouse.remove_receiver(
             name=lamp.name, receiver=others[0].name, kind='OBJECT') == {'FINISHED'}
         assert len(lights.receivers(lamp)) == len(others) - 1
+        assert bpy.ops.lighthouse.link_receivers(name=lamp.name, state='EXCLUDE') == {'FINISHED'}
+        assert {r.state for r in lights.receivers(lamp)} == {'EXCLUDE'}
+        assert bpy.ops.lighthouse.clear_receivers(name=lamp.name) == {'FINISHED'}
+        assert lights.receivers(lamp) == []
     print("SMOKE ok", bpy.context.scene.render.engine)

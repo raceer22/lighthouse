@@ -632,6 +632,7 @@ class Receiver(NamedTuple):
     id: object
     kind: str  # 'OBJECT' or 'COLLECTION'
     state: str  # 'INCLUDE' or 'EXCLUDE'
+    link: object  # the CollectionObject / CollectionChild whose light_linking.link_state this is
 
 
 def receivers(obj):
@@ -642,9 +643,8 @@ def receivers(obj):
         return []
     # collection_children / collection_objects take only indices, in the same order as children / objects.
     def listed(members, links, kind):
-        states = [link.light_linking.link_state for link in links]
-        return [Receiver(id, kind, state)
-                for id, state in sorted(zip(members, states), key=lambda pair: pair[0].name.lower())]
+        return [Receiver(id, kind, link.light_linking.link_state, link)
+                for id, link in sorted(zip(members, links), key=lambda pair: pair[0].name.lower())]
     return (listed(collection.children, collection.collection_children, 'COLLECTION')
             + listed(collection.objects, collection.collection_objects, 'OBJECT'))
 
@@ -683,3 +683,40 @@ def remove_receiver(light_obj, id):
     members = collection.children if isinstance(id, bpy.types.Collection) else collection.objects
     if id in members[:]:
         members.unlink(id)
+
+
+def clear_receivers(light_obj):
+    """Unlink every object and child collection from the light's receiver collection, which stays
+    assigned. Every light sharing it changes too."""
+    collection = light_obj.light_linking.receiver_collection
+    if collection is None:
+        return
+    for child in list(collection.children):
+        collection.children.unlink(child)
+    for member in list(collection.objects):
+        collection.objects.unlink(member)
+
+
+def receiver_users(collection):
+    """The light objects using this collection as their receiver collection, sorted by name."""
+    import bpy
+    return sorted((obj for obj in bpy.data.objects
+                   if obj.type == 'LIGHT' and obj.light_linking.receiver_collection == collection),
+                  key=lambda obj: obj.name)
+
+
+SHARED_NAMES = 3
+
+
+def shared_label(obj):
+    """"Shared with Key, Rim (3 lights)" when other lights use this light's receiver collection
+    (at most SHARED_NAMES names, then "…"); "" otherwise."""
+    collection = obj.light_linking.receiver_collection
+    if collection is None:
+        return ""
+    users = receiver_users(collection)
+    others = [user.name for user in users if user != obj]
+    if not others:
+        return ""
+    names = ", ".join(others[:SHARED_NAMES]) + (", …" if len(others) > SHARED_NAMES else "")
+    return f"Shared with {names} ({len(users)} lights)"
