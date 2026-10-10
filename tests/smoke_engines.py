@@ -75,11 +75,12 @@ for engine in ('CYCLES', 'BLENDER_EEVEE'):
         for keep_others in (False, True, False):
             assert bpy.ops.lighthouse.toggle_details(name=obj.name, keep_others=keep_others) == {'FINISHED'}
 
-    # Each toggle runs twice in a row, so it ends where it started (un-solo restores the flags
-    # solo saw, so interleaving it with hide would leave the group hidden).
+    # Each toggle runs twice in a row, so it ends where it started.
     for op in (bpy.ops.lighthouse.toggle_group, bpy.ops.lighthouse.hide_group, bpy.ops.lighthouse.solo_group):
         for _ in range(2):
             assert op(name=group.name) == {'FINISHED'}
+    assert bpy.ops.lighthouse.solo_group(name=group.name) == {'FINISHED'}
+    assert bpy.ops.lighthouse.exit_solo() == {'FINISHED'}
     for _ in range(2):
         assert bpy.ops.lighthouse.toggle_all_groups() == {'FINISHED'}
     assert bpy.ops.lighthouse.clear_filters() == {'FINISHED'}

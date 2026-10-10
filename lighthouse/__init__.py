@@ -4,7 +4,7 @@ import zlib
 
 import bpy
 
-from .lights import DETAIL_LABELS, GroupEntry, color_control, detail_properties, detail_target, details_open, empty_message, group_lights, group_soloed, indent_level, is_collapsed, is_read_only, light_info_tooltip, light_objects, list_entries, listed_groups, move_lights, move_summary, power_unit, row_state, scale_lights, scale_summary, toggle_details, toggle_solo_group, toggle_solo_light
+from .lights import DETAIL_LABELS, GroupEntry, color_control, detail_properties, detail_target, details_open, empty_message, group_lights, group_soloed, indent_level, is_collapsed, is_read_only, light_info_tooltip, light_objects, list_entries, listed_groups, move_lights, move_summary, power_unit, row_state, scale_lights, scale_summary, solo_label, toggle_details, toggle_solo_group, toggle_solo_light, unsolo, update_snapshot
 from pathlib import Path
 
 from .presets import BUILTIN_PRESETS, apply_preset, delete_user_preset, preset_from_light, preset_path, preset_summary, save_user_preset, USER_PREFIX, user_presets
@@ -253,6 +253,7 @@ class LIGHTHOUSE_OT_mute_light(bpy.types.Operator):
             return {'CANCELLED'}
         hide = not (obj.hide_render and obj.hide_viewport)
         obj.hide_render = obj.hide_viewport = hide
+        update_snapshot(context.scene.lighthouse_solo, obj, hide)
         return {'FINISHED'}
 
 
@@ -269,6 +270,21 @@ class LIGHTHOUSE_OT_solo_light(bpy.types.Operator):
         if obj is None:
             return {'CANCELLED'}
         toggle_solo_light(context.scene.lighthouse_solo, context.view_layer, obj)
+        return {'FINISHED'}
+
+
+class LIGHTHOUSE_OT_exit_solo(bpy.types.Operator):
+    """Restore every light's and collection's visibility from before solo"""
+    bl_idname = "lighthouse.exit_solo"
+    bl_label = "Exit Solo"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    @classmethod
+    def poll(cls, context):
+        return context.scene.lighthouse_solo.active
+
+    def execute(self, context):
+        unsolo(context.scene.lighthouse_solo)
         return {'FINISHED'}
 
 
@@ -410,6 +426,7 @@ class LIGHTHOUSE_OT_hide_group(bpy.types.Operator):
             return {'CANCELLED'}
         hide = not (collection.hide_render and collection.hide_viewport)
         collection.hide_render = collection.hide_viewport = hide
+        update_snapshot(context.scene.lighthouse_solo, collection, hide)
         return {'FINISHED'}
 
 
@@ -702,6 +719,10 @@ class LIGHTHOUSE_PT_lights(bpy.types.Panel):
                          icon='FULLSCREEN_ENTER' if all_collapsed else 'FULLSCREEN_EXIT')
         row.operator_menu_enum(LIGHTHOUSE_OT_add_light.bl_idname, "type", text="", icon='ADD')
         self.layout.row(align=True).prop(filters, "type_filter", expand=True)
+        solo = context.scene.lighthouse_solo
+        if solo.active:
+            self.layout.operator(LIGHTHOUSE_OT_exit_solo.bl_idname, text=f"Exit Solo ({solo_label(solo)})",
+                                 icon='SOLO_ON', depress=True)
 
         message = empty_message(context.view_layer, filters.name_filter, filters.type_filter)
         if message:
@@ -825,6 +846,7 @@ classes = (
     LIGHTHOUSE_OT_add_light,
     LIGHTHOUSE_OT_mute_light,
     LIGHTHOUSE_OT_solo_light,
+    LIGHTHOUSE_OT_exit_solo,
     LIGHTHOUSE_OT_toggle_details,
     LIGHTHOUSE_OT_toggle_group,
     LIGHTHOUSE_OT_toggle_all_groups,

@@ -69,8 +69,8 @@ The first solo writes a JSON snapshot `{"light": name, "flags": {name: [hide_ren
 
 **Known limits**
 - The snapshot is keyed by object name. A light renamed during solo is not restored.
-- If the soloed light is deleted, no row shows as soloed. Solo any light, then press it again to restore.
-- Mute during solo changes the flags, but un-solo overwrites them with the snapshot.
+- ~~If the soloed light is deleted, no row shows as soloed. Solo any light, then press it again to restore.~~ Fixed in v3 task 05: the Exit Solo row.
+- ~~Mute during solo changes the flags, but un-solo overwrites them with the snapshot.~~ Fixed in v3 task 05: mute writes to the snapshot.
 
 **Blender API quirks**
 - `bpy.ops.ed.undo()` fails its poll in `--background`, so tests can't check undo. Check it by hand.
@@ -211,7 +211,7 @@ All three panels read `WindowManager.lighthouse`. EV buttons pass their float `s
 
 **Components**
 - `lighthouse/__init__.py`: `Scene.lighthouse_solo`, a `PointerProperty` to `LIGHTHOUSE_PG_solo` (`active`, `light` Object pointer, `group` Collection pointer, and `objects` / `collections` CollectionProperties of `LIGHTHOUSE_PG_solo_object` / `LIGHTHOUSE_PG_solo_collection`, each a pointer plus `hide_render` / `hide_viewport`). It replaces the v1 JSON in `scene["lighthouse_solo"]` and `SOLO_KEY`. An old JSON value is left in place and ignored. The new `LIGHTHOUSE_OT_solo_group` (`UNDO`, collection `name`) is drawn at the end of the group header's action sub-row, after Hide.
-- `lighthouse/lights.py`: `toggle_solo_light(solo, view_layer, obj)` and `toggle_solo_group(solo, view_layer, collection)` take the property group, not the scene. Both call `_solo(solo, view_layer, shown, collections)` or, when their target is already soloed, `_unsolo(solo)`. `_collection_paths(view_layer, wanted)` walks the non-excluded layer collection tree and returns each accepted collection with its ancestors. `group_soloed(scene, collection)` and `row_state().soloed` compare pointers for the header and row `depress=`.
+- `lighthouse/lights.py`: `toggle_solo_light(solo, view_layer, obj)` and `toggle_solo_group(solo, view_layer, collection)` take the property group, not the scene. Both call `_solo(solo, view_layer, shown, collections)` or, when their target is already soloed, `_unsolo(solo)` (public `unsolo` since v3 task 05). `_collection_paths(view_layer, wanted)` walks the non-excluded layer collection tree and returns each accepted collection with its ancestors. `group_soloed(scene, collection)` and `row_state().soloed` compare pointers for the header and row `depress=`.
 
 **Data flow**
 A light solo unhides the collections in `obj.users_collection` plus their ancestors. A group solo shows `collection.all_objects` and unhides the group, its `children_recursive` and its ancestors. `_solo` clears the snapshot only when `active` is off. It then adds every light, and every collection it is about to unhide, that has no snapshot item yet, records the flags, unhides the collections and sets every light's flags to "shown only if in `shown`". Switching target never removes items, so un-solo goes back to the state before the first solo, and collections unhidden for an earlier target stay unhidden until then. `_unsolo` writes back every item whose pointer is still set, then clears both lists, both target pointers and `active`. Renames don't matter, because nothing is looked up by name after the operator resolves its target.
@@ -273,7 +273,7 @@ A triangle click runs `toggle_details`. It first drops entries whose `obj` is `N
 - In 5.2, `Light.color` tints the blackbody color: a 3000 K Cycles render with `color` red came out pure red. A Kelvin preset therefore applies white, and its stored `color` is only the fallback for versions without temperature. A user preset saved from a tinted Kelvin light loses the tint, which was accepted as rare.
 - `Light.temperature` is clamped to 800–20000 K, with 6500 K as the default.
 - The stub for a pre-5.0 light has to hide the newer properties from `getattr`/`setattr` as well as from `bl_rna.properties`, or an unguarded write would reach the real 5.2 light and the test would pass anyway.
-- The smoke script must not interleave `hide_group` and `solo_group` toggles: un-solo restores the flags solo recorded, so a hide in between is undone and the group ends hidden. This is the intended behaviour (AC 10), not a bug.
+- ~~The smoke script must not interleave `hide_group` and `solo_group` toggles: un-solo restores the flags solo recorded, so a hide in between is undone.~~ Since v3 task 05 a hide during solo is written to the snapshot and kept.
 
 ## Post-v2 polish: list order and Presets header
 
@@ -331,3 +331,8 @@ A cancelled operator pushes no undo step, so Ctrl+Z after a press that did nothi
 - `lights.empty_message(view_layer, name_filter, type_filter)` returns `None` whenever `listed_lights()` has a match, because a light inside a collapsed group still draws its group header. Otherwise it returns "No lights match the filters" when the view layer has lights, and "No lights in this view layer" when it has none. The panel draws the message with the `INFO` icon and returns early. In the filter case it also adds `lighthouse.clear_filters` (`INTERNAL`, no undo), which resets `name_filter` and `type_filter`.
 - `lights.listed_groups(view_layer, type_filter)` walks the non-excluded layer collections and keeps every collection whose `all_objects` holds a listed light, whatever its collapse state.
 - `lighthouse.toggle_all_groups` (`INTERNAL`, no undo) replaces `collapse_all_groups`. It expands every listed group when all of them are collapsed and collapses all of them otherwise. The header icon is `FULLSCREEN_ENTER` when everything is collapsed and `FULLSCREEN_EXIT` otherwise.
+
+## v3 task 05: exit solo and snapshot updates
+- New components: `lights.unsolo(solo)` (was `_unsolo`), `lights.solo_label(solo)` (the soloed light's or collection's name, or `"deleted"` once its pointer is `None`), `lights.update_snapshot(solo, id, hide)`, and `lighthouse.exit_solo` (`UNDO`, `poll()` requires `solo.active`). While solo is on, `LIGHTHOUSE_PT_lights.draw()` adds a full-width `Exit Solo (<label>)` button with `SOLO_ON` and `depress=True` under the filter rows.
+- Mute and hide flow: `mute_light` and `hide_group` set the flags as before, then call `update_snapshot()`. While solo is on, it writes `hide` to both flags of the matching `objects` or `collections` item. An ID without an item (a collection solo never unhid) is left alone, so un-solo still ignores it. What you set during solo is what un-solo restores.
+- Quirks: `update_snapshot()` compares pointers in both lists rather than checking the ID type, because `lights.py` doesn't import `bpy`. A group that starts fully hidden and is hidden again during solo ends hidden either way, so the test starts `Interior` render-only hidden to tell the two behaviours apart. The label is read on every draw, so it follows renames without extra code. Not yet checked: the manual GUI pass (row appears and disappears, label follows renames, one Ctrl+Z after Exit Solo brings solo back) and an engine smoke re-run with the new `exit_solo` step.

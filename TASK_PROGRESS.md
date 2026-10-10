@@ -19,3 +19,8 @@
 - `empty_message()` explains an empty Lights panel: either no lights in the view layer, or none matching the filters (with a **Clear Filters** button, `lighthouse.clear_filters`). Lights inside collapsed groups do not count as empty.
 - `lighthouse.collapse_all_groups` is replaced by `lighthouse.toggle_all_groups`, built on `listed_groups()`. It expands everything when all groups are collapsed and collapses everything otherwise, and the header icon flips between `FULLSCREEN_ENTER` and `FULLSCREEN_EXIT`. Updated the smoke script, acceptance.md and ARCHITECTURE.md.
 - `make test`: 122 pass. Added 3 tests in `tests/test_empty_list.py`, and 2 toggle-all tests replace the collapse-all test. Not done yet: the manual GUI check and a re-run of the engine smoke.
+
+## TICKET-05: Solo you can always leave, and that keeps your changes
+- While solo is on, the panel draws `Exit Solo (<name or "deleted">)` (`lighthouse.exit_solo`, `UNDO`, polls on `solo.active`). It calls the now public `lights.unsolo()`, and `lights.solo_label()` supplies the name.
+- `mute_light` and `hide_group` call `lights.update_snapshot()`, which writes the new flags into the matching snapshot item while solo is on, so un-solo keeps changes made during solo. Collections with no snapshot item are left alone. Updated ARCHITECTURE.md (known limits marked fixed, new entry) and added an `exit_solo` step to the smoke script.
+- 5 new tests in `tests/test_exit_solo.py`. `make test`: 126 pass, plus 1 failure in `test_empty_list` caused by the uncommitted "filter" wording edit, which passes without that edit. Not done yet: the manual GUI check and an engine smoke re-run.

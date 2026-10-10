@@ -277,7 +277,7 @@ def toggle_solo_light(solo, view_layer, obj):
     """Solo a light: show it and hide every other light, unhiding the collections that hold it
     and their ancestors. Pressing it again on the soloed light restores the snapshot (see _solo)."""
     if solo.active and solo.light == obj:
-        _unsolo(solo)
+        unsolo(solo)
         return
     holders = set(obj.users_collection)
     _solo(solo, view_layer, [obj], _collection_paths(view_layer, lambda c: c in holders))
@@ -289,7 +289,7 @@ def toggle_solo_group(solo, view_layer, collection):
     other light, unhiding the collection, its sub-collections and its ancestors. Pressing it again
     on the soloed group restores the snapshot (see _solo)."""
     if solo.active and solo.group == collection:
-        _unsolo(solo)
+        unsolo(solo)
         return
     inside = {collection, *collection.children_recursive}
     shown = set(collection.all_objects)
@@ -323,7 +323,7 @@ def _solo(solo, view_layer, shown, collections):
         obj.hide_render = obj.hide_viewport = obj not in shown
 
 
-def _unsolo(solo):
+def unsolo(solo):
     """Restore every snapshotted light and collection still around, then clear the snapshot."""
     for item in solo.objects:
         if item.object is not None:
@@ -335,6 +335,25 @@ def _unsolo(solo):
     solo.collections.clear()
     solo.light = solo.group = None
     solo.active = False
+
+
+def update_snapshot(solo, id, hide):
+    """While solo is on, record `hide` as the flags un-solo restores for a light or collection
+    that has a snapshot item, so a choice made during solo survives it. Others are left alone."""
+    if not solo.active:
+        return
+    for item in solo.objects:
+        if item.object == id:
+            item.hide_render = item.hide_viewport = hide
+    for item in solo.collections:
+        if item.collection == id:
+            item.hide_render = item.hide_viewport = hide
+
+
+def solo_label(solo):
+    """The soloed light's or collection's name, or "deleted" when the target is gone."""
+    target = solo.light or solo.group
+    return target.name if target is not None else "deleted"
 
 
 def _collection_paths(view_layer, wanted):
