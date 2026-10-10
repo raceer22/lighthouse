@@ -310,13 +310,18 @@ class LIGHTHOUSE_OT_new_collection(bpy.types.Operator):
     bl_label = "New Collection"
     bl_options = {'REGISTER', 'UNDO'}
 
+    name: bpy.props.StringProperty(name="Name", default="Collection")
+
+    def invoke(self, context, event):
+        return context.window_manager.invoke_props_dialog(self)
+
     def execute(self, context):
         layer = context.view_layer
         parent = layer.active_layer_collection.collection
         if is_read_only(parent):
             self.report({'ERROR'}, f"{parent.name} is read-only (linked from a library)")
             return {'CANCELLED'}
-        collection = bpy.data.collections.new("Collection")
+        collection = bpy.data.collections.new(self.name.strip() or "Collection")
         parent.children.link(collection)
         layer.active_layer_collection = find_layer_collection(layer.layer_collection, collection)
         return {'FINISHED'}
