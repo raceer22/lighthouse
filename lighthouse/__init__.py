@@ -44,6 +44,7 @@ from .lights import (
     toggle_solo_group,
     supports_temperature,
     toggle_solo_light,
+    toggle_solo_world,
     toggled_mode,
     unsolo,
     update_snapshot,
@@ -184,6 +185,12 @@ class LIGHTHOUSE_PG_solo(bpy.types.PropertyGroup):
     group: bpy.props.PointerProperty(type=bpy.types.Collection)
     objects: bpy.props.CollectionProperty(type=LIGHTHOUSE_PG_solo_object)
     collections: bpy.props.CollectionProperty(type=LIGHTHOUSE_PG_solo_collection)
+    world_soloed: bpy.props.BoolProperty()
+    # The World snapshot, taken only by World solo: the node muted and its mute before solo
+    world_saved: bpy.props.BoolProperty()
+    world: bpy.props.PointerProperty(type=bpy.types.World)
+    world_node: bpy.props.StringProperty()
+    world_muted: bpy.props.BoolProperty()
 
 
 class LIGHTHOUSE_OT_select_light(bpy.types.Operator):
@@ -997,6 +1004,19 @@ class LIGHTHOUSE_OT_mute_world(bpy.types.Operator):
             self.report({'ERROR'}, f"{context.scene.world.name} is read-only (linked from a library)")
             return {'CANCELLED'}
         node.mute = not node.mute
+        update_snapshot(context.scene.lighthouse_solo, node, node.mute)
+        return {'FINISHED'}
+
+
+class LIGHTHOUSE_OT_solo_world(bpy.types.Operator):
+    """Light the scene with the World only: darken every light and un-mute the World,
+    or restore every light's and the World's state if the World is already soloed"""
+    bl_idname = "lighthouse.solo_world"
+    bl_label = "Solo World"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    def execute(self, context):
+        toggle_solo_world(context.scene.lighthouse_solo, context.view_layer, context.scene)
         return {'FINISHED'}
 
 
@@ -1022,6 +1042,13 @@ class LIGHTHOUSE_PT_world(bpy.types.Panel):
             text="",
             icon='HIDE_ON' if muted else 'HIDE_OFF',
             depress=muted,
+        )
+        soloed = context.scene.lighthouse_solo.world_soloed
+        row.operator(
+            LIGHTHOUSE_OT_solo_world.bl_idname,
+            text="",
+            icon='SOLO_ON' if soloed else 'SOLO_OFF',
+            depress=soloed,
         )
         if setup.state == 'CUSTOM':
             self.layout.label(text="Custom world setup, edit in Shader Editor")
@@ -1402,6 +1429,7 @@ classes = (
     LIGHTHOUSE_OT_power_unit,
     LIGHTHOUSE_OT_add_world_rotation,
     LIGHTHOUSE_OT_mute_world,
+    LIGHTHOUSE_OT_solo_world,
     LIGHTHOUSE_MT_new_light,
     LIGHTHOUSE_MT_new,
     LIGHTHOUSE_PT_lights,

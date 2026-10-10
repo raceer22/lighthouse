@@ -90,7 +90,7 @@ def drawn_world(setup_code):
 
 
 def test_panel_draws_strength_for_a_simple_world():
-    assert drawn_world("") == [["label", "World"], ["operator", "lighthouse.mute_world", ""], ["prop", "default_value"]]
+    assert drawn_world("") == [["label", "World"], ["operator", "lighthouse.mute_world", ""], ["operator", "lighthouse.solo_world", ""], ["prop", "default_value"]]
 
 
 def test_panel_draws_the_custom_label_for_a_custom_world():
@@ -99,7 +99,7 @@ def test_panel_draws_the_custom_label_for_a_custom_world():
         tree.links.new(tree.nodes.new('ShaderNodeMixShader').outputs[0], tree.get_output_node('ALL').inputs["Surface"])
     """)
 
-    assert log == [["label", "World"], ["operator", "lighthouse.mute_world", "", "disabled"], ["label", "Custom world setup, edit in Shader Editor"]]
+    assert log == [["label", "World"], ["operator", "lighthouse.mute_world", "", "disabled"], ["operator", "lighthouse.solo_world", ""], ["label", "Custom world setup, edit in Shader Editor"]]
 
 
 def test_panel_draws_the_no_world_label_without_a_world():

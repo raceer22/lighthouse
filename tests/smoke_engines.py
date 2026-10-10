@@ -138,4 +138,15 @@ for engine in ('CYCLES', eevee):
     for _ in range(2):
         assert bpy.ops.lighthouse.mute_world() == {'FINISHED'}
     assert not lights.world_muted(lights.world_setup(bpy.context.scene))
+    lamp = next(iter(lights.light_objects(bpy.context.view_layer)), None)
+    if lamp is not None:
+        bpy.ops.lighthouse.solo_light(name=lamp.name)
+        assert not lights.world_muted(lights.world_setup(bpy.context.scene))
+        assert bpy.ops.lighthouse.exit_solo() == {'FINISHED'}
+    assert bpy.ops.lighthouse.mute_world() == {'FINISHED'}
+    assert bpy.ops.lighthouse.solo_world() == {'FINISHED'}
+    assert not lights.world_muted(lights.world_setup(bpy.context.scene))
+    assert bpy.ops.lighthouse.exit_solo() == {'FINISHED'}
+    assert lights.world_muted(lights.world_setup(bpy.context.scene))
+    assert bpy.ops.lighthouse.mute_world() == {'FINISHED'}
     print("SMOKE ok", bpy.context.scene.render.engine)

@@ -351,6 +351,7 @@ def toggle_solo_light(solo, view_layer, obj):
     if solo.active and solo.light == obj:
         unsolo(solo)
         return
+    _leave_world_solo(solo)
     holders = set(obj.users_collection)
     _solo(solo, view_layer, [obj], _collection_paths(view_layer, lambda c: c in holders))
     solo.light = obj
@@ -363,10 +364,49 @@ def toggle_solo_group(solo, view_layer, collection):
     if solo.active and solo.group == collection:
         unsolo(solo)
         return
+    _leave_world_solo(solo)
     inside = {collection, *collection.children_recursive}
     shown = set(collection.all_objects)
     _solo(solo, view_layer, shown, _collection_paths(view_layer, lambda c: c in inside))
     solo.group = collection
+
+
+def toggle_solo_world(solo, view_layer, scene):
+    """Solo the World: hide every light and un-mute the World's node, snapshotting its mute.
+    A scene with no world, or no node to mute, only hides the lights. Pressing it again while
+    the World is soloed restores the snapshot (see unsolo)."""
+    if solo.active and solo.world_soloed:
+        unsolo(solo)
+        return
+    _solo(solo, view_layer, [], [])
+    solo.world_soloed = True
+    node = world_mute_node(world_setup(scene))
+    if node is not None:
+        solo.world, solo.world_node, solo.world_muted = scene.world, node.name, node.mute
+        solo.world_saved = True
+        node.mute = False
+
+
+def _world_snapshot_node(solo):
+    """The node the World snapshot points at, or None when there is no snapshot or it is gone."""
+    if not solo.world_saved or solo.world is None or solo.world.node_tree is None:
+        return None
+    return solo.world.node_tree.nodes.get(solo.world_node)
+
+
+def _restore_world(solo):
+    node = _world_snapshot_node(solo)
+    if node is not None:
+        node.mute = solo.world_muted
+    solo.world = None
+    solo.world_node = ""
+    solo.world_saved = solo.world_soloed = False
+
+
+def _leave_world_solo(solo):
+    """Switching from World solo to a lamp or group: put the World's mute back right away."""
+    if solo.world_soloed:
+        _restore_world(solo)
 
 
 def _solo(solo, view_layer, shown, collections):
@@ -403,6 +443,7 @@ def unsolo(solo):
     for item in solo.collections:
         if item.collection is not None:
             item.collection.hide_render, item.collection.hide_viewport = item.hide_render, item.hide_viewport
+    _restore_world(solo)
     solo.objects.clear()
     solo.collections.clear()
     solo.light = solo.group = None
@@ -411,8 +452,12 @@ def unsolo(solo):
 
 def update_snapshot(solo, id, hide):
     """While solo is on, record `hide` as the flags un-solo restores for a light or collection
-    that has a snapshot item, so a choice made during solo survives it. Others are left alone."""
+    that has a snapshot item, so a choice made during solo survives it. Others are left alone.
+    For the World's mute node, `hide` is its new mute (only recorded during a World solo)."""
     if not solo.active:
+        return
+    if solo.world_saved and id is not None and id == _world_snapshot_node(solo):
+        solo.world_muted = hide
         return
     for item in solo.objects:
         if item.object == id:
@@ -423,7 +468,10 @@ def update_snapshot(solo, id, hide):
 
 
 def solo_label(solo):
-    """The soloed light's or collection's name, or "deleted" when the target is gone."""
+    """The soloed light's or collection's name, "World" for a World solo, or "deleted" when the
+    target is gone."""
+    if solo.world_soloed:
+        return "World"
     target = solo.light or solo.group
     return target.name if target is not None else "deleted"
 
