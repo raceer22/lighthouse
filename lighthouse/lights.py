@@ -57,7 +57,7 @@ def empty_message(view_layer, name_filter="", type_filter='ALL'):
     if listed_lights(view_layer, name_filter, type_filter):
         return None
     if light_objects(view_layer):
-        return "No lights match the filter"
+        return "No lights match the filter(s)"
     return "No lights in this view layer"
 
 

@@ -387,7 +387,7 @@ class LIGHTHOUSE_OT_toggle_group(bpy.types.Operator):
 class LIGHTHOUSE_OT_clear_filters(bpy.types.Operator):
     """Clear the search and show every light type"""
     bl_idname = "lighthouse.clear_filters"
-    bl_label = "Clear Filter"
+    bl_label = "Clear Filter(s)"
     bl_options = {'INTERNAL'}
 
     def execute(self, context):
