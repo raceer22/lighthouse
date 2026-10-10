@@ -101,3 +101,48 @@ def test_range_select_across_a_folded_lights_row_skips_the_hidden_lights():
     """)
 
     assert selected == ["Bulb", "Sun"]
+
+
+TOGGLE_ALL = """
+        props = new_collection("Props")
+        move_to(add_light("Desk"), props)
+
+        def state():
+            return {
+                "collapsed": sorted(c.name for c in bpy.data.collections if c.lighthouse_collapsed),
+                "folded": sorted(c.name for c in bpy.data.collections if c.lighthouse_lights_collapsed),
+            }
+"""
+
+
+def test_expand_all_also_unfolds_lights_rows():
+    result = run(TOGGLE_ALL + """
+        for collection in (set_, lamps, props):
+            collection.lighthouse_collapsed = True
+        set_.lighthouse_lights_collapsed = True
+        bpy.ops.lighthouse.toggle_all_groups()
+        report(state())
+    """)
+
+    assert result == {"collapsed": [], "folded": []}
+
+
+def test_collapse_all_leaves_folded_lights_rows_folded():
+    result = run(TOGGLE_ALL + """
+        set_.lighthouse_lights_collapsed = True
+        bpy.ops.lighthouse.toggle_all_groups()
+        report(state())
+    """)
+
+    assert result == {"collapsed": ["Lamps", "Props", "Set"], "folded": ["Set"]}
+
+
+def test_folded_lights_rows_do_not_count_as_collapsed():
+    result = run(TOGGLE_ALL + """
+        set_.lighthouse_lights_collapsed = True
+        lamps.lighthouse_lights_collapsed = True
+        bpy.ops.lighthouse.toggle_all_groups()
+        report(state()["collapsed"])
+    """)
+
+    assert result == ["Lamps", "Props", "Set"]

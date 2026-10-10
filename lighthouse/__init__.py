@@ -418,16 +418,20 @@ class LIGHTHOUSE_OT_clear_filters(bpy.types.Operator):
 
 
 class LIGHTHOUSE_OT_toggle_all_groups(bpy.types.Operator):
-    """Expand every collection in the list when all are collapsed, otherwise collapse them all"""
+    """Expand every collection and lights row when all collections are collapsed,
+    otherwise collapse every collection"""
     bl_idname = "lighthouse.toggle_all_groups"
     bl_label = "Collapse or Expand All Groups"
     bl_options = {'INTERNAL'}
 
     def execute(self, context):
         groups = listed_groups(context.view_layer, context.window_manager.lighthouse.type_filter)
+        # Only collections count: a folded lights row never makes this collapse instead of expand.
         collapse = not all(is_collapsed(collection) for collection in groups)
         for collection in groups:
             collection.lighthouse_collapsed = collapse
+            if not collapse:
+                collection.lighthouse_lights_collapsed = False
         return {'FINISHED'}
 
 

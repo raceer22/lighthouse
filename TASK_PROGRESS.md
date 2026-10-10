@@ -41,3 +41,8 @@
 - A collection with its own lights and at least one listed sub-collection now shows a foldable `Lights (N)` row (`LightsEntry`, `is_lights_folded()`, `Collection.lighthouse_lights_collapsed`, `lighthouse.toggle_lights_row`, `draw_lights_row()`). Leaf collections and Scene Collection lights are unchanged.
 - Folding hides only the drawn lights. Counts, `group_lights()` and `listed_groups()` still include them, and `select_light`'s `RANGE` now keeps only `LightEntry` rows. Added the smoke step and an ARCHITECTURE.md entry.
 - 6 new tests (`tests/test_lights_row.py`, `tests/test_grouped_lights.py`), and 1 ordering test now expects the row. The `test_empty_list` wording test was fixed first to match `filter(s)`, in its own commit. `make test`: 140 pass. The engine smoke run passes. Not done yet: the manual GUI check.
+
+## v4 TICKET-02: Expand All opens lights rows
+- When `toggle_all_groups` expands (every listed collection collapsed), it also unfolds every listed collection's lights row. Collapse leaves lights rows alone. The tooltip now mentions lights rows.
+- The "all collapsed?" check (action and header icon) still reads only `lighthouse_collapsed`. A test pins that folded rows alone don't make the next press expand. Added an ARCHITECTURE.md entry.
+- 3 new tests in `tests/test_lights_row.py`. `make test`: 143 pass. Not done yet: the manual GUI check (the header icon doesn't change when a lights row is folded, since the draw code can't run headless).
