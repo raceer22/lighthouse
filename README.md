@@ -3,7 +3,7 @@
 A Blender extension that adds a **Lights** tab to the 3D Viewport sidebar (N), with three panels:
 
 - **Intensity**: scale all or selected lights by a factor, or step them by −1, −½, −¼, +¼, +½ or +1 EV. Keyframes scale too.
-- **Presets**: apply built-in (Candle, 60W Bulb, Daylight) or your own presets of power, color, radius, exposure and Kelvin temperature. Built-ins use Kelvin on Blender 5.0+ and an RGB color on older versions.
+- **Presets**: apply, save, overwrite or delete presets of power, color, radius, exposure and Kelvin temperature. The first run writes three defaults (Candle, 60W Bulb, Daylight) as plain files, which you can change or delete like your own. They use Kelvin on Blender 5.0+ and an RGB color on older versions. A .blend saved by an older version with a built-in preset selected opens with no preset selected.
 - **Lights**: every light in the view layer, grouped by collection as in the outliner or as a flat list, with search and type filters. Each row has a details toggle, type, name, power, color (or a Kelvin field for lights using temperature), mute and solo. Click a name to select it, Shift+click to select a range, Ctrl+Shift+click to toggle it in the selection, Ctrl+click to rename and Alt+click to frame it. Group headers count their lights and can select, collapse, hide or solo the group, or move the selected lights into it. `+` adds a light at the 3D cursor.
 
 - Blender 4.2 or later. Tested on 4.2.23 LTS and 5.2.2 LTS, under Cycles and EEVEE. Kelvin temperature needs 5.0+ and light exposure needs 4.4+. On older versions, presets set the RGB color instead.

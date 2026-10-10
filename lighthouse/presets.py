@@ -17,14 +17,16 @@ class Preset(NamedTuple):
     temperature: float = 6500.0
 
 
-BUILTIN_PRESETS = {
-    'CANDLE': Preset("Candle", frozenset({'POINT', 'SPOT', 'AREA'}), 1.0, (1.0, 0.58, 0.16), 0.01, use_temperature=True, temperature=1850.0),
-    'BULB_60W': Preset("60W Bulb", frozenset({'POINT', 'SPOT', 'AREA'}), 60.0, (1.0, 0.71, 0.42), 0.03, use_temperature=True, temperature=2700.0),
-    'DAYLIGHT': Preset("Daylight", frozenset({'SUN'}), 4.0, (1.0, 0.96, 0.9), 0.0093, use_temperature=True, temperature=5500.0),
-}
+# Written into the presets folder once (see seed_default_presets); after that they are plain files.
+DEFAULT_PRESETS = (
+    Preset("Candle", frozenset({'POINT', 'SPOT', 'AREA'}), 1.0, (1.0, 0.58, 0.16), 0.01, use_temperature=True, temperature=1850.0),
+    Preset("60W Bulb", frozenset({'POINT', 'SPOT', 'AREA'}), 60.0, (1.0, 0.71, 0.42), 0.03, use_temperature=True, temperature=2700.0),
+    Preset("Daylight", frozenset({'SUN'}), 4.0, (1.0, 0.96, 0.9), 0.0093, use_temperature=True, temperature=5500.0),
+)
 
 
 USER_PREFIX = "USER:"
+DEFAULTS_MARKER = ".defaults_installed"
 
 
 def preset_from_light(light, label):
@@ -50,6 +52,26 @@ def preset_path(folder, label):
 def save_user_preset(folder, preset):
     data = preset._asdict() | {'type_compat': sorted(preset.type_compat)}
     preset_path(folder, preset.label).write_text(json.dumps(data, indent=2))
+
+
+def restore_default_presets(folder):
+    """Write each default preset whose file is missing, never overwriting one.
+    Returns the labels written."""
+    written = []
+    for preset in DEFAULT_PRESETS:
+        if not preset_path(folder, preset.label).exists():
+            save_user_preset(folder, preset)
+            written.append(preset.label)
+    return written
+
+
+def seed_default_presets(folder):
+    """Write the default presets the first time the folder is used, then leave a marker so
+    defaults the user deletes stay deleted."""
+    marker = Path(folder) / DEFAULTS_MARKER
+    if not marker.exists():
+        restore_default_presets(folder)
+        marker.touch()
 
 
 def delete_user_preset(folder, key):

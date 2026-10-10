@@ -111,7 +111,8 @@ for engine in ('CYCLES', eevee):
     for preset in preset_ids():
         assert bpy.ops.lighthouse.apply_preset(preset=preset) == {'FINISHED'}, preset
     assert bpy.ops.lighthouse.save_preset(name="Smoke " + engine) == {'FINISHED'}
-    user = [p for p in preset_ids() if p.startswith("USER:")]
-    assert bpy.ops.lighthouse.apply_preset(preset=user[0]) == {'FINISHED'}
-    assert bpy.ops.lighthouse.delete_preset(preset=user[0]) == {'FINISHED'}
+    saved = "USER:Smoke " + engine
+    assert saved in preset_ids()
+    assert bpy.ops.lighthouse.apply_preset(preset=saved) == {'FINISHED'}
+    assert bpy.ops.lighthouse.delete_preset(preset=saved) == {'FINISHED'}
     print("SMOKE ok", bpy.context.scene.render.engine)

@@ -26,8 +26,8 @@ def test_a_preset_saved_from_a_light_in_one_file_applies_after_restarting_with_a
         report([items, [point.data.energy, list(point.data.color), point.data.shadow_soft_size]])
     """, tmp_path / "config")[0]
 
-    assert ["Candle", "60W Bulb", "Daylight"] == [name for _, name, _ in items[:3]]
-    assert [[name, icon] for _, name, icon in items[3:]] == [["My Key", "USER"]]
+    assert [[name, icon] for _, name, icon in items] == [
+        ["60W Bulb", "NONE"], ["Candle", "NONE"], ["Daylight", "NONE"], ["My Key", "NONE"]]
     assert light == [250, approx([0.9, 0.8, 0.7]), approx(0.2)]
 
 
@@ -46,33 +46,27 @@ def test_corrupt_user_preset_files_are_skipped_with_a_warning(tmp_path):
         report([name for _, name, _ in preset_items()])
     """, tmp_path / "config")
 
-    assert items == ["Candle", "60W Bulb", "Daylight", "Good"]
+    assert items == ["60W Bulb", "Candle", "Daylight", "Good"]
     assert "Skipped user preset Broken.json" in output
     assert "Skipped user preset Incomplete.json" in output
 
 
-def test_a_deleted_user_preset_is_gone_after_restarting_and_built_ins_cannot_be_deleted(tmp_path):
-    built_in_refused = run_installed("""
+def test_a_deleted_user_preset_is_gone_after_restarting(tmp_path):
+    run_installed("""
         empty_scene()
         bpy.context.view_layer.objects.active = add_light("Key")
         bpy.ops.lighthouse.save_preset(name="Keep")
         bpy.ops.lighthouse.save_preset(name="Drop")
         drop = [i for i, name, _ in preset_items() if name == "Drop"][0]
         bpy.ops.lighthouse.delete_preset(preset=drop)
-        try:
-            bpy.ops.lighthouse.delete_preset(preset='CANDLE')
-            refused = False
-        except TypeError:
-            refused = True
-        report(refused)
-    """, tmp_path / "config")[0]
+        report(None)
+    """, tmp_path / "config")
 
     items = run_installed("""
         report([name for _, name, _ in preset_items()])
     """, tmp_path / "config")[0]
 
-    assert built_in_refused
-    assert items == ["Candle", "60W Bulb", "Daylight", "Keep"]
+    assert items == ["60W Bulb", "Candle", "Daylight", "Keep"]
 
 
 @needs_blender(5, 0, "Light.use_temperature")
@@ -131,14 +125,15 @@ def test_selected_preset_stays_selected_when_a_preset_sorting_before_it_is_saved
         settings.preset = "USER:Beta"
         # Added without the operator (which selects what it saves), as another Blender instance would.
         addon = __import__("sys").modules[bpy.types.LIGHTHOUSE_OT_save_preset.__module__]
-        addon.save_user_preset(addon.presets_folder(), addon.BUILTIN_PRESETS['CANDLE']._replace(label="Aardvark"))
+        presets = __import__("sys").modules[addon.__name__ + ".presets"]
+        addon.save_user_preset(addon.presets_folder(), presets.DEFAULT_PRESETS[0]._replace(label="Aardvark"))
         report(settings.preset)
     """, tmp_path / "config")[0]
 
     assert selected == "USER:Beta"
 
 
-def test_deleting_the_selected_preset_falls_back_to_a_built_in(tmp_path):
+def test_deleting_the_selected_preset_selects_the_next_one(tmp_path):
     after_alpha, after_last = run_installed("""
         empty_scene()
         bpy.context.view_layer.objects.active = add_light("Key")
@@ -153,8 +148,8 @@ def test_deleting_the_selected_preset_falls_back_to_a_built_in(tmp_path):
         report([after_alpha, settings.preset])
     """, tmp_path / "config")[0]
 
-    assert after_alpha == "CANDLE"
-    assert after_last == "CANDLE"
+    assert after_alpha == "USER:Beta"
+    assert after_last == "USER:Candle"
 
 
 def test_saving_over_an_existing_preset_needs_overwrite(tmp_path):
@@ -211,4 +206,5 @@ def test_user_presets_are_parsed_once_until_a_save(tmp_path):
     """, tmp_path / "config")[0]
 
     assert counts[0] <= 2
-    assert counts[1] == counts[0] + 3
+    # One re-read of the folder: the three saved presets and the three defaults.
+    assert counts[1] == counts[0] + 6

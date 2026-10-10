@@ -46,20 +46,30 @@ from .lights import (
     update_snapshot,
 )
 from .presets import (
-    BUILTIN_PRESETS,
     apply_preset,
     delete_user_preset,
     preset_from_light,
     preset_path,
     preset_summary,
     save_user_preset,
+    seed_default_presets,
     USER_PREFIX,
     user_presets,
 )
 
 
+_seeded = False
+
+
 def presets_folder():
-    return Path(bpy.utils.extension_path_user(__package__, create=True))
+    """The presets folder, with the default presets written into it on the first call of the
+    session if they never were."""
+    global _seeded
+    folder = Path(bpy.utils.extension_path_user(__package__, create=True))
+    if not _seeded:
+        seed_default_presets(folder)
+        _seeded = True
+    return folder
 
 
 _user_presets_cache = {}
@@ -81,18 +91,17 @@ def clear_user_presets_cache():
 
 
 def all_presets():
-    return BUILTIN_PRESETS | cached_user_presets()
+    return cached_user_presets()
 
 
 _preset_items = []
 
 
 def preset_items(self, context):
-    """Built-in presets, then user presets marked with a user icon. Each item's number comes from
+    """Every preset in the folder, sorted by label ignoring case. Each item's number comes from
     its key, so the stored value follows the preset when others are added or deleted."""
     _preset_items[:] = [
-        (key, preset.label, "User preset" if key not in BUILTIN_PRESETS else "", 'USER' if key not in BUILTIN_PRESETS else 'NONE',
-         zlib.crc32(key.encode()) & 0x7FFFFFFF)
+        (key, preset.label, "", 'NONE', zlib.crc32(key.encode()) & 0x7FFFFFFF)
         for key, preset in all_presets().items()
     ]
     return _preset_items
@@ -773,9 +782,6 @@ class LIGHTHOUSE_OT_save_preset(bpy.types.Operator):
         if not name:
             self.report({'ERROR'}, "Preset name can't be empty")
             return {'CANCELLED'}
-        if name.lower() in {preset.label.lower() for preset in BUILTIN_PRESETS.values()}:
-            self.report({'ERROR'}, f'"{name}" is a built-in preset. Choose another name')
-            return {'CANCELLED'}
         # The file path, not the label, so names that sanitize to the same file count too.
         if self.exists() and not self.overwrite:
             self.report({'ERROR'}, f'Preset "{name}" exists. Tick Overwrite to replace it')
@@ -796,7 +802,7 @@ _user_preset_items = []
 
 
 class LIGHTHOUSE_OT_delete_preset(bpy.types.Operator):
-    """Delete this user preset from every file. Built-in presets can't be deleted"""
+    """Delete this preset from every file"""
     bl_idname = "lighthouse.delete_preset"
     bl_label = "Delete Light Preset"
 
@@ -807,10 +813,19 @@ class LIGHTHOUSE_OT_delete_preset(bpy.types.Operator):
 
     def execute(self, context):
         settings = context.window_manager.lighthouse
-        if settings.preset == self.preset:
-            settings.preset = 'CANDLE'
-        delete_user_preset(presets_folder(), self.preset)
+        # Read before deleting: the dynamic enum resolves to another item once the file is gone.
+        key = self.preset
+        shown = settings.preset == key
+        keys = list(cached_user_presets())
+        delete_user_preset(presets_folder(), key)
         clear_user_presets_cache()
+        if shown and key in keys:
+            # The next one in dropdown order, or the new last one. With none left, assign
+            # nothing: '' raises TypeError, and the dropdown already reads ''.
+            index = keys.index(key)
+            rest = keys[:index] + keys[index + 1:]
+            if rest:
+                settings.preset = rest[min(index, len(rest) - 1)]
         return {'FINISHED'}
 
 
@@ -896,7 +911,7 @@ class LIGHTHOUSE_PT_presets(bpy.types.Panel):
             op.preset = settings.preset
         row = self.layout.row(align=True)
         row.operator(LIGHTHOUSE_OT_save_preset.bl_idname, text="Save")
-        if settings.preset and settings.preset not in BUILTIN_PRESETS:
+        if settings.preset:
             row.operator(LIGHTHOUSE_OT_delete_preset.bl_idname, text="Delete").preset = settings.preset
 
 

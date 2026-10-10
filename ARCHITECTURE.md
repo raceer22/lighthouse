@@ -101,6 +101,8 @@ One button press is one operator call, so it makes one undo step. Power is in W,
 
 ## Task 10: user presets
 
+> Superseded in part by v4 task 10: there are no built-ins any more, every preset is a file, and the `USER` icon and reserved names are gone.
+
 **Components**
 - `lighthouse/presets.py`: `preset_from_light(light, label)` reads power, color and soft size back as a radius (area `size / 2`, sun `angle`, otherwise `shadow_soft_size`). A sun gives a sun-only preset, and any other type gives a point/spot/area preset. `save_user_preset()` writes `<label>.json` (characters outside `\w`, `-` and space become `_`). `user_presets(folder)` reads every `*.json`, keyed `USER:<file stem>` and sorted by label, and prints `Lighthouse: Skipped user preset <file>: …` for files that aren't valid JSON or are missing fields. `delete_user_preset()` removes the file.
 - `lighthouse/__init__.py`: `presets_folder()` is `bpy.utils.extension_path_user(__package__, create=True)`. The `preset` enums on the settings and on `apply_preset` are dynamic (`preset_items`): built-ins first, then user presets with the `USER` icon. `LIGHTHOUSE_OT_save_preset` (poll: active object is a light, invoke opens a name dialog) refuses empty names and built-in labels in any case. Saving an existing user name overwrites it. `LIGHTHOUSE_OT_delete_preset` (confirm on invoke) only lists user presets, so a built-in can't be passed. The Presets row gains `+`, plus `-` when a user preset is chosen.
@@ -301,7 +303,7 @@ A triangle click runs `toggle_details`. It first drops entries whose `obj` is `N
 - `preset_items()` numbers each item `zlib.crc32(key) & 0x7FFFFFFF`, so the stored dropdown value follows the preset, not its position.
 - `cached_user_presets()` / `clear_user_presets_cache()` in `__init__.py`: a module-level cache keyed by the presets folder's `st_mtime_ns`. Save and delete clear it.
 - `LIGHTHOUSE_OT_save_preset` has an `overwrite` BoolProperty. It refuses when `preset_path()` already exists (so `Key/Fill` collides with `Key_Fill`), its dialog `draw()` shows a warning and the checkbox, and a successful save selects the new preset.
-- `LIGHTHOUSE_OT_delete_preset` resets the dropdown to `CANDLE` when it deletes the shown preset.
+- `LIGHTHOUSE_OT_delete_preset` resets the dropdown to `CANDLE` when it deletes the shown preset. *(Superseded by v4 task 10: it selects the next preset instead.)*
 - `apply_preset()` skips read-only (library / system override) light data and returns `(changed, incompatible, read_only)`. `preset_summary()` names both skip reasons.
 - `LIGHTHOUSE_PT_presets.draw()` disables Apply and hides Delete while `settings.preset` is `''`.
 
@@ -391,3 +393,8 @@ Checked on Blender 4.2.23 LTS (portable build) against 5.2.2 LTS. The add-on cod
 
 ## v4 task 09: scope starts as Selected
 - `LIGHTHOUSE_PG_settings.scale_scope` defaults to `SELECTED` (the toggle still reads All | Selected). It lives on the WindowManager, so it is not saved in the .blend and every session starts at Selected. The operators' own `scope` property is unchanged, and the panel always passes the chosen scope.
+
+## v4 task 10: presets as plain files
+- `presets.py`: `BUILTIN_PRESETS` is now the tuple `DEFAULT_PRESETS`, used only to write files. `restore_default_presets(folder)` writes each default whose `preset_path()` is missing and returns the labels written, never overwriting anything. `seed_default_presets(folder)` calls it once and then writes `.defaults_installed` (not `*.json`, so `user_presets()` ignores it). A default the user deletes stays deleted.
+- `presets_folder()` seeds on its first call of the session (a module flag), so even a Save before any draw sees `Candle.json`. `all_presets()` is `cached_user_presets()`. `preset_items()` has icon `NONE` and no description, sorted by label ignoring case. Save has no reserved names, so `Candle` follows the exists/Overwrite flow. Delete offers every preset, and when it deletes the shown one it selects the next in dropdown order, or the new last one, or assigns nothing when none are left (assigning `''` raises `TypeError`). It reads `self.preset` before deleting, because the dynamic enum resolves to another item once the file is gone. The panel shows Delete whenever a preset is set.
+- Known cost (item 17): a default's key changed from `CANDLE` to `USER:Candle`, so a .blend saved with a built-in selected opens with nothing selected. The panel handles `''`. There is no migration.

@@ -81,3 +81,8 @@
 - `LIGHTHOUSE_PG_settings.scale_scope` now defaults to `SELECTED`. `SCOPE_ITEMS` order and the operators' own `scope` property are unchanged.
 - The setting stays on the WindowManager, so a .blend saved with All still opens with Selected. Added an ARCHITECTURE.md entry.
 - 2 new tests in `tests/test_scope_default.py` (fresh session, save then reopen). `make test`: 178 pass. Not done yet: the manual GUI check (panel opens with Selected pressed).
+
+## v4 TICKET-10: Presets become plain files
+- `BUILTIN_PRESETS` is now `DEFAULT_PRESETS`. `restore_default_presets()` and `seed_default_presets()` (with a `.defaults_installed` marker) write them as JSON once, seeded in `presets_folder()` so a Save before the first draw sees them too. A default you delete stays deleted.
+- The dropdown is sorted by label with no icons. Save has no reserved names (`Candle` goes through exists/Overwrite). Delete offers every preset and selects the next, or the new last, or nothing. The `CANDLE` fallback and the built-in checks are gone. README and ARCHITECTURE.md are updated (old notes marked superseded, item 17 cost documented).
+- 5 new tests in `tests/test_default_presets.py`. The preset, Kelvin, empty-scope and user-preset tests and the smoke script moved to `USER:<label>` keys. `make test`: 183 pass. Engine smoke run passes on 4.2.23. Not done yet: the manual GUI check (no icons, empty dropdown with Apply greyed out).

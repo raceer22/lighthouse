@@ -42,7 +42,7 @@ def test_applying_a_preset_with_nothing_selected_is_cancelled_with_a_warning(tmp
     result, output = run_installed("""
         empty_scene()
         add_light("A")
-        report(sorted(bpy.ops.lighthouse.apply_preset(preset='CANDLE')))
+        report(sorted(bpy.ops.lighthouse.apply_preset(preset='USER:Candle')))
     """, tmp_path)
 
     assert result == ["CANCELLED"]
@@ -54,7 +54,7 @@ def test_applying_a_preset_that_skips_every_selected_light_is_cancelled_with_a_w
         empty_scene()
         add_light("A").select_set(True)
         add_light("B").select_set(True)
-        report(sorted(bpy.ops.lighthouse.apply_preset(preset='DAYLIGHT')))
+        report(sorted(bpy.ops.lighthouse.apply_preset(preset='USER:Daylight')))
     """, tmp_path)
 
     assert result == ["CANCELLED"]

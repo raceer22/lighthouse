@@ -38,21 +38,21 @@ def test_row_shows_kelvin_only_for_a_light_using_temperature():
     assert controls == ["temperature", "color", "color"]
 
 
-def test_built_ins_set_only_the_rgb_color_on_a_light_without_temperature():
+def test_default_presets_set_only_the_rgb_color_on_a_light_without_temperature():
     lights = run_in_blender(OLDER_LIGHT + """
-        from lighthouse.presets import BUILTIN_PRESETS, apply_preset
+        from lighthouse.presets import DEFAULT_PRESETS, apply_preset
         empty_scene()
         lights = {}
-        for key, light_type in (('CANDLE', 'POINT'), ('BULB_60W', 'SPOT'), ('DAYLIGHT', 'SUN')):
-            data = add_light(key, light_type).data
+        for preset, light_type in zip(DEFAULT_PRESETS, ('POINT', 'SPOT', 'SUN')):
+            data = add_light(preset.label, light_type).data
             stub = type("Object", (), {"data": OlderLight(data)})()
-            apply_preset([stub], BUILTIN_PRESETS[key])
-            lights[key] = [data.energy, [round(c, 3) for c in data.color], getattr(data, "use_temperature", False)]
+            apply_preset([stub], preset)
+            lights[preset.label] = [data.energy, [round(c, 3) for c in data.color], getattr(data, "use_temperature", False)]
         report(lights)
     """)
 
     assert lights == {
-        "CANDLE": [1, [1.0, 0.58, 0.16], False],
-        "BULB_60W": [60, [1.0, 0.71, 0.42], False],
-        "DAYLIGHT": [4, [1.0, 0.96, 0.9], False],
+        "Candle": [1, [1.0, 0.58, 0.16], False],
+        "60W Bulb": [60, [1.0, 0.71, 0.42], False],
+        "Daylight": [4, [1.0, 0.96, 0.9], False],
     }
