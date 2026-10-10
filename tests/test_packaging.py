@@ -1,4 +1,5 @@
 import subprocess
+import tomllib
 import zipfile
 from pathlib import Path
 
@@ -61,4 +62,5 @@ def test_build_script_builds_the_versioned_zip(tmp_path):
     result = run_build_script(str(tmp_path))
 
     assert result.returncode == 0, result.stdout + result.stderr
-    assert [p.name for p in tmp_path.iterdir()] == ["lighthouse-1.2.0.zip"]
+    version = tomllib.loads((SOURCE / "blender_manifest.toml").read_text())["version"]
+    assert [p.name for p in tmp_path.iterdir()] == [f"lighthouse-{version}.zip"]
