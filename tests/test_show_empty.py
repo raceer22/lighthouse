@@ -141,3 +141,37 @@ def test_show_empty_defaults_on_and_survives_clear_filters():
     """)
 
     assert result == [True, False]
+
+
+def test_a_view_layer_without_lights_still_lists_its_collection_tree():
+    result = run("""
+        bpy.data.objects.remove(bpy.data.objects["Key"])
+        bpy.context.view_layer.update()
+        new_collection("Lamps", set_)
+        report(entries(show_empty=True))
+    """)
+
+    assert result == [["scene", 0], ["group", "Set", 0, 0], ["group", "Lamps", 1, 0]]
+
+
+def test_a_type_filter_matching_nothing_keeps_the_full_tree_at_zero():
+    result = run("""
+        new_collection("Lamps", set_)
+        report(entries(type_filter='SUN', show_empty=True))
+    """)
+
+    assert result == [["scene", 0], ["group", "Set", 0, 0], ["group", "Lamps", 1, 0]]
+
+
+def test_the_tree_is_drawn_under_the_message_only_when_grouped_unsearched_and_showing_empty():
+    result = run("""
+        from lighthouse.lights import tree_under_message
+        report([
+            tree_under_message(True, "", True),
+            tree_under_message(False, "", True),
+            tree_under_message(True, "lamp", True),
+            tree_under_message(True, "", False),
+        ])
+    """)
+
+    assert result == [True, False, False, False]

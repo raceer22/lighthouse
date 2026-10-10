@@ -61,6 +61,12 @@ def empty_message(view_layer, name_filter="", type_filter='ALL'):
     return "No lights in this view layer"
 
 
+def tree_under_message(grouped, name_filter, show_empty):
+    """True when the panel draws the collection tree under the empty-list message, so collections stay
+    reachable as targets. Only in the grouped, unsearched list with empty collections shown."""
+    return grouped and not name_filter and show_empty
+
+
 class GroupEntry(NamedTuple):
     """A collection header. foldable: something is listed under it (own lights or sub-collections)."""
     collection: object

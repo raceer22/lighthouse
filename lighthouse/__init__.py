@@ -30,6 +30,7 @@ from .lights import (
     light_objects,
     list_entries,
     listed_groups,
+    tree_under_message,
     move_lights,
     move_summary,
     power_unit,
@@ -862,7 +863,8 @@ class LIGHTHOUSE_PT_lights(bpy.types.Panel):
             self.layout.label(text=message, icon='INFO')
             if light_objects(context.view_layer):
                 self.layout.operator(LIGHTHOUSE_OT_clear_filters.bl_idname)
-            return
+            if not tree_under_message(filters.grouped, filters.name_filter, filters.show_empty):
+                return
 
         entries = list_entries(context.view_layer, filters.name_filter, filters.type_filter, filters.grouped,
                                filters.show_empty)
