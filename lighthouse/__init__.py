@@ -128,6 +128,11 @@ class LIGHTHOUSE_PG_settings(bpy.types.PropertyGroup):
         description="Nest lights under their collections, as in the outliner. The list is flat while searching",
         default=True,
     )
+    show_empty: bpy.props.BoolProperty(
+        name="Show Empty Collections",
+        description="List collections without (matching) lights too, so you can make them active or move lights into them",
+        default=True,
+    )
     scale_factor: bpy.props.FloatProperty(
         name="Factor",
         description="Multiply light power by this value",
@@ -223,7 +228,8 @@ class LIGHTHOUSE_OT_select_light(bpy.types.Operator):
             filters = context.window_manager.lighthouse
             listed = [
                 entry.obj
-                for entry in list_entries(layer, filters.name_filter, filters.type_filter, filters.grouped)
+                for entry in list_entries(layer, filters.name_filter, filters.type_filter, filters.grouped,
+                                          filters.show_empty)
                 if isinstance(entry, LightEntry)
             ]
             if layer.objects.active in listed and obj in listed:
@@ -448,6 +454,13 @@ class LIGHTHOUSE_OT_clear_filters(bpy.types.Operator):
         return {'FINISHED'}
 
 
+def all_collapsed(view_layer, filters):
+    """True when every listed collection with a triangle is collapsed (also when there are none).
+    Only collections count: a folded lights row, or an empty collection with nothing to fold, never decides it."""
+    groups = listed_groups(view_layer, filters.type_filter, filters.show_empty, foldable_only=True)
+    return all(is_collapsed(collection) for collection in groups)
+
+
 class LIGHTHOUSE_OT_toggle_all_groups(bpy.types.Operator):
     """Expand every collection and lights row when all collections are collapsed,
     otherwise collapse every collection"""
@@ -456,9 +469,9 @@ class LIGHTHOUSE_OT_toggle_all_groups(bpy.types.Operator):
     bl_options = {'INTERNAL'}
 
     def execute(self, context):
-        groups = listed_groups(context.view_layer, context.window_manager.lighthouse.type_filter)
-        # Only collections count: a folded lights row never makes this collapse instead of expand.
-        collapse = not all(is_collapsed(collection) for collection in groups)
+        filters = context.window_manager.lighthouse
+        groups = listed_groups(context.view_layer, filters.type_filter, filters.show_empty)
+        collapse = not all_collapsed(context.view_layer, filters)
         for collection in groups:
             collection.lighthouse_collapsed = collapse
             if not collapse:
@@ -831,11 +844,12 @@ class LIGHTHOUSE_PT_lights(bpy.types.Panel):
         row = self.layout.row(align=True)
         row.prop(filters, "name_filter", text="", icon='VIEWZOOM')
         row.prop(filters, "grouped", text="", icon='OUTLINER')
+        row.prop(filters, "show_empty", text="", icon='OUTLINER_COLLECTION')
         if filters.grouped and not filters.name_filter:
-            groups = listed_groups(context.view_layer, filters.type_filter)
-            all_collapsed = bool(groups) and all(is_collapsed(collection) for collection in groups)
+            groups = listed_groups(context.view_layer, filters.type_filter, filters.show_empty, foldable_only=True)
+            collapsed = bool(groups) and all_collapsed(context.view_layer, filters)
             row.operator(LIGHTHOUSE_OT_toggle_all_groups.bl_idname, text="",
-                         icon='FULLSCREEN_ENTER' if all_collapsed else 'FULLSCREEN_EXIT')
+                         icon='FULLSCREEN_ENTER' if collapsed else 'FULLSCREEN_EXIT')
         # Always drawn (greyed out by poll when solo is off) so the list never shifts.
         solo_active = context.scene.lighthouse_solo.active
         row.operator(LIGHTHOUSE_OT_exit_solo.bl_idname, text="",
@@ -850,7 +864,8 @@ class LIGHTHOUSE_PT_lights(bpy.types.Panel):
                 self.layout.operator(LIGHTHOUSE_OT_clear_filters.bl_idname)
             return
 
-        entries = list_entries(context.view_layer, filters.name_filter, filters.type_filter, filters.grouped)
+        entries = list_entries(context.view_layer, filters.name_filter, filters.type_filter, filters.grouped,
+                               filters.show_empty)
         for entry in entries:
             if isinstance(entry, SceneEntry):
                 self.draw_scene_row(context, entry)
@@ -892,12 +907,15 @@ class LIGHTHOUSE_PT_lights(bpy.types.Panel):
         collection = entry.collection
         row = self.layout.row(align=True)
         indent(row, entry.depth)
-        target(row.operator(
-            LIGHTHOUSE_OT_toggle_group.bl_idname,
-            text="",
-            icon='DISCLOSURE_TRI_RIGHT' if collection.lighthouse_collapsed else 'DISCLOSURE_TRI_DOWN',
-            emboss=False,
-        ), collection)
+        if entry.foldable:
+            target(row.operator(
+                LIGHTHOUSE_OT_toggle_group.bl_idname,
+                text="",
+                icon='DISCLOSURE_TRI_RIGHT' if collection.lighthouse_collapsed else 'DISCLOSURE_TRI_DOWN',
+                emboss=False,
+            ), collection)
+        else:
+            row.label(text="", icon='BLANK1')
         active = context.view_layer.active_layer_collection.collection == collection
         target(row.operator(
             LIGHTHOUSE_OT_set_active_collection.bl_idname,
@@ -906,8 +924,11 @@ class LIGHTHOUSE_PT_lights(bpy.types.Panel):
             emboss=active,
             depress=active,
         ), collection)
+        # All four are always drawn so columns line up; Select and Solo have nothing to act on at (0).
         actions = row.row(align=True)
-        target(actions.operator(LIGHTHOUSE_OT_select_group.bl_idname, text="", icon='RESTRICT_SELECT_OFF'), collection)
+        select = actions.row(align=True)
+        select.enabled = bool(entry.count)
+        target(select.operator(LIGHTHOUSE_OT_select_group.bl_idname, text="", icon='RESTRICT_SELECT_OFF'), collection)
         target(actions.operator(LIGHTHOUSE_OT_move_to_group.bl_idname, text="", icon='IMPORT'), collection)
         hidden = collection.hide_render and collection.hide_viewport
         target(actions.operator(
@@ -917,7 +938,9 @@ class LIGHTHOUSE_PT_lights(bpy.types.Panel):
             depress=hidden,
         ), collection)
         soloed = group_soloed(context.scene, collection)
-        target(actions.operator(
+        solo = actions.row(align=True)
+        solo.enabled = bool(entry.count)
+        target(solo.operator(
             LIGHTHOUSE_OT_solo_group.bl_idname,
             text="",
             icon='SOLO_ON' if soloed else 'SOLO_OFF',

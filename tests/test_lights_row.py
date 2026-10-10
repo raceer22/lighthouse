@@ -6,6 +6,8 @@ HELPERS = """
 import lighthouse
 from lighthouse.lights import GroupEntry, SceneEntry, LightsEntry, group_lights, list_entries
 lighthouse.register()
+# These tests predate show_empty; the default "Collection" is empty and would join toggle-all.
+bpy.context.window_manager.lighthouse.show_empty = False
 
 def new_collection(name, parent=None):
     collection = bpy.data.collections.new(name)

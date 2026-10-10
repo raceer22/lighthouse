@@ -62,9 +62,11 @@ def empty_message(view_layer, name_filter="", type_filter='ALL'):
 
 
 class GroupEntry(NamedTuple):
+    """A collection header. foldable: something is listed under it (own lights or sub-collections)."""
     collection: object
     depth: int
     count: int
+    foldable: bool = True
 
 
 class SceneEntry(NamedTuple):
@@ -86,7 +88,7 @@ class LightEntry(NamedTuple):
     other_collections: int
 
 
-def list_entries(view_layer, name_filter="", type_filter='ALL', grouped=True):
+def list_entries(view_layer, name_filter="", type_filter='ALL', grouped=True, show_empty=False):
     """The rows the Lights panel draws, in order: collections nested as in the outliner
     (only those on the path to a listed light), each followed by its own lights sorted by name
     ignoring case, then its sub-collections. A collapsed collection keeps its header and count but
@@ -94,12 +96,13 @@ def list_entries(view_layer, name_filter="", type_filter='ALL', grouped=True):
     foldable LightsEntry row; folding it drops only those lights. A SceneEntry header comes first,
     then the Scene Collection's own lights (unless its lights are folded) at depth 0, so top-level
     collections stay at depth 0.
+    With show_empty, every non-excluded collection is listed, those without listed lights with count 0.
     When not grouped, or while searching, it is the flat listed_lights() order with no headers."""
     if not grouped or name_filter:
         return [LightEntry(obj, 0, 0) for obj in listed_lights(view_layer, name_filter, type_filter)]
     listed = set(listed_lights(view_layer, type_filter=type_filter))
     scene_collection = view_layer.layer_collection.collection
-    entries = _collection_entries(view_layer.layer_collection, listed, 0)[0]
+    entries = _collection_entries(view_layer.layer_collection, listed, 0, show_empty)[0]
     own = [entry for entry in entries if isinstance(entry, LightEntry) and entry.depth == 0]
     if is_lights_folded(scene_collection):
         entries = entries[len(own):]
@@ -121,9 +124,10 @@ def group_lights(view_layer, collection, type_filter='ALL'):
     return list(_collection_entries(layer_collection, listed, 0)[1])
 
 
-def listed_groups(view_layer, type_filter='ALL'):
-    """Every collection holding a listed light, directly or in a sub-collection, in list order.
-    Collapse state is ignored, so a collapsed parent does not hide its sub-collections."""
+def listed_groups(view_layer, type_filter='ALL', show_empty=False, foldable_only=False):
+    """Every collection holding a listed light, directly or in a sub-collection, in list order
+    (every non-excluded collection with show_empty). foldable_only leaves out those with nothing
+    listed under them. Collapse state is ignored, so a collapsed parent does not hide its sub-collections."""
     listed = set(listed_lights(view_layer, type_filter=type_filter))
     groups = []
 
@@ -131,8 +135,11 @@ def listed_groups(view_layer, type_filter='ALL'):
         for child in layer_collection.children:
             if child.exclude:
                 continue
-            if listed.intersection(child.collection.all_objects):
-                groups.append(child.collection)
+            if show_empty or listed.intersection(child.collection.all_objects):
+                foldable = (listed.intersection(child.collection.objects)
+                            or any(not grandchild.exclude for grandchild in child.children) if show_empty else True)
+                if foldable or not foldable_only:
+                    groups.append(child.collection)
                 walk(child)
 
     walk(view_layer.layer_collection)
@@ -152,7 +159,7 @@ def find_layer_collection(layer_collection, collection):
     return None
 
 
-def _collection_entries(layer_collection, listed, depth):
+def _collection_entries(layer_collection, listed, depth, show_empty=False):
     """The entries inside a layer collection, at the given depth, and the listed lights they hold
     (a dict used as an ordered set, in list order)."""
     own = sorted((obj for obj in layer_collection.collection.objects if obj in listed),
@@ -162,9 +169,9 @@ def _collection_entries(layer_collection, listed, depth):
     for child in layer_collection.children:
         if child.exclude:
             continue
-        child_entries, child_lights = _collection_entries(child, listed, depth + 1)
-        if child_lights:
-            groups.append(GroupEntry(child.collection, depth, len(child_lights)))
+        child_entries, child_lights = _collection_entries(child, listed, depth + 1, show_empty)
+        if child_lights or show_empty:
+            groups.append(GroupEntry(child.collection, depth, len(child_lights), bool(child_entries)))
             if not is_collapsed(child.collection):
                 groups += child_entries
             lights |= child_lights
