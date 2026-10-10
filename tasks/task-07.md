@@ -1,32 +1,30 @@
-# Task 07: Tidy-up, and prove the Blender 4.2 minimum
+# Task 07: New Collection button
 
-**Depends on:** tasks 01–06, so it validates the finished code
-**Type:** housekeeping + compatibility · **Source:** polish review, "Code and project tidiness"
+**Depends on:** task-03, task-05
+**Group:** Collections · **Source:** `.notes/new-features-decisions.md` item 11
 
 ## Goal
-The suite runs against any Blender binary, passes on both 4.2 LTS and 5.2 LTS, and the manifest's `blender_version_min = "4.2.0"` is backed by a real run. A new contributor can set up the tests from the README alone.
+A button in the list header creates a collection inside the active one and makes it active. A following `+` then puts a light straight into it. With empty collections shown (task 05, on by default), the new collection appears right away as `(0)`.
 
 ## Scope
-- **Test runner:** `tests/blender_runner.py` runs `os.environ.get("BLENDER", "blender")` instead of a hard-coded `blender`. `Makefile`'s `test` target passes `BLENDER` through, so `make test BLENDER=~/blender-4.2/blender` works.
-- **4.2 run:**
-  - Download the portable Blender 4.2 LTS tarball into a folder outside the repo.
-  - Run `make test` and `tests/smoke_engines.py` with it. Fix any failures in the add-on, not by skipping tests, unless a test checks a 5.x-only property. Those must skip with the version in the reason.
-  - Check the API calls newer than 4.2 that the code relies on: `invoke_props_dialog(title=...)`, `Light.exposure`, `anim_utils.action_get_channelbag_for_slot` / `action_slot`, and `use_temperature`.
-- **Dead code:** remove `RowState.shared` (the info icon reads `light.users`) and its test `test_lights_sharing_one_datablock_are_both_shared_and_a_lone_light_is_not`. Keep `test_editing_power_on_one_shared_row_changes_the_other`.
-- **Imports:** in `lighthouse/__init__.py`, put `pathlib` with the other standard imports and wrap the `.lights` and `.presets` imports in parenthesised, multi-line lists.
-- **README:**
-  - "Develop": set up with `python -m venv .venv && .venv/bin/pip install pytest`, and `BLENDER=/path/to/blender` for another binary.
-  - "Tested on": list the 4.2 and 5.2 versions that actually passed.
-- **Manifest:** bump `version` to `1.2.0` for the v3 polish release. Rebuild with `./build.sh` and validate.
+- `lighthouse.new_collection` (`UNDO`):
+  - The parent is `view_layer.active_layer_collection.collection`, which is the Scene Collection when the master is active.
+  - It refuses a library (`is_read_only`) parent with an `ERROR` report before creating anything, like `add_light`.
+  - It creates `bpy.data.collections.new("Collection")` (Blender adds `.001` on a clash), links it into `parent.children` and makes its layer collection active.
+  - It doesn't touch object selection.
+- Header: an icon button (for example `COLLECTION_NEW`) next to `+`.
 
-## Out of scope
-New features from `.notes/new-features.md`, and CI.
+## Open questions
+Not decided: whether creating inside a collapsed collection expands it so the new one is visible. Default: leave folding alone.
 
 ## Done when (testable)
-- `make test` and `tests/smoke_engines.py` pass on 5.2.2, and on 4.2 LTS via `BLENDER=...`. Paste both result lines into `tests/acceptance.md`.
-- `make validate` and `./build.sh` succeed, producing `dist/lighthouse-1.2.0.zip`.
-- `grep -n "shared" lighthouse/lights.py` finds no `RowState` field.
-- Manual (GUI, 4.2): install the zip, open the Lights tab, and click through one light row, one group header, a preset Apply and an EV step with no console errors.
+- Test: with `Set` active, the new collection is a child of `Set`, is the active collection, and is the only new collection in `bpy.data.collections`.
+- Test: with the Scene Collection active, the new collection is a top-level child of `scene.collection`.
+- Test: with a linked collection active, the operator raises `RuntimeError` and `bpy.data.collections` is unchanged.
+- Test: selected objects and the active object are unchanged.
+- Test: `list_entries(show_empty=True)` lists the new collection with count 0, under its parent.
+- `make test` passes.
+- Manual (GUI): click New Collection and then `+`, and the light lands in the new collection. One Ctrl+Z removes the collection.
 
 ## Afterwards
-Append a `## v3 task 07: 4.2 verification` entry to ARCHITECTURE.md listing every 4.2-vs-5.2 difference found.
+Append a `## v4 task 07: New Collection` entry to ARCHITECTURE.md. Add `new_collection` to `tests/smoke_engines.py`.

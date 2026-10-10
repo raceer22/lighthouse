@@ -1,33 +1,36 @@
-# Task 04: Lights list: empty state and expand/collapse all
+# Task 04: Scene Collection row
 
-**Depends on:** task-01
-**Type:** UX polish (Lights panel) · **Source:** polish review, "Empty list", "Collapse all has no opposite"
+**Depends on:** task-01, task-02, task-03
+**Group:** Collections · **Source:** `.notes/new-features-decisions.md` items 5, 10 (Scene Collection part)
 
 ## Goal
-The Lights panel explains why it is empty and offers a way out. The header's collapse button becomes a toggle that also expands every group.
+The grouped list starts with a `Scene Collection` header. From it you can fold the Scene Collection's own lights, move selected lights into it and make it the active collection. The rest of the tree doesn't shift: top-level collections stay at depth 0.
 
 ## Scope
-- **Empty state:**
-  - `lighthouse/lights.py`: `empty_message(view_layer, name_filter, type_filter)` returns `None` when `list_entries()` would draw rows. Otherwise it returns `"No lights in this view layer"` or `"No lights match the filters"`. Keeping this in a function makes it testable without drawing.
-  - `LIGHTHOUSE_PT_lights.draw()`: when there is a message, draw it as a label with the `INFO` icon. In the filter case, add a **Clear Filters** button.
-  - New `lighthouse.clear_filters` (`INTERNAL`, no `UNDO`) sets `name_filter = ""` and `type_filter = 'ALL'`.
-  - A view layer whose lights are all inside collapsed groups is not empty: the group headers still draw.
-- **Expand/collapse all:**
-  - `lighthouse/lights.py`: `listed_groups(view_layer, type_filter)` returns every collection with a listed light, directly or in a sub-collection, ignoring collapse state, so collapsed parents don't hide their children from the check.
-  - Replace `lighthouse.collapse_all_groups` with `lighthouse.toggle_all_groups` (`INTERNAL`, no `UNDO`). If every collection from `listed_groups()` is collapsed, it expands all of them. Otherwise it collapses all of them.
-  - Header icon: `FULLSCREEN_ENTER` when everything is collapsed (the next press expands), `FULLSCREEN_EXIT` otherwise. The tooltip names both behaviours.
-  - Update `tests/smoke_engines.py` and `tests/acceptance.md` for the new idname.
+- `lighthouse/lights.py`: in grouped mode with no search, `list_entries()` starts with an entry for `scene.collection` (for example a `GroupEntry` at depth 0, or a dedicated `SceneEntry`). Its own lights follow at depth 0 unless `scene.collection.lighthouse_lights_collapsed` is set, and the top-level collections follow at depth 0 as today. Flat mode and search have no Scene Collection row.
+- Targeting the master collection: it is not in `bpy.data.collections`, so `find_collection()` can't return it. Use `name=""` to mean `context.scene.collection` (no ID can have an empty name) in the operators this row uses: `toggle_lights_row`, `move_to_group` and `set_active_collection`. Check that `lighthouse_lights_collapsed` on the master collection is saved with the scene.
+- `draw_scene_row()`:
+  - A triangle that folds the Scene Collection's own lights. This replaces the lights row from task 01 for this collection. When the Scene Collection has no listed lights of its own, draw a blank of the same width instead.
+  - The name is the `set_active_collection` button, drawn pressed when the Scene Collection is active.
+  - **Move selected here**. No Hide or Solo, because the master collection has no hide flags. Keep Move here in the same column as the other headers' Move here button.
+- `toggle_all_groups`: when expanding, also unfold the Scene Collection's lights. Collapse All leaves them alone, and they don't count towards the "all collapsed?" check.
+- `move_lights()` already unlinks from `scene.collection` (v2 quirk), so moving into it needs no new logic.
+
+## Open questions
+Not decided: whether the row shows Select, and whether its label shows a count. Defaults: no Select (leave a blank slot so the columns stay aligned) and the plain label `Scene Collection`.
 
 ## Out of scope
-Showing collections without lights, per-group "collapse children".
+Empty collections (task 05), revealing a light (task 08).
 
 ## Done when (testable)
-- Test: `empty_message` returns the view-layer message with no lights, the filter message when the search matches nothing or the type filter excludes every light, and `None` when everything is collapsed but lights exist.
-- Test: `clear_filters` resets both filters.
-- Test: with `Set/Lamps` and `Props` holding lights, `toggle_all_groups` collapses all three. A second call expands all three. With only `Props` collapsed, a call collapses the rest instead of expanding.
-- Test: `toggle_all_groups` has no `UNDO` in `bl_options`. Replaces the existing collapse-all test.
+- Test: `list_entries()` starts with the Scene Collection entry, then `Sun` (a Scene Collection light) at depth 0, then `group Set 0 (…)`. Depths below are unchanged from task 01.
+- Test: folding the Scene Collection hides `Sun` and nothing else.
+- Test: `move_to_group(name="")` with `Bulb` (in `Lamps`) selected links it into the Scene Collection and unlinks it from `Lamps`.
+- Test: `set_active_collection(name="")` makes the master layer collection active, and `add_light` then links into `scene.collection`.
+- Test: Expand All unfolds the Scene Collection's lights. Collapse All leaves them unfolded.
+- Test: the Scene Collection's fold survives `save_as_mainfile` and `open_mainfile`.
 - `make test` passes.
-- Manual (GUI): each empty message shows, Clear Filters restores the list, and the header icon flips after each press.
+- Manual (GUI): the row sits at the top without indenting the tree, Move here lines up with the other headers, and the name is pressed while the Scene Collection is active (also after clicking it in the Outliner).
 
 ## Afterwards
-Append a `## v3 task 04: empty state and expand/collapse all` entry to ARCHITECTURE.md.
+Append a `## v4 task 04: Scene Collection row` entry to ARCHITECTURE.md. Add a `name=""` call of `move_to_group` and `set_active_collection` to `tests/smoke_engines.py`.

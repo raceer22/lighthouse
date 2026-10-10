@@ -1,31 +1,30 @@
-# Task 03: Bulk actions say when there is nothing to do
+# Task 03: Active collection as the target folder
 
-**Depends on:** task-02 (uses its `apply_preset` return shape)
-**Type:** UX feedback (bulk operators) · **Source:** polish review, "Actions that do nothing still say they worked"
+**Depends on:** none
+**Group:** Collections · **Source:** `.notes/new-features-decisions.md` item 10
 
 ## Goal
-Pressing Apply, an EV step or "Move selected here" with nothing in scope gives a clear warning and leaves no undo step, instead of reporting success on 0 lights.
+Clicking a collection's name makes it Blender's active collection, and a light added with `+` lands there. This is the shortest end-to-end path for "choose where new lights go". It reuses `view_layer.active_layer_collection`, so it stays in sync with the Outliner and Shift+A in the viewport.
 
 ## Scope
-- `lighthouse/__init__.py`, in each bulk operator's `execute()`:
-  - **Nothing in scope:** `report({'WARNING'}, ...)` and return `{'CANCELLED'}`, so no undo step is pushed. Messages:
-    - `scale_lights` / `step_exposure`: `No lights selected` for scope SELECTED, `No lights in the view layer` for ALL.
-    - `apply_preset` / `move_to_group`: `No lights selected`.
-  - **Everything skipped** (0 changed, some read-only or incompatible): report the summary as a WARNING and return `{'CANCELLED'}`.
-  - **No-op factor:** `scale_lights` with `factor == 1.0` returns `{'CANCELLED'}` silently, matching `step_exposure` with `steps == 0`.
-- Keep the checks in `execute()`, not `poll()`. The scope is an operator property, which `poll()` can't read, and buttons that grey out without explaining why are worse than a message.
-- `tests/blender_runner.py`: generalise `info_reports(output)` to `reports(output, level="Info")`, so tests can read `Warning:` lines. First check the exact prefix Blender prints for warnings in `--background`.
+- `lighthouse/lights.py`: make `_find_layer_collection()` public (`find_layer_collection()`) so operators can use it.
+- `lighthouse/__init__.py`:
+  - `lighthouse.set_active_collection` (`name`, `library`) finds the collection's non-excluded layer collection and sets `view_layer.active_layer_collection`. It never touches object selection or the active object. It cancels when the collection isn't found.
+  - Undo: do what the Outliner does. Check whether clicking a collection in the Outliner pushes an undo step, set `UNDO` to match, and record the answer in ARCHITECTURE.md.
+  - `draw_group()`: the `Name (N)` label becomes this operator's button, with the collection icon. It is flat normally, and embossed with `depress=True` when the collection is the active one, like the active light's name.
+- `add_light` already links into the active collection and refuses a library collection. Add tests for both if they're missing.
+- A library collection can still be made active (the Outliner allows it). `+` then refuses with its existing error.
 
 ## Out of scope
-Changing what the operators do when they do have lights to act on.
+The Scene Collection (task 04, which adds a row with the same click), the New Collection button (task 07).
 
 ## Done when (testable)
-- Test: with nothing selected, `scale_lights(scope='SELECTED')`, `step_exposure(scope='SELECTED')`, `apply_preset` and `move_to_group` each return `{'CANCELLED'}` and report the warning.
-- Test: in an empty view layer, `scale_lights(scope='ALL')` warns `No lights in the view layer`.
-- Test: `apply_preset('DAYLIGHT')` on only point lights returns `{'CANCELLED'}` and warns with the skipped count.
-- Test: `scale_lights(factor=1.0)` returns `{'CANCELLED'}` and leaves power unchanged.
-- `make test` passes. Update any test that relied on `FINISHED` for an empty scope.
-- Manual (GUI): each warning shows in the status bar, and Ctrl+Z after a cancelled press undoes the previous real change.
+- Test: `set_active_collection(name="Lamps")` makes `active_layer_collection.collection` be `Lamps`. Selected objects and the active object are unchanged.
+- Test: after that, `add_light(type='SPOT')` puts the new light in `Lamps` and in no other collection.
+- Test: a linked (library) collection can be made active, `add_light` then raises `RuntimeError`, and no object is created.
+- Test: an unknown or excluded collection name returns `{'CANCELLED'}` and leaves the active collection unchanged.
+- `make test` passes.
+- Manual (GUI): the active collection's name is drawn pressed. Clicking a collection in the Outliner moves the pressed state, and Shift+A in the viewport adds into the collection chosen in the panel.
 
 ## Afterwards
-Append a `## v3 task 03: empty-scope feedback` entry to ARCHITECTURE.md, including the report prefix Blender uses in background mode.
+Append a `## v4 task 03: active collection` entry to ARCHITECTURE.md. Add `set_active_collection` to `tests/smoke_engines.py`.

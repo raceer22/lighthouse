@@ -1,32 +1,34 @@
-# Task 05: Solo you can always leave, and that keeps your changes
+# Task 05: Show empty collections
 
 **Depends on:** task-01
-**Type:** bug fix + UX (solo) · **Source:** polish review, "Solo can get stuck"
+**Group:** Collections · **Source:** `.notes/new-features-decisions.md` items 6, 7, 8
 
 ## Goal
-While solo is on, the Lights panel shows a button that ends it, even if the soloed light or group has been deleted. Muting a light or hiding a group during solo is kept after un-solo instead of being overwritten by the snapshot.
+The grouped list can show every collection, including ones without (matching) lights. Then you can click an empty collection to make it active, or move lights into it. A toggle turns this off and gives back exactly today's list.
 
 ## Scope
-- **Exit Solo:**
-  - `lighthouse/lights.py`: rename `_unsolo` to public `unsolo(solo)`. Add `solo_label(solo)`, which returns the soloed light's or collection's name, or `"deleted"` when the target is gone.
-  - New `lighthouse.exit_solo` (`UNDO`) calls `unsolo(context.scene.lighthouse_solo)`. `poll()` requires `solo.active`.
-  - `LIGHTHOUSE_PT_lights.draw()`: while `solo.active`, draw a full-width row under the header with `Exit Solo (<solo_label>)`, the `SOLO_ON` icon and `depress=True`.
-- **Mute during solo:** in `LIGHTHOUSE_OT_mute_light`, while `solo.active` and the light has a snapshot item, write the new `hide_render`/`hide_viewport` to that item as well as to the object. Un-solo then restores the user's latest choice. The rule is that what you set during solo is what you get afterwards.
-- **Group hide during solo:** in `LIGHTHOUSE_OT_hide_group`, do the same for the collection's snapshot item if it has one. Collections solo never touched have no item, and un-solo leaves them alone.
-- Put both snapshot updates in one `lights.py` helper, e.g. `update_snapshot(solo, id, hide)`, so the operators stay thin.
-- Remove the "Known limits" lines that this task resolves from the task-05 section of ARCHITECTURE.md, or mark them fixed.
+- `LIGHTHOUSE_PG_settings.show_empty`: a BoolProperty, default `True`, on the WindowManager (not saved, not undone). `clear_filters` doesn't reset it. It is drawn as an icon toggle next to the grouped toggle (for example `OUTLINER_COLLECTION`). It only changes the grouped list, since search stays flat.
+- `lighthouse/lights.py`:
+  - `list_entries(..., show_empty=False)`: when on, every non-excluded collection is listed, and one without listed lights gets count `0` (so under a type filter, `(0)` means "no lights of this type"). The default stays `False`, so existing callers and tests keep today's behaviour. The panel, `select_light`'s `RANGE` and `toggle_all_groups` pass `settings.show_empty`.
+  - The lights row rule from task 01 ("at least one listed sub-collection") counts empty sub-collections while they are shown.
+  - `GroupEntry` says whether anything is under the collection (own listed lights or listed sub-collections, empty ones included), for example as a `foldable` field.
+  - `listed_groups(..., show_empty=False)` follows the same rule, so Expand/Collapse All covers what is drawn. Collections with nothing under them are left out of the "all collapsed?" check, because they have no triangle that could show the state.
+- `draw_group()`:
+  - Triangle only when `foldable`. Otherwise draw a blank of the same width (for example `label(text="", icon='BLANK1')`) so names stay aligned.
+  - With count `0`, Select and Solo are drawn but disabled (`enabled = False` on a sub-row), and Move here and Hide stay enabled. All four are always drawn so the columns line up.
 
 ## Out of scope
-Several solo slots, solo per view layer.
+What the panel does when no lights match at all. It still returns early with the message until task 06.
 
 ## Done when (testable)
-- Test: solo a light, delete it, then `exit_solo` restores every other light's and collection's flags exactly. `solo_label` read `"deleted"` before the exit.
-- Test: `exit_solo` fails its poll when solo is off.
-- Test: solo `Key`, then mute `Fill` (hidden by solo) to unmute it, and un-solo. `Fill` stays visible even though it was muted before solo.
-- Test: solo `Key`, mute `Key`, un-solo: `Key` stays muted.
-- Test: solo a light inside hidden group `Interior` (solo unhides it), hide `Interior` with `hide_group`, then un-solo. `Interior` stays hidden. A collection solo never touched isn't changed by un-solo.
+- Test: with `show_empty=True`, an empty `Props` is listed as `group Props 0 (0)`, nested empty `A/B` are both listed, and an excluded collection isn't listed.
+- Test: with type filter `SUN`, a collection holding only point lights is listed with count 0 when `show_empty` is on and dropped when it is off.
+- Test: with `show_empty=False`, the output matches the existing `tests/test_grouped_lights.py` expectations, unchanged.
+- Test: `foldable` is `False` for an empty leaf and `True` for a collection whose only child is an empty collection.
+- Test: a collection with its own lights and one empty sub-collection gets a lights row with `show_empty` on, and no lights row with it off.
+- Test: `show_empty` defaults to `True`, and `clear_filters` leaves it as it is.
 - `make test` passes.
-- Manual (GUI): the Exit Solo row appears and disappears with solo, its label follows renames, and one Ctrl+Z after Exit Solo brings solo back.
+- Manual (GUI): names line up whether or not a triangle is drawn. On a `(0)` collection, Select and Solo are greyed out, and Move here and Hide work.
 
 ## Afterwards
-Append a `## v3 task 05: exit solo and snapshot updates` entry to ARCHITECTURE.md with (1) new components, (2) how mute and hide now flow into the snapshot, (3) quirks.
+Append a `## v4 task 05: show empty collections` entry to ARCHITECTURE.md.

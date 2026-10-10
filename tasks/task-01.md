@@ -1,28 +1,38 @@
-# Task 01: Own lights before sub-collections (green suite)
+# Task 01: Foldable lights row
 
-**Depends on:** `master` at 19a1f57
-**Type:** bug fix · **Source:** polish review, bug 1
+**Depends on:** none
+**Group:** Objects (lights row) · **Source:** `.notes/new-features-decisions.md` items 1, 2, 4
 
 ## Goal
-Make `make test` pass again. Commit 6adf632 changed the tests and ARCHITECTURE.md to "a collection's own lights come before its sub-collections, and Scene Collection lights come first". The code was never updated, so 5 tests fail. This is the smallest end-to-end fix, and every later task needs a green suite to start from.
+A collection that has its own lights **and** at least one listed sub-collection shows those lights under a foldable `Lights (N)` row. You can then open a big collection to reach its sub-collections without all of its lights showing. A leaf collection still lists its lights directly.
 
 ## Scope
-- `lighthouse/lights.py` `_collection_entries()`: build `own` (sorted by name, ignoring case) first, and add its `LightEntry` rows and `lights` entries before the child-collection loop. Then append each child's `GroupEntry` and, unless it is collapsed, the child's entries.
-  - `lights` stays an ordered dict, so `group_lights()` returns own lights first. Group select then makes the group's first own light active, and Shift+click ranges follow the new order without further changes.
-- `list_entries()` docstring: "each followed by its own lights sorted by name ignoring case, then its sub-collections … Scene Collection lights come first, with no header."
+- `lighthouse/lights.py`:
+  - New `LightsEntry(collection, depth, count)` NamedTuple. `count` is the number of the collection's own listed lights.
+  - `_collection_entries()` emits a `LightsEntry` at the collection's content depth when the collection has own listed lights and at least one listed sub-collection. Its lights move one level deeper. When the row is folded, its lights are dropped and the sub-collections still follow.
+  - A leaf collection (no listed sub-collections) lists its lights at its content depth with no row, as today.
+  - `is_lights_folded(collection)` reads `lighthouse_lights_collapsed` with a `False` default, like `is_collapsed()`, so `list_entries()` still works while the add-on is unregistered.
+  - Folding never changes what a collection holds: the `GroupEntry.count`, `group_lights()` and `listed_groups()` still include every light (item 4).
+  - Scene Collection lights are unchanged in this task (depth 0, no row). Task 04 gives them a fold.
+- `lighthouse/__init__.py`:
+  - `Collection.lighthouse_lights_collapsed`: a BoolProperty, default `False` (starts open), registered and removed next to `lighthouse_collapsed`. Like that property, it is saved in the .blend.
+  - `lighthouse.toggle_lights_row` (`INTERNAL`, no `UNDO`, `name` and `library` set through `target()`) flips it.
+  - `draw_lights_row()`: indent, disclosure triangle (the toggle, no emboss), then a `Lights (N)` label with a light icon (for example `LIGHT`). No action buttons.
+  - Every `list_entries()` consumer now handles three entry types. The panel draw loop gets a third branch. `select_light`'s `RANGE` keeps only `LightEntry` rows: today it keeps everything that isn't a `GroupEntry`, which would let a `LightsEntry` in.
+- Update `tests/test_grouped_lights.py` cases where a collection has both its own lights and sub-collections. They now expect the row.
 
 ## Out of scope
-Any other change to grouping, counts or collapse.
+Expand All / Collapse All and lights rows (task 02), the Scene Collection's lights (task 04), revealing a light (task 08).
 
 ## Done when (testable)
-- These five tests pass with no edits to the tests:
-  - `test_grouped_lights.py::test_collections_without_lights_are_left_out_and_scene_collection_lights_have_no_header`
-  - `test_grouped_lights.py::test_search_flattens_the_list_and_clearing_it_restores_groups`
-  - `test_grouped_lights.py::test_a_collections_own_lights_come_before_its_sub_collections`
-  - `test_group_actions.py::test_select_group_selects_only_the_lights_in_it_and_its_sub_collections`
-  - `test_row_controls.py::test_range_runs_upwards_too_and_skips_lights_in_collapsed_groups`
-- `make test` passes in full (103 tests).
-- Manual (GUI): in grouped view, Scene Collection lights are at the top, and inside `Set` its own lights come before the `Lamps` sub-group.
+- Test: `Set` holds `Key` and `Fill` plus the sub-collection `Lamps` (holding `Bulb`). It lists `group Set 0 (3)`, `lights Set 1 (2)`, `light Fill 2`, `light Key 2`, `group Lamps 1 (1)`, `light Bulb 2`.
+- Test: a leaf collection `Props` with two lights lists them directly, with no lights row.
+- Test: folding `Set`'s lights row drops `Fill` and `Key` and keeps `Lamps` and `Bulb`. `Set` still counts 3, and `group_lights(Set)` still returns all three.
+- Test: with the lights row folded, collapsing and then expanding `Set` leaves the row folded.
+- Test: `toggle_lights_row` has no `UNDO` in `bl_options`. The property defaults to `False` and survives `save_as_mainfile` and `open_mainfile`.
+- Test: with `Set`'s lights row folded, a Shift+click range from a Scene Collection light (`Sun`, above `Set`) to `Bulb` selects only `Sun` and `Bulb`.
+- `make test` passes.
+- Manual (GUI): the row's triangle, icon and label line up with sibling headers. Folding survives saving and reopening.
 
 ## Afterwards
-Append a `## v3 task 01: own lights first` entry to ARCHITECTURE.md. Note that the ordering note at the end of the file now matches the code.
+Append a `## v4 task 01: foldable lights row` entry to ARCHITECTURE.md. Add `toggle_lights_row` to `tests/smoke_engines.py`.
