@@ -172,3 +172,8 @@
 - New `make bench` runs `tests/bench_lights_panel.py`: 500 lights over 65 nested collections, grouped, 5 rows expanded, and the median of 9 `LIGHTHOUSE_PT_lights.draw()` passes on the suite's `Recorder` stub layout. It only prints. pytest doesn't collect it (270 tests collected, as before).
 - **Baseline** (AMD Ryzen 9 9900X, 2026-10-17): **15.7 ms** on 5.2.2 (min 14.9), 14.7 ms on 4.2.23. That's already over the ~10 ms mark, so it's a candidate for caching to weigh at the 1.4.0 release (not built, per the ticket).
 - `make test`: 5.2.2 269 pass, 1 skip (unchanged). ARCHITECTURE.md entry and the README's development section mention `make bench`.
+
+## v6 task 03: Active Light panel
+- Prefactor: `draw_light_controls()` and `draw_light_details()` now draw a row's controls and details on any layout. The list's `draw_light`/`draw_details` wrap them, and every existing row and details test passed unchanged.
+- New `LIGHTHOUSE_PT_active_light`: the active light's controls and details (read-only disabled and muted dimmed via `row_state()`, as on rows), or "Select a light" with no `poll`. It registers last until task 04 (the `test_panels.py` list gained it). 3 new tests (`tests/test_active_light_panel.py`). `make test`: 5.2.2 272 pass, 1 skip; 4.2.23 259 pass, 14 skip.
+- `make bench`: 16.1 ms (baseline 15.7 ms, noise). The smoke script doesn't draw panels, so it has no step for this. Not done yet: the manual GUI check (click between a mesh and lights; the panels below stay put; editing power in the panel changes the row).

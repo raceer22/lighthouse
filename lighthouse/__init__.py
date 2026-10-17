@@ -1491,7 +1491,6 @@ class LIGHTHOUSE_PT_lights(bpy.types.Panel):
 
     def draw_light(self, context, entry):
         obj = entry.obj
-        light = obj.data
         state = row_state(obj, context.view_layer, context.scene)
         row = self.layout.row(align=True)
         row.active = not state.dimmed
@@ -1503,66 +1502,98 @@ class LIGHTHOUSE_PT_lights(bpy.types.Panel):
             icon='DISCLOSURE_TRI_DOWN' if expanded else 'DISCLOSURE_TRI_RIGHT',
             emboss=False,
         ), obj)
-        light_type = row.row(align=True)
-        light_type.enabled = not state.read_only
-        light_type.prop(light, "type", icon_only=True)
-        selected = obj.select_get(view_layer=context.view_layer)
-        active = context.view_layer.objects.active == obj
-        op = row.operator(
-            LIGHTHOUSE_OT_select_light.bl_idname,
-            text=obj.name,
-            emboss=selected or active,
-            depress=active,
-        )
-        target(op, obj)
-        if light_info_tooltip(light.users - 1, entry.other_collections):
-            op = row.operator(LIGHTHOUSE_OT_light_info.bl_idname, text="", icon='INFO', emboss=False)
-            op.other_users = light.users - 1
-            op.other_collections = entry.other_collections
-        counts = linking_counts(obj)
-        if linking_tooltip(*counts):
-            op = row.operator(LIGHTHOUSE_OT_light_linking_info.bl_idname, text="", icon='LINKED', emboss=False)
-            target(op, obj)
-            op.included, op.excluded, op.included_collections, op.excluded_collections = counts
-        controls = row.row(align=True)
-        controls.enabled = not state.read_only
-        controls.prop(light, "energy", text="")
-        unit = controls.row(align=True)
-        unit.ui_units_x = UNIT_WIDTH
-        unit.operator(LIGHTHOUSE_OT_power_unit.bl_idname, text="W", emboss=False).unit = power_unit(light)
-        swatch = controls.row(align=True)
-        swatch.ui_units_x = SWATCH_WIDTH
-        swatch.prop(light, color_control(light), text="")
-        toggles = row.row(align=True)
-        op = toggles.operator(
-            LIGHTHOUSE_OT_mute_light.bl_idname,
-            text="",
-            icon='HIDE_ON' if state.muted else 'HIDE_OFF',
-            depress=state.muted,
-        )
-        target(op, obj)
-        op = toggles.operator(
-            LIGHTHOUSE_OT_solo_light.bl_idname,
-            text="",
-            icon='SOLO_ON' if state.soloed else 'SOLO_OFF',
-            depress=state.soloed,
-        )
-        target(op, obj)
+        draw_light_controls(row, context, obj, state, entry.other_collections)
         if expanded:
             self.draw_details(obj, state, context.scene.render.engine)
 
     def draw_details(self, obj, state, engine):
-        light = obj.data
-        box = self.layout.box()
-        box.active = not state.dimmed
-        box.enabled = not state.read_only
-        box.use_property_split = True
-        box.prop(obj, "name")
-        for path in detail_properties(light, engine):
-            label = DETAIL_LABELS.get(path)
-            box.prop(*detail_target(light, path), **({"text": label} if label else {}))
-        draw_linking(box, obj, engine)
+        draw_light_details(self.layout, obj, state, engine)
 
+
+def draw_light_controls(row, context, obj, state, other_collections):
+    """A light's controls after the details toggle, shared by list rows and the Active Light panel:
+    type, name, info and linking icons, power, color or Kelvin, mute and solo."""
+    light = obj.data
+    light_type = row.row(align=True)
+    light_type.enabled = not state.read_only
+    light_type.prop(light, "type", icon_only=True)
+    selected = obj.select_get(view_layer=context.view_layer)
+    active = context.view_layer.objects.active == obj
+    op = row.operator(
+        LIGHTHOUSE_OT_select_light.bl_idname,
+        text=obj.name,
+        emboss=selected or active,
+        depress=active,
+    )
+    target(op, obj)
+    if light_info_tooltip(light.users - 1, other_collections):
+        op = row.operator(LIGHTHOUSE_OT_light_info.bl_idname, text="", icon='INFO', emboss=False)
+        op.other_users = light.users - 1
+        op.other_collections = other_collections
+    counts = linking_counts(obj)
+    if linking_tooltip(*counts):
+        op = row.operator(LIGHTHOUSE_OT_light_linking_info.bl_idname, text="", icon='LINKED', emboss=False)
+        target(op, obj)
+        op.included, op.excluded, op.included_collections, op.excluded_collections = counts
+    controls = row.row(align=True)
+    controls.enabled = not state.read_only
+    controls.prop(light, "energy", text="")
+    unit = controls.row(align=True)
+    unit.ui_units_x = UNIT_WIDTH
+    unit.operator(LIGHTHOUSE_OT_power_unit.bl_idname, text="W", emboss=False).unit = power_unit(light)
+    swatch = controls.row(align=True)
+    swatch.ui_units_x = SWATCH_WIDTH
+    swatch.prop(light, color_control(light), text="")
+    toggles = row.row(align=True)
+    op = toggles.operator(
+        LIGHTHOUSE_OT_mute_light.bl_idname,
+        text="",
+        icon='HIDE_ON' if state.muted else 'HIDE_OFF',
+        depress=state.muted,
+    )
+    target(op, obj)
+    op = toggles.operator(
+        LIGHTHOUSE_OT_solo_light.bl_idname,
+        text="",
+        icon='SOLO_ON' if state.soloed else 'SOLO_OFF',
+        depress=state.soloed,
+    )
+    target(op, obj)
+
+
+def draw_light_details(layout, obj, state, engine):
+    """A light's details box (name, the type's settings, light linking), shared by an expanded
+    list row and the Active Light panel."""
+    light = obj.data
+    box = layout.box()
+    box.active = not state.dimmed
+    box.enabled = not state.read_only
+    box.use_property_split = True
+    box.prop(obj, "name")
+    for path in detail_properties(light, engine):
+        label = DETAIL_LABELS.get(path)
+        box.prop(*detail_target(light, path), **({"text": label} if label else {}))
+    draw_linking(box, obj, engine)
+
+class LIGHTHOUSE_PT_active_light(bpy.types.Panel):
+    """The active light's controls and details. Never hidden through poll, so the panels below
+    don't jump as the active object switches between lights and other objects."""
+    bl_label = "Active Light"
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = 'UI'
+    bl_category = "Lights"
+
+    def draw(self, context):
+        obj = context.view_layer.objects.active
+        if obj is None or obj.type != 'LIGHT':
+            self.layout.label(text="Select a light")
+            return
+        state = row_state(obj, context.view_layer, context.scene)
+        row = self.layout.row(align=True)
+        row.active = not state.dimmed
+        # What the list's other_collections counts for a light listed once per collection holding it.
+        draw_light_controls(row, context, obj, state, max(len(obj.users_collection) - 1, 0))
+        draw_light_details(self.layout, obj, state, context.scene.render.engine)
 
 
 classes = (
@@ -1610,6 +1641,7 @@ classes = (
     LIGHTHOUSE_PT_world,
     LIGHTHOUSE_PT_intensity,
     LIGHTHOUSE_PT_presets,
+    LIGHTHOUSE_PT_active_light,
     LIGHTHOUSE_AP_preferences,
 )
 

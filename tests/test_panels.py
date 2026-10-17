@@ -1,9 +1,10 @@
 from blender_runner import run_in_blender
 
-PANELS = ("LIGHTHOUSE_PT_lights", "LIGHTHOUSE_PT_world", "LIGHTHOUSE_PT_intensity", "LIGHTHOUSE_PT_presets")
+PANELS = ("LIGHTHOUSE_PT_lights", "LIGHTHOUSE_PT_world", "LIGHTHOUSE_PT_intensity", "LIGHTHOUSE_PT_presets",
+          "LIGHTHOUSE_PT_active_light")
 
 
-def test_lights_world_intensity_and_presets_are_top_level_panels_in_the_lights_tab():
+def test_every_panel_is_a_top_level_panel_in_the_lights_tab():
     panels = run_in_blender("""
         import lighthouse
         lighthouse.register()
@@ -33,7 +34,7 @@ def test_presets_panel_header_is_only_its_label():
     assert header == ["Presets", False]
 
 
-def test_panels_register_in_the_order_lights_world_intensity_presets():
+def test_panels_register_in_the_order_lights_world_intensity_presets_active_light():
     order = run_in_blender("""
         import lighthouse
         report([cls.__name__ for cls in lighthouse.classes if cls.__name__.startswith("LIGHTHOUSE_PT_")])
