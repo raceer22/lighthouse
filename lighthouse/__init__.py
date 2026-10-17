@@ -393,6 +393,14 @@ class LIGHTHOUSE_OT_toggle_new_light_mode(bpy.types.Operator):
         return {'FINISHED'}
 
 
+# Where Shift+A (object.light_add) starts a light differently from bpy.data.lights.new() (checked in 5.2.2).
+# Point and Spot already match.
+SHIFT_A_VALUES = {
+    'SUN': {"energy": 1.0},
+    'AREA': {"size": 1.0, "size_y": 1.0},
+}
+
+
 class LIGHTHOUSE_OT_add_light(bpy.types.Operator):
     """Add a light at the 3D cursor in the active collection, selected and active"""
     bl_idname = "lighthouse.add_light"
@@ -419,6 +427,8 @@ class LIGHTHOUSE_OT_add_light(bpy.types.Operator):
             return {'CANCELLED'}
         name = next(label for key, label, *_ in LIGHT_TYPES if key == self.type)
         light = bpy.data.lights.new(name, self.type)
+        for prop, value in SHIFT_A_VALUES.get(self.type, {}).items():
+            setattr(light, prop, value)
         if supports_temperature() and current_new_light_mode(context) == 'KELVIN':
             light.use_temperature = True
             light.temperature = bpy.types.Light.bl_rna.properties["temperature"].default

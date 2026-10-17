@@ -497,3 +497,15 @@ Checked on Blender 4.2.23 LTS (portable build) against 5.2.2 LTS. The add-on cod
   - Light linking renders in Cycles, and in EEVEE from 5.0 (checked on 5.2.2; 4.2's EEVEE Next doesn't). Versions between 4.2 and 5.2 weren't probed, so the EEVEE note may be wrong on 4.3/4.4. Workbench never renders it (task 12).
   - World Mute uses the fallback: it mutes the detected Background of a simple world only and is greyed out for custom setups, since a muted Mix Shader passes its first input through (task 07).
 - Not done: the manual GUI pass (tests/acceptance.md, v5 section) on 5.2 and 4.2, which needs someone at Blender.
+
+## v6 task 01: New light defaults
+- `bpy.data.lights.new()` and Shift+A (`object.light_add`) start lights differently. `LIGHTHOUSE_OT_add_light` applies `SHIFT_A_VALUES` right after `lights.new()`, so every Lighthouse add (the `+` menu, a group's right-click New Light) matches Shift+A. Checked in 5.2.2:
+
+  | Type | `lights.new` | Shift+A (the table) |
+  |---|---|---|
+  | Sun | `energy` 10 W/m² | `energy` 1.0 |
+  | Area | `size`, `size_y` 0.25 m | `size`, `size_y` 1.0 |
+
+  Point and Spot already match (power, radius, spot size), so they have no entry.
+- Why one table: one place to add a type if Blender's two code paths drift apart again. It runs before the Kelvin step, which only touches `use_temperature`, `temperature` and `color`, so the two stay independent.
+- Released on its own as 1.3.1.

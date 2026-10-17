@@ -162,3 +162,8 @@
 - Version 1.3.0 (manifest). The README now describes four panels in order (Lights, World, Intensity, Presets): the `+` menu and right-click menu, the Color/Kelvin toggle and its Preferences default, the World panel (simple vs custom, Add Rotation, Mute, Solo), light linking with the engine table and the Outliner limit. tests/acceptance.md gains a v5 checklist with one manual check per task. Every v5 operator was already in the smoke script.
 - Fixed `make install`: it now installs `dist/lighthouse-$(VERSION).zip`, since the old glob broke when an older zip was left in `dist/`. `make validate`, `make build` and a clean-profile `make install` pass. The engine smoke passes on 4.2.23. On system 5.2.2 neither install nor smoke can run (`bl_pkg` needs `cattrs`, so there is no `bl_ext`). Added a `## v5 release` ARCHITECTURE.md entry with the known limits.
 - `make test`: 5.2.2 266 pass, 1 skip; 4.2.23 254 pass, 13 skip. Not done yet: the manual GUI acceptance pass on 5.2 and 4.2, and the 5.2.2 engine smoke (needs a Blender 5.2 build with a working extension system).
+
+## v6 task 01: New light defaults (released as 1.3.1)
+- `add_light` applies a `SHIFT_A_VALUES` table after `lights.new()`: Sun `energy` 1.0, Area `size`/`size_y` 1.0. Point and Spot have no entry. It runs before the Kelvin step, so both apply. ARCHITECTURE.md entry added.
+- 3 new tests (`tests/test_new_light_values.py`). `make test`: 5.2.2 269 pass, 1 skip; 4.2.23 256 pass, 14 skip (the new Kelvin test is 5.0+). `make validate` passes on both, and `make build` gives `dist/lighthouse-1.3.1.zip`. Version 1.3.1 is in the manifest only (the README has no changelog).
+- Not done yet: the manual GUI check (Area and Sun from Lighthouse vs Shift+A in the Light properties).
