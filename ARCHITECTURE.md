@@ -162,7 +162,7 @@ User presets were read from disk every time the dropdown or `apply_preset` neede
 All three panels read `WindowManager.lighthouse`. EV buttons pass their float `steps` to `step_exposure`, which calls `scale_lights(lights, 2 ** steps)`, so fractional steps scale power keyframes exactly like the factor does. Neither path touches `Light.exposure`.
 
 **Blender API quirks**
-- With no `bl_parent_id` and no `bl_order`, registration order is the default panel order. Blender stores each panel's open/closed flag and drag position in the screen layout, so both are saved with the .blend file without any addon code.
+- Panel order is set by `bl_order` since v6 task 04 (Active Light, World, Intensity, Presets, Lights). Before that, with no `bl_order`, registration order was the default panel order. Blender stores each panel's open/closed flag and drag position in the screen layout, so both are saved with the .blend file without any addon code.
 - `draw_header()` runs even while the panel is collapsed, which is what lets presets be applied from a collapsed Presets panel. Drawing still can't run in `--background`, so the header and layout are checked by hand.
 - Passing a float to an `IntProperty` operator argument raises `TypeError` ("expected an int type, not float"). A `FloatProperty` accepts ints, so old `steps=1` callers keep working.
 - A `FloatProperty` with no `soft_max` gets `soft_max == hard_max` (FLT_MAX when no `max` is set), so dragging the field isn't capped. Dropping `slider=True` removes the slider bar.
@@ -441,7 +441,7 @@ Checked on Blender 4.2.23 LTS (portable build) against 5.2.2 LTS. The add-on cod
 ## v5 task 05: World panel
 - `lights.world_setup(scene)` returns `WorldSetup(state, source, background, environment)`. `source` is the node linked to the active World Output's Surface (`node_tree.get_output_node('ALL')`). The state is `SIMPLE` only when `source` is a Background node whose Strength input is not linked. A linked Strength (the slider would do nothing), any other source (Mix Shader, node group), nothing linked to Surface, or `use_nodes` off all give `CUSTOM`. No world gives `NONE`. `environment` is the Environment Texture linked to the Background's Color, if any.
 - `LIGHTHOUSE_PT_world` draws Strength for `SIMPLE` (disabled on a read-only world), "Custom world setup, edit in Shader Editor" for `CUSTOM` and "No world in this scene" for `NONE`.
-- Panel order: with no `bl_order`, registration order sets the default order, so `classes` registers Lights, World, Intensity, Presets. In new layouts Lights now comes before Intensity and Presets. Layouts where the user dragged the panels keep their order.
+- Panel order (superseded by v6 task 04's `bl_order`): with no `bl_order`, registration order set the default order, so `classes` registered Lights, World, Intensity, Presets. In new layouts Lights now comes before Intensity and Presets. Layouts where the user dragged the panels keep their order.
 - Intensity actions only touch lights, so scope All leaves the World strength alone (item 18, pinned by a test).
 
 ## v5 task 06: World rotation
@@ -522,3 +522,7 @@ Checked on Blender 4.2.23 LTS (portable build) against 5.2.2 LTS. The add-on cod
 - No `poll`: with a non-light or nothing active it draws "Select a light". Hiding it would make every panel below jump up and down as you click between meshes and lights.
 - Following the viewport selection in the list isn't built (v6 decision 9). Panel order is task 04. Until then the panel registers last.
 - `make bench` (Lights panel only): 16.1 ms after this task, vs the 15.7 ms baseline (noise). The Active Light panel draws one light, so it adds about one row and one details box per redraw.
+
+## v6 task 04: Panel order
+- `bl_order` on all five panels: Active Light 0, World 1, Intensity 2, Presets 3, Lights 4. This replaces v5 decision 12's registration order. The short panels stay at fixed places, and the tall list goes last. `LIGHTHOUSE_PT_presets` has `bl_options = {'DEFAULT_CLOSED'}`, and Intensity stays open.
+- Verify (does `bl_order` override a layout saved in a file?): **not settled**. Blender documents `bl_order` as the *default* order, and each panel's position is saved in the file's screen layout (see above), so a 1.3.x file should keep its saved order and only new panels and new files follow `bl_order`. A headless check isn't possible: Python can't read a region's panel order, and on 4.2 `Region.active_panel_category` is read-only, so a scripted GUI screenshot can't open the Lights tab. This is left to the manual GUI check (open a 1.3.x file with dragged panels). If it turns out `bl_order` overrides a dragged layout, the README says so (no workaround).

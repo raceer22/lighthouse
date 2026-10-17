@@ -177,3 +177,8 @@
 - Prefactor: `draw_light_controls()` and `draw_light_details()` now draw a row's controls and details on any layout. The list's `draw_light`/`draw_details` wrap them, and every existing row and details test passed unchanged.
 - New `LIGHTHOUSE_PT_active_light`: the active light's controls and details (read-only disabled and muted dimmed via `row_state()`, as on rows), or "Select a light" with no `poll`. It registers last until task 04 (the `test_panels.py` list gained it). 3 new tests (`tests/test_active_light_panel.py`). `make test`: 5.2.2 272 pass, 1 skip; 4.2.23 259 pass, 14 skip.
 - `make bench`: 16.1 ms (baseline 15.7 ms, noise). The smoke script doesn't draw panels, so it has no step for this. Not done yet: the manual GUI check (click between a mesh and lights; the panels below stay put; editing power in the panel changes the row).
+
+## v6 task 04: Panel order
+- `bl_order` sets Active Light → World → Intensity → Presets → Lights, and Presets is `DEFAULT_CLOSED` (Intensity stays open). In `tests/test_panels.py`, the registration-order test became a `bl_order` test, and a test pins the default-closed flags.
+- Verify not settled: a scripted GUI check failed (4.2's `Region.active_panel_category` is read-only, so the tab can't be opened from Python). ARCHITECTURE.md records the expected result (saved layouts keep their order, since `bl_order` is only the default) and leaves it to the manual check.
+- `make test`: 5.2.2 273 pass, 1 skip. Not done yet: the manual GUI check (fresh-file order and Presets closed; a 1.3.x file with dragged panels).

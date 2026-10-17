@@ -1185,6 +1185,7 @@ class LIGHTHOUSE_OT_remove_receiver(bpy.types.Operator):
 
 class LIGHTHOUSE_PT_world(bpy.types.Panel):
     bl_label = "World"
+    bl_order = 1
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
     bl_category = "Lights"
@@ -1228,6 +1229,7 @@ class LIGHTHOUSE_PT_world(bpy.types.Panel):
 
 class LIGHTHOUSE_PT_intensity(bpy.types.Panel):
     bl_label = "Intensity"
+    bl_order = 2
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
     bl_category = "Lights"
@@ -1252,6 +1254,8 @@ class LIGHTHOUSE_PT_intensity(bpy.types.Panel):
 
 class LIGHTHOUSE_PT_presets(bpy.types.Panel):
     bl_label = "Presets"
+    bl_order = 3
+    bl_options = {'DEFAULT_CLOSED'}
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
     bl_category = "Lights"
@@ -1359,6 +1363,7 @@ def indent(row, depth):
 
 class LIGHTHOUSE_PT_lights(bpy.types.Panel):
     bl_label = "Lights"
+    bl_order = 4
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
     bl_category = "Lights"
@@ -1579,6 +1584,7 @@ class LIGHTHOUSE_PT_active_light(bpy.types.Panel):
     """The active light's controls and details. Never hidden through poll, so the panels below
     don't jump as the active object switches between lights and other objects."""
     bl_label = "Active Light"
+    bl_order = 0
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
     bl_category = "Lights"
