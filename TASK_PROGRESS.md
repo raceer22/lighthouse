@@ -167,3 +167,8 @@
 - `add_light` applies a `SHIFT_A_VALUES` table after `lights.new()`: Sun `energy` 1.0, Area `size`/`size_y` 1.0. Point and Spot have no entry. It runs before the Kelvin step, so both apply. ARCHITECTURE.md entry added.
 - 3 new tests (`tests/test_new_light_values.py`). `make test`: 5.2.2 269 pass, 1 skip; 4.2.23 256 pass, 14 skip (the new Kelvin test is 5.0+). `make validate` passes on both, and `make build` gives `dist/lighthouse-1.3.1.zip`. Version 1.3.1 is in the manifest only (the README has no changelog).
 - Not done yet: the manual GUI check (Area and Sun from Lighthouse vs Shift+A in the Light properties).
+
+## v6 task 02: Benchmark
+- New `make bench` runs `tests/bench_lights_panel.py`: 500 lights over 65 nested collections, grouped, 5 rows expanded, and the median of 9 `LIGHTHOUSE_PT_lights.draw()` passes on the suite's `Recorder` stub layout. It only prints. pytest doesn't collect it (270 tests collected, as before).
+- **Baseline** (AMD Ryzen 9 9900X, 2026-10-17): **15.7 ms** on 5.2.2 (min 14.9), 14.7 ms on 4.2.23. That's already over the ~10 ms mark, so it's a candidate for caching to weigh at the 1.4.0 release (not built, per the ticket).
+- `make test`: 5.2.2 269 pass, 1 skip (unchanged). ARCHITECTURE.md entry and the README's development section mention `make bench`.

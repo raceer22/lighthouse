@@ -509,3 +509,9 @@ Checked on Blender 4.2.23 LTS (portable build) against 5.2.2 LTS. The add-on cod
   Point and Spot already match (power, radius, spot size), so they have no entry.
 - Why one table: one place to add a type if Blender's two code paths drift apart again. It runs before the Kelvin step, which only touches `use_temperature`, `temperature` and `color`, so the two stay independent.
 - Released on its own as 1.3.1.
+
+## v6 task 02: Benchmark
+- `make bench` (`BLENDER=` works as for `make test`) runs `tests/bench_lights_panel.py`, which pytest doesn't collect (no `test_` prefix). It builds 500 lights (all four types) spread over 65 nested collections (5 top-level, each with 4 sub-collections, each of those with 2), grouped mode on and 5 rows expanded. Then it times `LIGHTHOUSE_PT_lights.draw()` over 9 passes after a warm-up and prints the median, min and max in ms.
+- The draw runs on the suite's `Recorder` stub layout (`blender_runner.RECORDER`, the same as the draw tests), since a real `UILayout` doesn't exist headless. So it measures Lighthouse's own Python (the list walk, row state, linking counts), not Blender's widget layout.
+- There's no budget and no failing threshold, since timing fails at random on a busy machine. The number is compared by hand before a release. Caching (by depsgraph update) is only worth adding if it is well over about 10 ms.
+- Baseline (AMD Ryzen 9 9900X, 2026-10-17): **15.7 ms** on 5.2.2, 14.7 ms on 4.2.23 (median of 9).

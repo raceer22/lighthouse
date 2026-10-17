@@ -44,6 +44,7 @@ make test                 # pytest, driving headless Blender
 make test BLENDER=/path/to/blender   # the same against another Blender binary
 make validate             # blender --command extension validate
 make build                # same as ./build.sh
+make bench                # time the Lights panel's draw with 500 lights (prints only)
 ```
 
 `tests/acceptance.md` walks every PRD-v2 acceptance criterion, with a manual GUI checklist. `tests/smoke_engines.py` runs every operator under Cycles and EEVEE against an installed copy. `ARCHITECTURE.md` describes the components and the Blender API quirks.
