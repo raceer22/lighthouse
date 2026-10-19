@@ -96,3 +96,28 @@ Automated evidence and the engine smoke run for this release are in ARCHITECTURE
 - [ ] **v5 10** (Cycles): exclude one object and it goes dark under that light. Two lights sharing a receiver collection both show the label, and an edit in one shows in the other.
 - [ ] **v5 11**: the link icon appears without shifting the power, color and toggle columns. The tooltip reads correctly, and clicking it opens the details at the Light Linking section.
 - [ ] **v5 12**: switch the engine with the details open, and the note appears and disappears while the links stay (on 4.2 it shows under EEVEE too).
+
+# v6 release (1.4.0)
+
+Automated evidence for this release is in ARCHITECTURE.md (`## v6 release`) and TASK_PROGRESS.md. Every v6 operator runs in `tests/smoke_engines.py` under Cycles and EEVEE (2026-10-19: exit 0 on 5.2.2 and 4.2.23, installed from `dist/lighthouse-1.4.0.zip` into a fresh `BLENDER_USER_RESOURCES`). The items below need the GUI. Do each on 5.2, and on 4.2 unless marked 5.0+.
+
+**New lights and panels**
+- [ ] **v6 01**: add an Area and a Sun from Lighthouse and from Shift+A, and the Light properties match (Sun strength 1.0, Area size 1 m).
+- [ ] **v6 03**: click between a mesh and lights. The Active Light panel shows "Select a light" or the light, and the panels below don't move. Editing power in it changes the light's row.
+- [ ] **v6 04**: a fresh file shows Active Light, World, Intensity, Presets (closed), Lights. Open a 1.3.x file with dragged panels and note whether it keeps its order (ARCHITECTURE.md task 04 waits on this).
+
+**Light right-click menu**
+- [ ] **v6 05**: right-click a light's name, and the Lighthouse entries sit above Blender's own, with a separator. Rename one light (its data name stays) and Frame another.
+- [ ] **v6 06**: select three lights, right-click one of them, Delete 3 Lights, then Ctrl+Z. Duplicate Linked a light and check the ⓘ tooltip on both rows.
+- [ ] **v6 07**: with a selection, right-click a selected unmuted light ("Mute N Lights") and a muted one (plain "Unmute"). Apply a preset to an unselected light from its menu, and only that light changes.
+
+**Additive solo**
+- [ ] **v6 09**: solo Key, then Shift+click Rim's star and a group's star. Hover Exit Solo (names, then "…"). Shift+click Key's star again, then plain-click Rim's.
+- [ ] **v6 10**: solo a group, mute one light in it, then Shift+click another light's star. The muted light stays dark.
+
+**World**
+- [ ] **v6 11**: Load HDRI into a world that already has an Environment Texture, render, and the new HDRI shows.
+- [ ] **v6 12**: in a new file, Load HDRI, then Add Rotation, then turn Rotation, and the HDRI turns.
+
+**Alt+drag**
+- [ ] **v6 13**: select three lights, then Alt+drag one row's power, Alt+click-drag its color, and (5.0+) Alt+drag its Kelvin field. All three lights change.

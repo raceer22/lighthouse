@@ -80,6 +80,13 @@ for engine in ('CYCLES', eevee):
             assert bpy.ops.lighthouse.delete_lights(name=copy.name) == {'FINISHED'}, linked
         for _ in range(2):
             assert bpy.ops.lighthouse.mute_lights(name=name) == {'FINISHED'}
+        # Apply Preset ▸ from the right-click menu (targets this light's selection scope). A preset
+        # that suits no light in scope cancels with a warning, which is fine here.
+        for preset in preset_ids():
+            assert bpy.ops.lighthouse.apply_preset(preset=preset, name=name) in ({'FINISHED'}, {'CANCELLED'})
+        # Add to Solo and Remove from Solo.
+        for _ in range(2):
+            assert bpy.ops.lighthouse.solo_light(name=name, extend=True) == {'FINISHED'}
         for op in (bpy.ops.lighthouse.mute_light, bpy.ops.lighthouse.mute_light,
                    bpy.ops.lighthouse.solo_light, bpy.ops.lighthouse.solo_light):
             assert op(name=obj.name) == {'FINISHED'}

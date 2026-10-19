@@ -569,3 +569,11 @@ Checked on Blender 4.2.23 LTS (portable build) against 5.2.2 LTS. The add-on cod
 - The previous image is left alone: it loses the node's user and Blender drops it when the file is saved with no users left. No fake user, no removal.
 - Task 12, Background-only worlds: `hdri_addable(setup)` is true for a `SIMPLE` setup with no Environment Texture and an unlinked Background Color. There `load_hdri` loads the image and `add_environment()` adds an Environment Texture with it, linked to the Background's Color and placed 300 px to its left. Rotation is left alone. A Background whose Color is linked to some other node (an RGB node, a ramp) gets no button and the operator cancels (pinned by a test), since adding a node would cut the user's link. Custom setups with no Environment Texture still get no button.
 - Verify result (task 12): after the added node, `world_setup()` is `SIMPLE` with `environment` set to it and `rotation == 'ADDABLE'`, so the panel shows Strength, Add Rotation and Load HDRI. `add_world_rotation` then gives `'MAPPING'`. `world_mute_node()` is still the Background, so World mute and World solo act on it as before. All of this is covered in `tests/test_load_hdri.py`.
+
+## v6 release
+- 1.4.0 (`blender_manifest.toml` is the only place the version is stored). `make validate` passes on 5.2.2 and 4.2.23, and `make build` writes `dist/lighthouse-1.4.0.zip`. That zip installs into a fresh `BLENDER_USER_RESOURCES` profile (`extension install-file -r user_default`, what `make install` runs), and `tests/smoke_engines.py` exits 0 there on both versions under Cycles and EEVEE.
+- Known limits:
+  - Panel order (task 04): unsettled whether `bl_order` overrides the order saved in a 1.3.x file with dragged panels. It needs the manual GUI check (see `tests/acceptance.md`).
+  - Old mid-solo files (task 08): a file saved during a 1.3 lamp or group solo loads with its target moved into `targets` by `migrate_solo_targets`, and Exit Solo restores it (tested with 4.2-saved fixtures).
+  - Mute from the right-click menu (task 07): a muted light is never selected (Blender deselects on `hide_viewport`), so "Unmute N Lights" never appears.
+  - Bench: 15.7 ms on 5.2.2 and 14.7 ms on 4.2.23 (median of 9, 2026-10-19), the same as the task 02 baseline and still over the ~10 ms mark. Caching stays a candidate for a later release.
