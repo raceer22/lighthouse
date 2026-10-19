@@ -71,6 +71,9 @@ for engine in ('CYCLES', eevee):
         name = obj.name
         assert bpy.ops.lighthouse.select_light(name=name, action='RENAME', new_name=name + " R") == {'FINISHED'}
         assert bpy.ops.lighthouse.select_light(name=name + " R", action='RENAME', new_name=name) == {'FINISHED'}
+        # The right-click menu's Rename (the menu's Frame and Solo are select_light FRAME and solo_light).
+        assert bpy.ops.lighthouse.rename_light(name=name, new_name=name + " M") == {'FINISHED'}
+        assert bpy.ops.lighthouse.rename_light(name=name + " M", new_name=name) == {'FINISHED'}
         for op in (bpy.ops.lighthouse.mute_light, bpy.ops.lighthouse.mute_light,
                    bpy.ops.lighthouse.solo_light, bpy.ops.lighthouse.solo_light):
             assert op(name=obj.name) == {'FINISHED'}

@@ -182,3 +182,8 @@
 - `bl_order` sets Active Light → World → Intensity → Presets → Lights, and Presets is `DEFAULT_CLOSED` (Intensity stays open). In `tests/test_panels.py`, the registration-order test became a `bl_order` test, and a test pins the default-closed flags.
 - Verify not settled: a scripted GUI check failed (4.2's `Region.active_panel_category` is read-only, so the tab can't be opened from Python). ARCHITECTURE.md records the expected result (saved layouts keep their order, since `bl_order` is only the default) and leaves it to the manual check.
 - `make test`: 5.2.2 273 pass, 1 skip. Not done yet: the manual GUI check (fresh-file order and Presets closed; a 1.3.x file with dragged panels).
+
+## v6 task 05: Light right-click menu
+- New `draw_light_menu()` is prepended to `UI_MT_button_context_menu` for a light row's name button (`select_light`): Rename, Frame, Solo/Exit Solo, then a separator. A missing light or another button draws nothing. It's registered and removed alongside the group menu.
+- New `LIGHTHOUSE_OT_rename_light` (a dialog that renames the object only, disabled and refused for library lights). Frame is `select_light` FRAME in exec context, and Solo is `solo_light`. 5 tests in `tests/test_light_menu.py`, plus a smoke step and an ARCHITECTURE.md entry.
+- `make test` (5.2.2): 278 pass, 1 skip. Not done yet: the manual GUI check (entries above Blender's own; rename one light, frame another).

@@ -289,6 +289,41 @@ class LIGHTHOUSE_OT_select_light(bpy.types.Operator):
         return {'FINISHED'}
 
 
+class LIGHTHOUSE_OT_rename_light(bpy.types.Operator):
+    """Rename this light's object (its light data keeps its name)"""
+    bl_idname = "lighthouse.rename_light"
+    bl_label = "Rename Light"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    name: bpy.props.StringProperty()
+    library: bpy.props.StringProperty(options={'HIDDEN'})
+    new_name: bpy.props.StringProperty(name="Name")
+
+    def invoke(self, context, event):
+        obj = find_object(context.view_layer, self.name, self.library)
+        if obj is None:
+            return {'CANCELLED'}
+        self.new_name = obj.name
+        return context.window_manager.invoke_props_dialog(self, title="Rename Light")
+
+    def draw(self, context):
+        self.layout.prop(self, "new_name", text="")
+
+    def execute(self, context):
+        obj = find_object(context.view_layer, self.name, self.library)
+        if obj is None:
+            return {'CANCELLED'}
+        if is_read_only(obj):
+            self.report({'ERROR'}, f"{obj.name} is read-only (linked from a library)")
+            return {'CANCELLED'}
+        name = self.new_name.strip()
+        if not name:
+            self.report({'ERROR'}, "Light name can't be empty")
+            return {'CANCELLED'}
+        obj.name = name
+        return {'FINISHED'}
+
+
 def scene_or_collection(context, name, library):
     """The collection a header button targets: name "" (no ID has an empty name) is the scene's
     master collection, which is not in bpy.data.collections."""
@@ -1349,6 +1384,35 @@ def draw_group_menu(self, context):
     self.layout.separator()
 
 
+def draw_light_menu(self, context):
+    """Prepended to Blender's right-click menu (UI_MT_button_context_menu): Rename, Frame and Solo
+    for the light whose row name button is under the cursor."""
+    op = getattr(context, "button_operator", None)
+    if op is None or op.bl_rna.identifier != LIGHTHOUSE_OT_select_light.bl_rna.identifier:
+        return
+    obj = find_object(context.view_layer, op.name, op.library)
+    if obj is None:
+        return
+    layout = self.layout
+    rename = layout.row()
+    rename.enabled = not is_read_only(obj)
+    target_light(rename.operator(LIGHTHOUSE_OT_rename_light.bl_idname, text="Rename"), obj)
+    # Exec, so select_light keeps action FRAME instead of reading it from the click's modifier keys.
+    frame = layout.row()
+    frame.operator_context = 'EXEC_DEFAULT'
+    target_light(frame.operator(LIGHTHOUSE_OT_select_light.bl_idname, text="Frame"), obj).action = 'FRAME'
+    solo = context.scene.lighthouse_solo
+    soloed = solo.active and solo.light == obj
+    target_light(layout.operator(LIGHTHOUSE_OT_solo_light.bl_idname, text="Exit Solo" if soloed else "Solo"), obj)
+    layout.separator()
+
+
+def target_light(op, obj):
+    """Point a light operator's name and library at obj."""
+    op.name, op.library = id_key(obj)
+    return op
+
+
 INDENT_STEP = 1.5
 # Fixed widths for a light row's unit label and color swatch (or Kelvin field), so power fills the rest with no gap.
 UNIT_WIDTH = 1.5
@@ -1609,6 +1673,7 @@ classes = (
     LIGHTHOUSE_PG_solo_collection,
     LIGHTHOUSE_PG_solo,
     LIGHTHOUSE_OT_select_light,
+    LIGHTHOUSE_OT_rename_light,
     LIGHTHOUSE_OT_toggle_new_light_mode,
     LIGHTHOUSE_OT_add_light,
     LIGHTHOUSE_OT_new_collection,
@@ -1672,9 +1737,11 @@ def register():
         description="Hide this collection's own lights in the Lights list, keeping its sub-collections",
     )
     bpy.types.UI_MT_button_context_menu.prepend(draw_group_menu)
+    bpy.types.UI_MT_button_context_menu.prepend(draw_light_menu)
 
 
 def unregister():
+    bpy.types.UI_MT_button_context_menu.remove(draw_light_menu)
     bpy.types.UI_MT_button_context_menu.remove(draw_group_menu)
     del bpy.types.Collection.lighthouse_lights_collapsed
     del bpy.types.Collection.lighthouse_collapsed
