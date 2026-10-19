@@ -197,3 +197,8 @@
 - New `mute_lights` operator (follows the clicked light over `light_scope()`, goes through `update_snapshot()`, skips read-only lights) and `LIGHTHOUSE_MT_apply_preset` submenu. `apply_preset` gained hidden `SKIP_SAVE` `name`/`library` to target the menu's lights, while the Presets panel still uses the selection.
 - **Differs from the ticket:** Blender deselects a light when `hide_viewport` is set, so muted lights are never selected. "Unmute 3 Lights" and "two muted + one unmuted selected" can't happen. The tests cover what can happen instead (a selection's Mute mutes all; Unmute on a muted light acts on that light alone). The ARCHITECTURE.md entry records this.
 - 7 tests in `tests/test_menu_mute_preset.py`, plus a smoke step. `make test` (5.2.2): 293 pass, 1 skip. Not done yet: the manual GUI check.
+
+## v6 task 08: Solo targets prefactor
+- `LIGHTHOUSE_PG_solo.targets` (items with an `object` or `collection` pointer) replaces `light`/`group`. `lights.py` uses the new `is_solo_target()` / `set_solo_target()`. Behaviour is unchanged, and every existing solo test passes unchanged (a read-only Python `solo.light` accessor keeps `test_world_solo` working).
+- Verify: the 1.3 pointers still load as ID properties, so a persistent `load_post` handler (`migrate_solo_targets`) moves them into `targets`. There are two 4.2.23-saved mid-solo fixtures in `tests/fixtures/`, and a test confirms the migrated target, the label and a clean `exit_solo`.
+- 4 tests in `tests/test_solo_targets.py`, plus an ARCHITECTURE.md entry. `make test`: 5.2.2 297 pass, 1 skip. Before the accessor fix, 4.2.23 had 1 fail, the same one as 5.2. After it, the solo tests pass on 4.2.

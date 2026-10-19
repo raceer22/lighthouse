@@ -29,6 +29,8 @@ from .lights import (
     empty_message,
     group_lights,
     group_soloed,
+    is_solo_target,
+    set_solo_target,
     indent_level,
     is_collapsed,
     is_lights_folded,
@@ -192,11 +194,21 @@ class LIGHTHOUSE_PG_solo_collection(bpy.types.PropertyGroup):
     hide_viewport: bpy.props.BoolProperty()
 
 
+class LIGHTHOUSE_PG_solo_target(bpy.types.PropertyGroup):
+    """One soloed light (object) or group (collection); the other pointer is empty."""
+    object: bpy.props.PointerProperty(type=bpy.types.Object)
+    collection: bpy.props.PointerProperty(type=bpy.types.Collection)
+
+
 class LIGHTHOUSE_PG_solo(bpy.types.PropertyGroup):
-    """The scene's solo target and the visibility flags to restore on un-solo."""
+    """The scene's solo targets and the visibility flags to restore on un-solo."""
     active: bpy.props.BoolProperty()
-    light: bpy.props.PointerProperty(type=bpy.types.Object)
-    group: bpy.props.PointerProperty(type=bpy.types.Collection)
+    targets: bpy.props.CollectionProperty(type=LIGHTHOUSE_PG_solo_target)
+
+    @property
+    def light(self):
+        """The first soloed light, or None: the read side of the 1.3 "light" pointer."""
+        return next((target.object for target in self.targets if target.object), None)
     objects: bpy.props.CollectionProperty(type=LIGHTHOUSE_PG_solo_object)
     collections: bpy.props.CollectionProperty(type=LIGHTHOUSE_PG_solo_collection)
     world_soloed: bpy.props.BoolProperty()
@@ -1531,7 +1543,7 @@ def draw_light_menu(self, context):
     verb = "Unmute" if light_muted(obj) else "Mute"
     target_light(layout.operator(LIGHTHOUSE_OT_mute_lights.bl_idname, text=scope_label(verb, count)), obj)
     solo = context.scene.lighthouse_solo
-    soloed = solo.active and solo.light == obj
+    soloed = is_solo_target(solo, obj)
     target_light(layout.operator(LIGHTHOUSE_OT_solo_light.bl_idname, text="Exit Solo" if soloed else "Solo"), obj)
     layout.separator()
 
@@ -1795,10 +1807,25 @@ class LIGHTHOUSE_PT_active_light(bpy.types.Panel):
         draw_light_details(self.layout, obj, state, context.scene.render.engine)
 
 
+@bpy.app.handlers.persistent
+def migrate_solo_targets(_):
+    """Files saved mid-solo by 1.3 or older keep the soloed light or group in the "light" or "group"
+    pointer that targets replaced. Their ID properties still load, so move them into targets."""
+    for scene in bpy.data.scenes:
+        solo = scene.lighthouse_solo
+        for key in ("light", "group"):
+            old = solo.get(key)
+            if old is not None:
+                del solo[key]
+                if solo.active and not len(solo.targets):
+                    set_solo_target(solo, old)
+
+
 classes = (
     LIGHTHOUSE_PG_expanded,
     LIGHTHOUSE_PG_settings,
     LIGHTHOUSE_PG_solo_object,
+    LIGHTHOUSE_PG_solo_target,
     LIGHTHOUSE_PG_solo_collection,
     LIGHTHOUSE_PG_solo,
     LIGHTHOUSE_OT_select_light,
@@ -1870,10 +1897,12 @@ def register():
         description="Hide this collection's own lights in the Lights list, keeping its sub-collections",
     )
     bpy.types.UI_MT_button_context_menu.prepend(draw_group_menu)
+    bpy.app.handlers.load_post.append(migrate_solo_targets)
     bpy.types.UI_MT_button_context_menu.prepend(draw_light_menu)
 
 
 def unregister():
+    bpy.app.handlers.load_post.remove(migrate_solo_targets)
     bpy.types.UI_MT_button_context_menu.remove(draw_light_menu)
     bpy.types.UI_MT_button_context_menu.remove(draw_group_menu)
     del bpy.types.Collection.lighthouse_lights_collapsed

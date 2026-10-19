@@ -383,40 +383,54 @@ def row_state(obj, view_layer, scene=None):
         dimmed=obj.hide_render or not obj.visible_get(view_layer=view_layer),
         read_only=is_read_only(light),
         muted=obj.hide_render and obj.hide_viewport,
-        soloed=scene is not None and scene.lighthouse_solo.active and scene.lighthouse_solo.light == obj,
+        soloed=scene is not None and is_solo_target(scene.lighthouse_solo, obj),
     )
 
 
 def group_soloed(scene, collection):
     """True when the collection is the scene's soloed group (its header's solo icon is pressed)."""
-    solo = scene.lighthouse_solo
-    return solo.active and solo.group == collection
+    return is_solo_target(scene.lighthouse_solo, collection)
+
+
+def is_solo_target(solo, id):
+    """True while solo is on and the light object or collection is one of its targets."""
+    return solo.active and any(id in (target.object, target.collection) for target in solo.targets)
+
+
+def set_solo_target(solo, id):
+    """Make the light object or collection solo's only target."""
+    solo.targets.clear()
+    target = solo.targets.add()
+    if id.id_type == 'OBJECT':
+        target.object = id
+    else:
+        target.collection = id
 
 
 def toggle_solo_light(solo, view_layer, obj):
     """Solo a light: show it and hide every other light, unhiding the collections that hold it
     and their ancestors. Pressing it again on the soloed light restores the snapshot (see _solo)."""
-    if solo.active and solo.light == obj:
+    if is_solo_target(solo, obj):
         unsolo(solo)
         return
     _leave_world_solo(solo)
     holders = set(obj.users_collection)
     _solo(solo, view_layer, [obj], _collection_paths(view_layer, lambda c: c in holders))
-    solo.light = obj
+    set_solo_target(solo, obj)
 
 
 def toggle_solo_group(solo, view_layer, collection):
     """Solo a group: show every light in the collection and its sub-collections and hide every
     other light, unhiding the collection, its sub-collections and its ancestors. Pressing it again
     on the soloed group restores the snapshot (see _solo)."""
-    if solo.active and solo.group == collection:
+    if is_solo_target(solo, collection):
         unsolo(solo)
         return
     _leave_world_solo(solo)
     inside = {collection, *collection.children_recursive}
     shown = set(collection.all_objects)
     _solo(solo, view_layer, shown, _collection_paths(view_layer, lambda c: c in inside))
-    solo.group = collection
+    set_solo_target(solo, collection)
 
 
 def toggle_solo_world(solo, view_layer, scene):
@@ -465,7 +479,7 @@ def _solo(solo, view_layer, shown, collections):
         solo.objects.clear()
         solo.collections.clear()
         solo.active = True
-    solo.light = solo.group = None
+    solo.targets.clear()
     lights = light_objects(view_layer)
     saved = {item.object for item in solo.objects}
     for obj in lights:
@@ -494,7 +508,7 @@ def unsolo(solo):
     _restore_world(solo)
     solo.objects.clear()
     solo.collections.clear()
-    solo.light = solo.group = None
+    solo.targets.clear()
     solo.active = False
 
 
@@ -520,8 +534,9 @@ def solo_label(solo):
     target is gone."""
     if solo.world_soloed:
         return "World"
-    target = solo.light or solo.group
-    return target.name if target is not None else "deleted"
+    target = solo.targets[0] if len(solo.targets) else None
+    id = target and (target.object or target.collection)
+    return id.name if id is not None else "deleted"
 
 
 def reveal(view_layer, obj):
