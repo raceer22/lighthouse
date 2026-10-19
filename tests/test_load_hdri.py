@@ -104,3 +104,57 @@ def test_a_library_world_cancels():
     """)
 
     assert result == ["CANCELLED"]
+
+
+# v6 task 12: a Background-only world gets an Environment Texture added in front of the Background.
+
+def test_a_background_only_world_gets_one_environment_texture_linked_to_its_color():
+    result = run("""
+        count = len(nodes)
+        button = len(hdri_button())
+        outcome = load(image_file("Sky"))
+        envs = [n for n in nodes if n.bl_idname == 'ShaderNodeTexEnvironment']
+        link = background.inputs["Color"].links[0]
+        report({"button": button, "outcome": outcome, "added": len(nodes) - count, "envs": len(envs),
+                "linked": link.from_node == envs[0], "image": envs[0].image.name,
+                "left of background": envs[0].location.x < background.location.x})
+    """)
+
+    assert result == {"button": 1, "outcome": ["FINISHED"], "added": 1, "envs": 1, "linked": True,
+                      "image": "Sky.hdr", "left of background": True}
+
+
+def test_the_added_texture_is_a_simple_setup_that_add_rotation_can_finish():
+    result = run("""
+        from lighthouse.lights import world_mute_node, world_setup
+        load(image_file("Sky"))
+        setup = world_setup(bpy.context.scene)
+        loaded = [setup.state, setup.environment.bl_idname, setup.rotation, world_mute_node(setup) == background]
+        bpy.ops.lighthouse.add_world_rotation()
+        report([loaded, world_setup(bpy.context.scene).rotation])
+    """)
+
+    assert result == [["SIMPLE", "ShaderNodeTexEnvironment", "ADDABLE", True], "MAPPING"]
+
+
+def test_world_mute_and_solo_still_act_on_the_background_after_loading():
+    result = run("""
+        load(image_file("Sky"))
+        bpy.ops.lighthouse.mute_world()
+        muted = background.mute
+        bpy.ops.lighthouse.solo_world()
+        report([muted, background.mute])
+    """)
+
+    assert result == [True, False]
+
+
+def test_a_background_with_its_color_linked_to_another_node_gets_no_button_and_cancels():
+    result = run("""
+        rgb = nodes.new('ShaderNodeRGB')
+        links.new(rgb.outputs[0], background.inputs["Color"])
+        count = len(nodes)
+        report([hdri_button(), load(image_file("Sky")), len(nodes) - count])
+    """)
+
+    assert result == [[], ["CANCELLED"], 0]

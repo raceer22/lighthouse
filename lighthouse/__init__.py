@@ -29,6 +29,8 @@ from .lights import (
     empty_message,
     group_lights,
     group_soloed,
+    add_environment,
+    hdri_addable,
     hdri_target,
     is_solo_target,
     set_solo_target,
@@ -1281,7 +1283,8 @@ class LIGHTHOUSE_OT_solo_world(bpy.types.Operator):
 
 
 class LIGHTHOUSE_OT_load_hdri(bpy.types.Operator):
-    """Choose an image for the world's Environment Texture"""
+    """Choose an image for the world's Environment Texture.
+    A world with only a Background gets an Environment Texture added in front of it"""
     bl_idname = "lighthouse.load_hdri"
     bl_label = "Load HDRI"
     bl_options = {'REGISTER', 'UNDO'}
@@ -1302,7 +1305,8 @@ class LIGHTHOUSE_OT_load_hdri(bpy.types.Operator):
             self.report({'WARNING'}, f"{world.name} is read-only (linked from a library)")
             return {'CANCELLED'}
         node = hdri_target(world)
-        if node is None:
+        setup = world_setup(context.scene)
+        if node is None and not hdri_addable(setup):
             self.report({'WARNING'}, f"{world.name} needs exactly one Environment Texture node")
             return {'CANCELLED'}
         try:
@@ -1310,7 +1314,10 @@ class LIGHTHOUSE_OT_load_hdri(bpy.types.Operator):
         except RuntimeError as error:
             self.report({'ERROR'}, str(error))
             return {'CANCELLED'}
-        node.image = image
+        if node is None:
+            add_environment(world.node_tree, setup.background, image)
+        else:
+            node.image = image
         return {'FINISHED'}
 
 
@@ -1425,7 +1432,7 @@ class LIGHTHOUSE_PT_world(bpy.types.Panel):
         )
         if setup.state == 'CUSTOM':
             self.layout.label(text="Custom world setup, edit in Shader Editor")
-            draw_load_hdri(self.layout, world)
+            draw_load_hdri(self.layout, world, setup)
         else:
             col = self.layout.column()
             col.enabled = not is_read_only(world)
@@ -1435,12 +1442,13 @@ class LIGHTHOUSE_PT_world(bpy.types.Panel):
                 col.prop(setup.mapping.inputs["Rotation"], "default_value", index=2, text="Rotation")
             elif setup.rotation == 'ADDABLE':
                 col.operator(LIGHTHOUSE_OT_add_world_rotation.bl_idname, text="Add Rotation")
-            draw_load_hdri(col, world)
+            draw_load_hdri(col, world, setup)
 
 
-def draw_load_hdri(layout, world):
-    """Load HDRI…, only for a world with exactly one Environment Texture (any setup)."""
-    if hdri_target(world) is not None:
+def draw_load_hdri(layout, world, setup):
+    """Load HDRI…, for a world with exactly one Environment Texture (any setup), or a simple
+    Background-only one, where it adds the texture."""
+    if hdri_target(world) is not None or hdri_addable(setup):
         row = layout.row()
         row.enabled = not is_read_only(world)
         row.operator(LIGHTHOUSE_OT_load_hdri.bl_idname, text="Load HDRI…", icon='FILE_IMAGE')

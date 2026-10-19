@@ -90,7 +90,9 @@ def drawn_world(setup_code):
 
 
 def test_panel_draws_strength_for_a_simple_world():
-    assert drawn_world("") == [["label", "World"], ["operator", "lighthouse.mute_world", ""], ["operator", "lighthouse.solo_world", ""], ["prop", "default_value"]]
+    # The factory world is Background-only, so it also gets Load HDRI (v6 task 12).
+    assert drawn_world("") == [["label", "World"], ["operator", "lighthouse.mute_world", ""], ["operator", "lighthouse.solo_world", ""], ["prop", "default_value"],
+                               ["operator", "lighthouse.load_hdri", "Load HDRI…"]]
 
 
 def test_panel_draws_the_custom_label_for_a_custom_world():

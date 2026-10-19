@@ -710,6 +710,24 @@ def hdri_target(world):
     textures = environment_textures(world)
     return textures[0] if len(textures) == 1 else None
 
+
+def hdri_addable(setup):
+    """True when Load HDRI can add an Environment Texture: a SIMPLE setup whose Background Color is
+    a plain value (no Environment Texture, nor any other node, feeding it)."""
+    return (setup.state == 'SIMPLE' and setup.environment is None
+            and not setup.background.inputs["Color"].is_linked)
+
+
+def add_environment(node_tree, background, image):
+    """An Environment Texture with the image, linked to the Background's Color and placed left of it.
+    Returns the new node."""
+    environment = node_tree.nodes.new('ShaderNodeTexEnvironment')
+    environment.image = image
+    x, y = background.location
+    environment.location = (x - 300, y)
+    node_tree.links.new(environment.outputs["Color"], background.inputs["Color"])
+    return environment
+
 def add_world_rotation(node_tree, environment):
     """Texture Coordinate (Generated) > Mapping > the environment's Vector, placed left of the texture.
     Returns the Mapping node."""

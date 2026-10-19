@@ -217,3 +217,8 @@
 - New `hdri_target()` (the world's only Environment Texture, or None) and `lighthouse.load_hdri` (file browser filtered to images, `images.load(check_existing=True)`, never adds nodes). It cancels for a read-only world or with none or several textures.
 - The World panel shows "Load HDRI…" for any setup with exactly one Environment Texture (under Strength/Rotation, or under the custom-setup note). The old image is left to Blender (one user fewer, no fake user). The three World-panel draw tests in `test_world_rotation.py` now expect the button.
 - 5 tests in `tests/test_load_hdri.py` (the HDR file is written by the test), plus a smoke step and an ARCHITECTURE.md entry. `make test`: 5.2.2 313 pass, 1 skip; 4.2.23 300 pass, 14 skip. Not done yet: the manual GUI render check.
+
+## v6 task 12: Load HDRI… on a Background-only world
+- New `hdri_addable()` (a SIMPLE setup with no Environment Texture and an unlinked Background Color) and `add_environment()` (a node linked to Color and placed left of the Background). `load_hdri` adds the node there. Custom setups, and a Background whose Color is linked to another node, get no button and cancel (pinned).
+- Verify: after loading, the setup is SIMPLE with the new `environment` and `rotation == 'ADDABLE'`, Add Rotation gives MAPPING, and World mute and solo still act on the Background. All of it is tested. `test_world_panel.py`'s simple-world pin now expects the button.
+- 4 new tests in `tests/test_load_hdri.py`, and the task 11 ARCHITECTURE.md entry was updated. `make test`: 5.2.2 317 pass, 1 skip; 4.2.23 304 pass, 14 skip. Not done yet: the manual GUI check (new file → Load HDRI → Add Rotation → turn).
