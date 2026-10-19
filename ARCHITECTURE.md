@@ -557,3 +557,8 @@ Checked on Blender 4.2.23 LTS (portable build) against 5.2.2 LTS. The add-on cod
 - The World stays exclusive: `solo_world` takes `extend` but ignores it (Shift+click works like a plain click), and a lamp or group click during a World solo leaves it first (`_leave_world_solo`), with or without extend.
 - `solo_label` (Exit Solo's tooltip) lists the surviving targets' names, at most `SHARED_NAMES`, then "…". It says "deleted" only when none are left.
 - The right-click menu has "Add to Solo" / "Remove from Solo" after Solo (`solo_light` with `extend=True`, for the clicked light only).
+
+## v6 task 10: Mutes during solo
+- `LIGHTHOUSE_PG_solo_object.muted`: `update_snapshot()` sets it on mute and clears it on unmute, along with the restore flags. Every Mute (the row, the Active Light panel, the right-click menu) goes through it.
+- `_solo()` hides every light that is either outside the targets' union or has `muted` set. So adding, removing or replacing targets never re-shows a light muted during the solo, even one inside a soloed group.
+- Un-solo is unchanged (it restores the snapshot flags, which already say muted). The snapshot items are cleared at un-solo, so a new solo starts with every `muted` flag cleared.

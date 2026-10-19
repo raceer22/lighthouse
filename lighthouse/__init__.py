@@ -186,6 +186,8 @@ class LIGHTHOUSE_PG_solo_object(bpy.types.PropertyGroup):
     object: bpy.props.PointerProperty(type=bpy.types.Object)
     hide_render: bpy.props.BoolProperty()
     hide_viewport: bpy.props.BoolProperty()
+    # Muted during this solo: kept hidden when the solo's targets change, even inside a target
+    muted: bpy.props.BoolProperty()
 
 
 class LIGHTHOUSE_PG_solo_collection(bpy.types.PropertyGroup):

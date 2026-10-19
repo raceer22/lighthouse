@@ -207,3 +207,8 @@
 - `solo_light`/`solo_group` gained `extend` (`SKIP_SAVE`, set by Shift+click in `invoke`). The new `toggle_solo()` handles add/remove (removing the last target ends solo), a plain click replacing several targets, and the union of lights shown and collections unhidden. The World stays exclusive (`solo_world` ignores `extend`), and Exit Solo lists up to 3 names then "…".
 - The menu gained "Add to Solo" / "Remove from Solo". Collections unhidden by a removed target stay unhidden until the solo ends: an existing test pins that switching rule, so the re-hide I tried first was reverted.
 - 7 tests in `tests/test_additive_solo.py`, plus a smoke step and an ARCHITECTURE.md entry. `make test`: 5.2.2 304 pass, 1 skip; 4.2.23 291 pass, 14 skip. Not done yet: the manual GUI check.
+
+## v6 task 10: Mutes during solo stick
+- `LIGHTHOUSE_PG_solo_object.muted` is set or cleared by `update_snapshot()`, so every Mute path is covered. `_solo()` keeps flagged lights hidden whenever the targets change, even inside a soloed group.
+- Un-solo is unchanged. A new solo starts with the flags cleared, since the snapshot items are rebuilt.
+- 4 tests in `tests/test_solo_mutes.py`, plus an ARCHITECTURE.md entry. `make test`: 5.2.2 308 pass, 1 skip; 4.2.23 295 pass, 14 skip. Not done yet: the manual GUI check.

@@ -502,7 +502,8 @@ def _leave_world_solo(solo):
 def _solo(solo, view_layer, shown, collections):
     """Show the given lights, hide every other light and unhide the given collections.
     The first solo snapshots every light's flags; a collection's flags are snapshotted the
-    first time solo unhides it. Switching target keeps the snapshot and only adds new items."""
+    first time solo unhides it. Switching target keeps the snapshot and only adds new items.
+    Lights muted during the solo stay hidden (see update_snapshot)."""
     if not solo.active:
         solo.objects.clear()
         solo.collections.clear()
@@ -521,8 +522,9 @@ def _solo(solo, view_layer, shown, collections):
             item.collection = collection
             item.hide_render, item.hide_viewport = collection.hide_render, collection.hide_viewport
         collection.hide_render = collection.hide_viewport = False
+    muted = {item.object for item in solo.objects if item.muted}
     for obj in lights:
-        obj.hide_render = obj.hide_viewport = obj not in shown
+        obj.hide_render = obj.hide_viewport = obj not in shown or obj in muted
 
 
 def unsolo(solo):
@@ -543,6 +545,7 @@ def unsolo(solo):
 def update_snapshot(solo, id, hide):
     """While solo is on, record `hide` as the flags un-solo restores for a light or collection
     that has a snapshot item, so a choice made during solo survives it. Others are left alone.
+    A light's item also remembers it was muted during solo, so target changes keep it hidden.
     For the World's mute node, `hide` is its new mute (only recorded during a World solo)."""
     if not solo.active:
         return
@@ -551,7 +554,7 @@ def update_snapshot(solo, id, hide):
         return
     for item in solo.objects:
         if item.object == id:
-            item.hide_render = item.hide_viewport = hide
+            item.hide_render = item.hide_viewport = item.muted = hide
     for item in solo.collections:
         if item.collection == id:
             item.hide_render = item.hide_viewport = hide
