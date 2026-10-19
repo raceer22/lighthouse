@@ -187,3 +187,8 @@
 - New `draw_light_menu()` is prepended to `UI_MT_button_context_menu` for a light row's name button (`select_light`): Rename, Frame, Solo/Exit Solo, then a separator. A missing light or another button draws nothing. It's registered and removed alongside the group menu.
 - New `LIGHTHOUSE_OT_rename_light` (a dialog that renames the object only, disabled and refused for library lights). Frame is `select_light` FRAME in exec context, and Solo is `solo_light`. 5 tests in `tests/test_light_menu.py`, plus a smoke step and an ARCHITECTURE.md entry.
 - `make test` (5.2.2): 278 pass, 1 skip. Not done yet: the manual GUI check (entries above Blender's own; rename one light, frame another).
+
+## v6 task 06: Delete and duplicate
+- New `light_scope()` follows the Outliner rule (the selection when the clicked light is selected, otherwise only the clicked light). Labels show the count ("Delete 3 Lights"). Menu order: Rename, Frame, Duplicate, Duplicate Linked, Delete, Solo.
+- New `delete_lights` operator (object only, no confirmation; shared data stays, and solo still exits cleanly) and `duplicate_lights` operator (`linked` shares the data; copies go into the same collections, become the selection with the clicked light's copy active, and are shown during solo). Read-only lights are skipped and reported, and the operator cancels when all are read-only.
+- 8 tests in `tests/test_delete_duplicate.py`, the menu test updated, plus a smoke step and an ARCHITECTURE.md entry. `make test` (5.2.2): 286 pass, 1 skip. Not done yet: the manual GUI check (Delete 3, then Ctrl+Z; the ⓘ tooltip after Duplicate Linked).

@@ -74,6 +74,10 @@ for engine in ('CYCLES', eevee):
         # The right-click menu's Rename (the menu's Frame and Solo are select_light FRAME and solo_light).
         assert bpy.ops.lighthouse.rename_light(name=name, new_name=name + " M") == {'FINISHED'}
         assert bpy.ops.lighthouse.rename_light(name=name + " M", new_name=name) == {'FINISHED'}
+        for linked in (False, True):
+            assert bpy.ops.lighthouse.duplicate_lights(name=name, linked=linked) == {'FINISHED'}, linked
+            copy = bpy.context.view_layer.objects.active
+            assert bpy.ops.lighthouse.delete_lights(name=copy.name) == {'FINISHED'}, linked
         for op in (bpy.ops.lighthouse.mute_light, bpy.ops.lighthouse.mute_light,
                    bpy.ops.lighthouse.solo_light, bpy.ops.lighthouse.solo_light):
             assert op(name=obj.name) == {'FINISHED'}

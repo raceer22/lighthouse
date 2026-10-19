@@ -42,7 +42,12 @@ from .lights import (
     listed_groups,
     tree_under_message,
     move_lights,
+    delete_lights,
+    duplicate_lights,
+    light_scope,
     move_summary,
+    scope_label,
+    scope_summary,
     power_unit,
     reveal,
     row_state,
@@ -321,6 +326,66 @@ class LIGHTHOUSE_OT_rename_light(bpy.types.Operator):
             self.report({'ERROR'}, "Light name can't be empty")
             return {'CANCELLED'}
         obj.name = name
+        return {'FINISHED'}
+
+
+def read_only_scope(objects):
+    """The warning when every light in scope is read-only."""
+    if len(objects) == 1:
+        return f"{objects[0].name} is read-only (linked from a library)"
+    return f"All {len(objects)} lights are read-only (linked from a library)"
+
+
+class LIGHTHOUSE_OT_delete_lights(bpy.types.Operator):
+    """Delete this light, or every selected light if it is selected.
+    Read-only (library) lights are skipped"""
+    bl_idname = "lighthouse.delete_lights"
+    bl_label = "Delete Lights"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    name: bpy.props.StringProperty()
+    library: bpy.props.StringProperty(options={'HIDDEN'})
+
+    def execute(self, context):
+        obj = find_object(context.view_layer, self.name, self.library)
+        if obj is None:
+            return {'CANCELLED'}
+        lights = light_scope(context.view_layer, obj)
+        deleted, skipped = delete_lights(lights)
+        if not deleted:
+            self.report({'WARNING'}, read_only_scope(lights))
+            return {'CANCELLED'}
+        self.report({'INFO'}, scope_summary("Deleted", deleted, skipped))
+        return {'FINISHED'}
+
+
+class LIGHTHOUSE_OT_duplicate_lights(bpy.types.Operator):
+    """Duplicate this light, or every selected light if it is selected, into the same collections.
+    Read-only (library) lights are skipped"""
+    bl_idname = "lighthouse.duplicate_lights"
+    bl_label = "Duplicate Lights"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    name: bpy.props.StringProperty()
+    library: bpy.props.StringProperty(options={'HIDDEN'})
+    linked: bpy.props.BoolProperty(name="Linked", description="Share the light data instead of copying it")
+
+    def execute(self, context):
+        layer = context.view_layer
+        obj = find_object(layer, self.name, self.library)
+        if obj is None:
+            return {'CANCELLED'}
+        lights = light_scope(layer, obj)
+        copies, skipped = duplicate_lights(lights, self.linked, context.scene.lighthouse_solo)
+        if not copies:
+            self.report({'WARNING'}, read_only_scope(lights))
+            return {'CANCELLED'}
+        for other in layer.objects:
+            other.select_set(False)
+        for copy in copies.values():
+            copy.select_set(True)
+        layer.objects.active = copies.get(obj, next(iter(copies.values())))
+        self.report({'INFO'}, scope_summary("Duplicated", len(copies), skipped))
         return {'FINISHED'}
 
 
@@ -1385,8 +1450,9 @@ def draw_group_menu(self, context):
 
 
 def draw_light_menu(self, context):
-    """Prepended to Blender's right-click menu (UI_MT_button_context_menu): Rename, Frame and Solo
-    for the light whose row name button is under the cursor."""
+    """Prepended to Blender's right-click menu (UI_MT_button_context_menu) for the light whose row name
+    button is under the cursor: Rename and Frame (that light), Duplicate, Duplicate Linked and Delete
+    (its selection, see light_scope), Solo (that light)."""
     op = getattr(context, "button_operator", None)
     if op is None or op.bl_rna.identifier != LIGHTHOUSE_OT_select_light.bl_rna.identifier:
         return
@@ -1401,6 +1467,11 @@ def draw_light_menu(self, context):
     frame = layout.row()
     frame.operator_context = 'EXEC_DEFAULT'
     target_light(frame.operator(LIGHTHOUSE_OT_select_light.bl_idname, text="Frame"), obj).action = 'FRAME'
+    count = len(light_scope(context.view_layer, obj))
+    target_light(layout.operator(LIGHTHOUSE_OT_duplicate_lights.bl_idname, text=scope_label("Duplicate", count)), obj)
+    target_light(layout.operator(LIGHTHOUSE_OT_duplicate_lights.bl_idname,
+                                 text=scope_label("Duplicate Linked", count)), obj).linked = True
+    target_light(layout.operator(LIGHTHOUSE_OT_delete_lights.bl_idname, text=scope_label("Delete", count)), obj)
     solo = context.scene.lighthouse_solo
     soloed = solo.active and solo.light == obj
     target_light(layout.operator(LIGHTHOUSE_OT_solo_light.bl_idname, text="Exit Solo" if soloed else "Solo"), obj)
@@ -1674,6 +1745,8 @@ classes = (
     LIGHTHOUSE_PG_solo,
     LIGHTHOUSE_OT_select_light,
     LIGHTHOUSE_OT_rename_light,
+    LIGHTHOUSE_OT_delete_lights,
+    LIGHTHOUSE_OT_duplicate_lights,
     LIGHTHOUSE_OT_toggle_new_light_mode,
     LIGHTHOUSE_OT_add_light,
     LIGHTHOUSE_OT_new_collection,

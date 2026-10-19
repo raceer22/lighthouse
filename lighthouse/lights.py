@@ -325,6 +325,54 @@ def move_summary(moved, skipped, collection_name):
     return message + (f", skipped {skipped} read-only" if skipped else "")
 
 
+def light_scope(view_layer, obj):
+    """The lights a right-click entry acts on, as in the Outliner: every selected light when the
+    clicked light is selected, otherwise only the clicked light."""
+    if not obj.select_get(view_layer=view_layer):
+        return [obj]
+    return [other for other in view_layer.objects if other.type == 'LIGHT' and other.select_get(view_layer=view_layer)]
+
+
+def scope_label(verb, count):
+    """A right-click entry's text: "Delete" for one light, "Delete 3 Lights" for more."""
+    return verb if count == 1 else f"{verb} {count} Lights"
+
+
+def delete_lights(objects):
+    """Remove the objects, skipping read-only ones. Light data left with no users is purged by
+    Blender, as with the Outliner's Delete. Returns how many were deleted and how many skipped."""
+    import bpy
+    deletable = [obj for obj in objects if not is_read_only(obj)]
+    for obj in deletable:
+        bpy.data.objects.remove(obj)
+    return len(deletable), len(objects) - len(deletable)
+
+
+def duplicate_lights(objects, linked, solo):
+    """Copy each editable object into the same collections as its original, with its own copy of
+    the light data, or sharing it when linked. During solo the copies are shown.
+    Returns {original: copy} and how many were skipped as read-only."""
+    copies = {}
+    for obj in objects:
+        if is_read_only(obj):
+            continue
+        copy = obj.copy()
+        if not linked:
+            copy.data = obj.data.copy()
+        for collection in obj.users_collection:
+            collection.objects.link(copy)
+        if solo.active:
+            copy.hide_viewport = copy.hide_render = False
+        copies[obj] = copy
+    return copies, len(objects) - len(copies)
+
+
+def scope_summary(verb, done, skipped):
+    """Status bar message after a bulk light action, e.g. "Deleted 2 lights, skipped 1 read-only"."""
+    message = f"{verb} {done} light{'' if done == 1 else 's'}"
+    return message + (f", skipped {skipped} read-only" if skipped else "")
+
+
 def row_state(obj, view_layer, scene=None):
     """How a light's row is drawn: dimmed when hidden in the render or not visible in the view layer
     (its own flags, or a hidden or excluded collection); read-only when its light data comes from a

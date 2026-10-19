@@ -54,13 +54,16 @@ def test_a_light_name_button_gets_rename_frame_and_solo_above_a_separator():
     result = run("""
         before = menu_for(row("Key"))
         bpy.ops.lighthouse.solo_light(name="Key", library="")
-        report({"Key": before, "Key soloed": menu_for(row("Key"))[2]})
+        report({"Key": before, "Key soloed": menu_for(row("Key"))[-2]})
     """, RECORDER + BUTTON)
 
     assert result == {
         "Key": [
             ["operator", "lighthouse.rename_light", "Rename", {"name": "Key", "library": ""}],
             ["operator", "lighthouse.select_light", "Frame", {"name": "Key", "library": "", "action": "FRAME"}],
+            ["operator", "lighthouse.duplicate_lights", "Duplicate", {"name": "Key", "library": ""}],
+            ["operator", "lighthouse.duplicate_lights", "Duplicate Linked", {"name": "Key", "library": "", "linked": True}],
+            ["operator", "lighthouse.delete_lights", "Delete", {"name": "Key", "library": ""}],
             ["operator", "lighthouse.solo_light", "Solo", {"name": "Key", "library": ""}],
             ["separator"],
         ],
@@ -106,7 +109,8 @@ def test_solo_from_the_menu_solos_the_clicked_light_and_again_ends_it():
 
 def test_a_library_light_gets_rename_disabled_but_frame_and_solo_enabled():
     result = run("""
-        report([[entry[2], entry[-1] == "disabled"] for entry in menu_for(row("Rim", rim.library.filepath))[:3]])
+        entries = menu_for(row("Rim", rim.library.filepath))
+        report([[entry[2], entry[-1] == "disabled"] for entry in entries[:-1] if entry[2] in ("Rename", "Frame", "Solo")])
     """, LINKED + RECORDER + BUTTON)
 
     assert result == [["Rename", True], ["Frame", False], ["Solo", False]]
