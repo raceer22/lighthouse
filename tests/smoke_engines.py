@@ -93,6 +93,11 @@ for engine in ('CYCLES', eevee):
             assert op(name=group.name) == {'FINISHED'}
     assert bpy.ops.lighthouse.solo_group(name=group.name) == {'FINISHED'}
     assert bpy.ops.lighthouse.exit_solo() == {'FINISHED'}
+    # Additive solo: a light plus the group, then the group removed again.
+    assert bpy.ops.lighthouse.solo_light(name=objs[0].name) == {'FINISHED'}
+    for _ in range(2):
+        assert bpy.ops.lighthouse.solo_group(name=group.name, extend=True) == {'FINISHED'}
+    assert bpy.ops.lighthouse.exit_solo() == {'FINISHED'}
     assert bpy.ops.lighthouse.set_active_collection(name=group.name) == {'FINISHED'}
     assert bpy.ops.lighthouse.set_active_collection(name="") == {'FINISHED'}
     old_name = group.name

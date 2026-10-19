@@ -54,7 +54,7 @@ def test_a_light_name_button_gets_rename_frame_and_solo_above_a_separator():
     result = run("""
         before = menu_for(row("Key"))
         bpy.ops.lighthouse.solo_light(name="Key", library="")
-        report({"Key": before, "Key soloed": menu_for(row("Key"))[-2]})
+        report({"Key": before, "Key soloed": menu_for(row("Key"))[-3]})
     """, RECORDER + BUTTON)
 
     assert result == {
@@ -68,6 +68,7 @@ def test_a_light_name_button_gets_rename_frame_and_solo_above_a_separator():
             ["menu", "LIGHTHOUSE_MT_apply_preset", "Apply Preset", "PRESET"],
             ["operator", "lighthouse.mute_lights", "Mute", {"name": "Key", "library": ""}],
             ["operator", "lighthouse.solo_light", "Solo", {"name": "Key", "library": ""}],
+            ["operator", "lighthouse.solo_light", "Add to Solo", {"name": "Key", "library": "", "extend": True}],
             ["separator"],
         ],
         "Key soloed": ["operator", "lighthouse.solo_light", "Exit Solo", {"name": "Key", "library": ""}],

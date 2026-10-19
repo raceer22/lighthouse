@@ -642,19 +642,27 @@ def light_muted(obj):
 
 
 class LIGHTHOUSE_OT_solo_light(bpy.types.Operator):
-    """Show only this light, or restore every light's visibility if it is already soloed"""
+    """Show only this light, or restore every light's visibility if it is already soloed.
+    Shift+click: add it to the solo, or remove it if soloed"""
     bl_idname = "lighthouse.solo_light"
     bl_label = "Solo Light"
     bl_options = {'REGISTER', 'UNDO'}
 
     name: bpy.props.StringProperty()
     library: bpy.props.StringProperty(options={'HIDDEN'})
+    extend: bpy.props.BoolProperty(
+        name="Extend", description="Add to the solo, or remove if soloed (Shift+click)", options={'SKIP_SAVE'})
+
+    def invoke(self, context, event):
+        if event.shift:
+            self.extend = True
+        return self.execute(context)
 
     def execute(self, context):
         obj = find_object(context.view_layer, self.name, self.library)
         if obj is None:
             return {'CANCELLED'}
-        toggle_solo_light(context.scene.lighthouse_solo, context.view_layer, obj)
+        toggle_solo_light(context.scene.lighthouse_solo, context.view_layer, obj, self.extend)
         return {'FINISHED'}
 
 
@@ -934,19 +942,27 @@ class LIGHTHOUSE_OT_hide_group(bpy.types.Operator):
 
 class LIGHTHOUSE_OT_solo_group(bpy.types.Operator):
     """Show only the lights in this collection and its sub-collections,
-    or restore every light's and collection's visibility if it is already soloed"""
+    or restore every light's and collection's visibility if it is already soloed.
+    Shift+click: add it to the solo, or remove it if soloed"""
     bl_idname = "lighthouse.solo_group"
     bl_label = "Solo Group"
     bl_options = {'REGISTER', 'UNDO'}
 
     name: bpy.props.StringProperty()
     library: bpy.props.StringProperty(options={'HIDDEN'})
+    extend: bpy.props.BoolProperty(
+        name="Extend", description="Add to the solo, or remove if soloed (Shift+click)", options={'SKIP_SAVE'})
+
+    def invoke(self, context, event):
+        if event.shift:
+            self.extend = True
+        return self.execute(context)
 
     def execute(self, context):
         collection = find_collection(self.name, self.library)
         if collection is None:
             return {'CANCELLED'}
-        toggle_solo_group(context.scene.lighthouse_solo, context.view_layer, collection)
+        toggle_solo_group(context.scene.lighthouse_solo, context.view_layer, collection, self.extend)
         return {'FINISHED'}
 
 
@@ -1253,6 +1269,8 @@ class LIGHTHOUSE_OT_solo_world(bpy.types.Operator):
     bl_idname = "lighthouse.solo_world"
     bl_label = "Solo World"
     bl_options = {'REGISTER', 'UNDO'}
+    # Shift+click on the World's star is a plain World solo: the World never joins a lamp solo.
+    extend: bpy.props.BoolProperty(name="Extend", options={'HIDDEN', 'SKIP_SAVE'})
 
     def execute(self, context):
         toggle_solo_world(context.scene.lighthouse_solo, context.view_layer, context.scene)
@@ -1518,7 +1536,7 @@ class LIGHTHOUSE_MT_apply_preset(bpy.types.Menu):
 def draw_light_menu(self, context):
     """Prepended to Blender's right-click menu (UI_MT_button_context_menu) for the light whose row name
     button is under the cursor: Rename and Frame (that light), Duplicate, Duplicate Linked, Delete,
-    Apply Preset and Mute (its selection, see light_scope), Solo (that light)."""
+    Apply Preset and Mute (its selection, see light_scope), Solo and Add to Solo (that light)."""
     op = getattr(context, "button_operator", None)
     if op is None or op.bl_rna.identifier != LIGHTHOUSE_OT_select_light.bl_rna.identifier:
         return
@@ -1545,6 +1563,8 @@ def draw_light_menu(self, context):
     solo = context.scene.lighthouse_solo
     soloed = is_solo_target(solo, obj)
     target_light(layout.operator(LIGHTHOUSE_OT_solo_light.bl_idname, text="Exit Solo" if soloed else "Solo"), obj)
+    target_light(layout.operator(LIGHTHOUSE_OT_solo_light.bl_idname,
+                                 text="Remove from Solo" if soloed else "Add to Solo"), obj).extend = True
     layout.separator()
 
 

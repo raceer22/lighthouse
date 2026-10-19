@@ -397,40 +397,68 @@ def is_solo_target(solo, id):
     return solo.active and any(id in (target.object, target.collection) for target in solo.targets)
 
 
+def solo_target_ids(solo):
+    """The soloed lights and collections still around, in the order they were soloed."""
+    return [id for id in (target.object or target.collection for target in solo.targets) if id is not None]
+
+
+def set_solo_targets(solo, ids):
+    """Make the light objects and collections solo's targets, replacing the list."""
+    solo.targets.clear()
+    for id in ids:
+        target = solo.targets.add()
+        if id.id_type == 'OBJECT':
+            target.object = id
+        else:
+            target.collection = id
+
+
 def set_solo_target(solo, id):
     """Make the light object or collection solo's only target."""
-    solo.targets.clear()
-    target = solo.targets.add()
-    if id.id_type == 'OBJECT':
-        target.object = id
+    set_solo_targets(solo, [id])
+
+
+def toggle_solo(solo, view_layer, id, extend=False):
+    """Solo a light (object) or group (collection).
+    Plain: solo only it, or end solo if it is the only target.
+    Extend (Shift+click): add it to the targets, or remove it if soloed; removing the last ends solo.
+    A light shows itself and unhides the collections holding it with their ancestors; a group shows
+    every light in it and its sub-collections and unhides them with its ancestors. With several
+    targets, both are the union. Leaves a World solo (the World stays exclusive)."""
+    current = solo_target_ids(solo) if solo.active and not solo.world_soloed else []
+    if not extend:
+        if current == [id]:
+            unsolo(solo)
+            return
+        ids = [id]
+    elif id in current:
+        ids = [other for other in current if other != id]
+        if not ids:
+            unsolo(solo)
+            return
     else:
-        target.collection = id
-
-
-def toggle_solo_light(solo, view_layer, obj):
-    """Solo a light: show it and hide every other light, unhiding the collections that hold it
-    and their ancestors. Pressing it again on the soloed light restores the snapshot (see _solo)."""
-    if is_solo_target(solo, obj):
-        unsolo(solo)
-        return
+        ids = current + [id]
     _leave_world_solo(solo)
-    holders = set(obj.users_collection)
-    _solo(solo, view_layer, [obj], _collection_paths(view_layer, lambda c: c in holders))
-    set_solo_target(solo, obj)
-
-
-def toggle_solo_group(solo, view_layer, collection):
-    """Solo a group: show every light in the collection and its sub-collections and hide every
-    other light, unhiding the collection, its sub-collections and its ancestors. Pressing it again
-    on the soloed group restores the snapshot (see _solo)."""
-    if is_solo_target(solo, collection):
-        unsolo(solo)
-        return
-    _leave_world_solo(solo)
-    inside = {collection, *collection.children_recursive}
-    shown = set(collection.all_objects)
+    shown, inside = set(), set()
+    for target in ids:
+        if target.id_type == 'OBJECT':
+            shown.add(target)
+            inside.update(target.users_collection)
+        else:
+            shown.update(target.all_objects)
+            inside.update((target, *target.children_recursive))
     _solo(solo, view_layer, shown, _collection_paths(view_layer, lambda c: c in inside))
-    set_solo_target(solo, collection)
+    set_solo_targets(solo, ids)
+
+
+def toggle_solo_light(solo, view_layer, obj, extend=False):
+    """Solo a light, or add it to / remove it from the solo with extend (see toggle_solo)."""
+    toggle_solo(solo, view_layer, obj, extend)
+
+
+def toggle_solo_group(solo, view_layer, collection, extend=False):
+    """Solo a group, or add it to / remove it from the solo with extend (see toggle_solo)."""
+    toggle_solo(solo, view_layer, collection, extend)
 
 
 def toggle_solo_world(solo, view_layer, scene):
@@ -530,13 +558,14 @@ def update_snapshot(solo, id, hide):
 
 
 def solo_label(solo):
-    """The soloed light's or collection's name, "World" for a World solo, or "deleted" when the
-    target is gone."""
+    """The soloed lights' and collections' names (at most SHARED_NAMES, then "…"), "World" for a
+    World solo, or "deleted" when every target is gone."""
     if solo.world_soloed:
         return "World"
-    target = solo.targets[0] if len(solo.targets) else None
-    id = target and (target.object or target.collection)
-    return id.name if id is not None else "deleted"
+    names = [id.name for id in solo_target_ids(solo)]
+    if not names:
+        return "deleted"
+    return ", ".join(names[:SHARED_NAMES]) + (", …" if len(names) > SHARED_NAMES else "")
 
 
 def reveal(view_layer, obj):

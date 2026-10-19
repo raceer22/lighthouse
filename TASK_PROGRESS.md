@@ -202,3 +202,8 @@
 - `LIGHTHOUSE_PG_solo.targets` (items with an `object` or `collection` pointer) replaces `light`/`group`. `lights.py` uses the new `is_solo_target()` / `set_solo_target()`. Behaviour is unchanged, and every existing solo test passes unchanged (a read-only Python `solo.light` accessor keeps `test_world_solo` working).
 - Verify: the 1.3 pointers still load as ID properties, so a persistent `load_post` handler (`migrate_solo_targets`) moves them into `targets`. There are two 4.2.23-saved mid-solo fixtures in `tests/fixtures/`, and a test confirms the migrated target, the label and a clean `exit_solo`.
 - 4 tests in `tests/test_solo_targets.py`, plus an ARCHITECTURE.md entry. `make test`: 5.2.2 297 pass, 1 skip. Before the accessor fix, 4.2.23 had 1 fail, the same one as 5.2. After it, the solo tests pass on 4.2.
+
+## v6 task 09: Additive solo
+- `solo_light`/`solo_group` gained `extend` (`SKIP_SAVE`, set by Shift+click in `invoke`). The new `toggle_solo()` handles add/remove (removing the last target ends solo), a plain click replacing several targets, and the union of lights shown and collections unhidden. The World stays exclusive (`solo_world` ignores `extend`), and Exit Solo lists up to 3 names then "…".
+- The menu gained "Add to Solo" / "Remove from Solo". Collections unhidden by a removed target stay unhidden until the solo ends: an existing test pins that switching rule, so the re-hide I tried first was reverted.
+- 7 tests in `tests/test_additive_solo.py`, plus a smoke step and an ARCHITECTURE.md entry. `make test`: 5.2.2 304 pass, 1 skip; 4.2.23 291 pass, 14 skip. Not done yet: the manual GUI check.
