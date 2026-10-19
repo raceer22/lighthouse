@@ -192,3 +192,8 @@
 - New `light_scope()` follows the Outliner rule (the selection when the clicked light is selected, otherwise only the clicked light). Labels show the count ("Delete 3 Lights"). Menu order: Rename, Frame, Duplicate, Duplicate Linked, Delete, Solo.
 - New `delete_lights` operator (object only, no confirmation; shared data stays, and solo still exits cleanly) and `duplicate_lights` operator (`linked` shares the data; copies go into the same collections, become the selection with the clicked light's copy active, and are shown during solo). Read-only lights are skipped and reported, and the operator cancels when all are read-only.
 - 8 tests in `tests/test_delete_duplicate.py`, the menu test updated, plus a smoke step and an ARCHITECTURE.md entry. `make test` (5.2.2): 286 pass, 1 skip. Not done yet: the manual GUI check (Delete 3, then Ctrl+Z; the ⓘ tooltip after Duplicate Linked).
+
+## v6 task 07: Mute and Apply Preset ▸ in the light menu
+- New `mute_lights` operator (follows the clicked light over `light_scope()`, goes through `update_snapshot()`, skips read-only lights) and `LIGHTHOUSE_MT_apply_preset` submenu. `apply_preset` gained hidden `SKIP_SAVE` `name`/`library` to target the menu's lights, while the Presets panel still uses the selection.
+- **Differs from the ticket:** Blender deselects a light when `hide_viewport` is set, so muted lights are never selected. "Unmute 3 Lights" and "two muted + one unmuted selected" can't happen. The tests cover what can happen instead (a selection's Mute mutes all; Unmute on a muted light acts on that light alone). The ARCHITECTURE.md entry records this.
+- 7 tests in `tests/test_menu_mute_preset.py`, plus a smoke step. `make test` (5.2.2): 293 pass, 1 skip. Not done yet: the manual GUI check.

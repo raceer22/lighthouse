@@ -78,6 +78,8 @@ for engine in ('CYCLES', eevee):
             assert bpy.ops.lighthouse.duplicate_lights(name=name, linked=linked) == {'FINISHED'}, linked
             copy = bpy.context.view_layer.objects.active
             assert bpy.ops.lighthouse.delete_lights(name=copy.name) == {'FINISHED'}, linked
+        for _ in range(2):
+            assert bpy.ops.lighthouse.mute_lights(name=name) == {'FINISHED'}
         for op in (bpy.ops.lighthouse.mute_light, bpy.ops.lighthouse.mute_light,
                    bpy.ops.lighthouse.solo_light, bpy.ops.lighthouse.solo_light):
             assert op(name=obj.name) == {'FINISHED'}

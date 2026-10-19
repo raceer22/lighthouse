@@ -591,10 +591,42 @@ class LIGHTHOUSE_OT_mute_light(bpy.types.Operator):
         obj = find_object(context.view_layer, self.name, self.library)
         if obj is None:
             return {'CANCELLED'}
-        hide = not (obj.hide_render and obj.hide_viewport)
+        hide = not light_muted(obj)
         obj.hide_render = obj.hide_viewport = hide
         update_snapshot(context.scene.lighthouse_solo, obj, hide)
         return {'FINISHED'}
+
+
+class LIGHTHOUSE_OT_mute_lights(bpy.types.Operator):
+    """Mute this light, or every selected light if it is selected; unmute them if this light is muted.
+    Read-only (library) lights are skipped"""
+    bl_idname = "lighthouse.mute_lights"
+    bl_label = "Mute Lights"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    name: bpy.props.StringProperty()
+    library: bpy.props.StringProperty(options={'HIDDEN'})
+
+    def execute(self, context):
+        obj = find_object(context.view_layer, self.name, self.library)
+        if obj is None:
+            return {'CANCELLED'}
+        lights = light_scope(context.view_layer, obj)
+        editable = [light for light in lights if not is_read_only(light)]
+        if not editable:
+            self.report({'WARNING'}, read_only_scope(lights))
+            return {'CANCELLED'}
+        hide = not light_muted(obj)
+        for light in editable:
+            light.hide_render = light.hide_viewport = hide
+            update_snapshot(context.scene.lighthouse_solo, light, hide)
+        self.report({'INFO'}, scope_summary("Muted" if hide else "Unmuted", len(editable), len(lights) - len(editable)))
+        return {'FINISHED'}
+
+
+def light_muted(obj):
+    """True when a light is muted: hidden in both the viewport and renders, as the row's mute sets it."""
+    return obj.hide_render and obj.hide_viewport
 
 
 class LIGHTHOUSE_OT_solo_light(bpy.types.Operator):
@@ -974,9 +1006,19 @@ class LIGHTHOUSE_OT_apply_preset(bpy.types.Operator):
     bl_options = {'REGISTER', 'UNDO'}
 
     preset: bpy.props.EnumProperty(name="Preset", items=preset_items)
+    # Set by the light right-click menu: the clicked light, whose light_scope() gets the preset.
+    # Empty (the Presets panel) means the selected lights.
+    name: bpy.props.StringProperty(options={'HIDDEN', 'SKIP_SAVE'})
+    library: bpy.props.StringProperty(options={'HIDDEN', 'SKIP_SAVE'})
 
     def execute(self, context):
-        lights, empty = _lights_in_scope(context, 'SELECTED')
+        if self.name:
+            obj = find_object(context.view_layer, self.name, self.library)
+            if obj is None:
+                return {'CANCELLED'}
+            lights, empty = light_scope(context.view_layer, obj), ""
+        else:
+            lights, empty = _lights_in_scope(context, 'SELECTED')
         if not lights:
             self.report({'WARNING'}, empty)
             return {'CANCELLED'}
@@ -1449,10 +1491,22 @@ def draw_group_menu(self, context):
     self.layout.separator()
 
 
+class LIGHTHOUSE_MT_apply_preset(bpy.types.Menu):
+    """The light right-click menu's Apply Preset submenu, for context.lighthouse_light and its selection."""
+    bl_idname = "LIGHTHOUSE_MT_apply_preset"
+    bl_label = "Apply Preset"
+
+    def draw(self, context):
+        obj = context.lighthouse_light
+        for key, label, *_ in preset_items(self, context):
+            op = target_light(self.layout.operator(LIGHTHOUSE_OT_apply_preset.bl_idname, text=label), obj)
+            op.preset = key
+
+
 def draw_light_menu(self, context):
     """Prepended to Blender's right-click menu (UI_MT_button_context_menu) for the light whose row name
-    button is under the cursor: Rename and Frame (that light), Duplicate, Duplicate Linked and Delete
-    (its selection, see light_scope), Solo (that light)."""
+    button is under the cursor: Rename and Frame (that light), Duplicate, Duplicate Linked, Delete,
+    Apply Preset and Mute (its selection, see light_scope), Solo (that light)."""
     op = getattr(context, "button_operator", None)
     if op is None or op.bl_rna.identifier != LIGHTHOUSE_OT_select_light.bl_rna.identifier:
         return
@@ -1472,6 +1526,10 @@ def draw_light_menu(self, context):
     target_light(layout.operator(LIGHTHOUSE_OT_duplicate_lights.bl_idname,
                                  text=scope_label("Duplicate Linked", count)), obj).linked = True
     target_light(layout.operator(LIGHTHOUSE_OT_delete_lights.bl_idname, text=scope_label("Delete", count)), obj)
+    layout.context_pointer_set("lighthouse_light", obj)
+    layout.menu(LIGHTHOUSE_MT_apply_preset.bl_idname, text="Apply Preset", icon='PRESET')
+    verb = "Unmute" if light_muted(obj) else "Mute"
+    target_light(layout.operator(LIGHTHOUSE_OT_mute_lights.bl_idname, text=scope_label(verb, count)), obj)
     solo = context.scene.lighthouse_solo
     soloed = solo.active and solo.light == obj
     target_light(layout.operator(LIGHTHOUSE_OT_solo_light.bl_idname, text="Exit Solo" if soloed else "Solo"), obj)
@@ -1747,6 +1805,7 @@ classes = (
     LIGHTHOUSE_OT_rename_light,
     LIGHTHOUSE_OT_delete_lights,
     LIGHTHOUSE_OT_duplicate_lights,
+    LIGHTHOUSE_OT_mute_lights,
     LIGHTHOUSE_OT_toggle_new_light_mode,
     LIGHTHOUSE_OT_add_light,
     LIGHTHOUSE_OT_new_collection,
@@ -1780,6 +1839,7 @@ classes = (
     LIGHTHOUSE_OT_remove_receiver,
     LIGHTHOUSE_OT_clear_receivers,
     LIGHTHOUSE_MT_new_light,
+    LIGHTHOUSE_MT_apply_preset,
     LIGHTHOUSE_MT_new,
     LIGHTHOUSE_PT_lights,
     LIGHTHOUSE_PT_world,
