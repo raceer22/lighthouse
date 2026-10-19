@@ -29,6 +29,7 @@ from .lights import (
     empty_message,
     group_lights,
     group_soloed,
+    hdri_target,
     is_solo_target,
     set_solo_target,
     indent_level,
@@ -1279,6 +1280,40 @@ class LIGHTHOUSE_OT_solo_world(bpy.types.Operator):
         return {'FINISHED'}
 
 
+class LIGHTHOUSE_OT_load_hdri(bpy.types.Operator):
+    """Choose an image for the world's Environment Texture"""
+    bl_idname = "lighthouse.load_hdri"
+    bl_label = "Load HDRI"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    filepath: bpy.props.StringProperty(subtype='FILE_PATH')
+    filter_image: bpy.props.BoolProperty(default=True, options={'HIDDEN', 'SKIP_SAVE'})
+    filter_folder: bpy.props.BoolProperty(default=True, options={'HIDDEN', 'SKIP_SAVE'})
+
+    def invoke(self, context, event):
+        context.window_manager.fileselect_add(self)
+        return {'RUNNING_MODAL'}
+
+    def execute(self, context):
+        world = context.scene.world
+        if world is None:
+            return {'CANCELLED'}
+        if is_read_only(world):
+            self.report({'WARNING'}, f"{world.name} is read-only (linked from a library)")
+            return {'CANCELLED'}
+        node = hdri_target(world)
+        if node is None:
+            self.report({'WARNING'}, f"{world.name} needs exactly one Environment Texture node")
+            return {'CANCELLED'}
+        try:
+            image = bpy.data.images.load(self.filepath, check_existing=True)
+        except RuntimeError as error:
+            self.report({'ERROR'}, str(error))
+            return {'CANCELLED'}
+        node.image = image
+        return {'FINISHED'}
+
+
 class LIGHTHOUSE_OT_link_receivers(bpy.types.Operator):
     """Light only the selected objects with this light (Light Linking receivers)"""
     bl_idname = "lighthouse.link_receivers"
@@ -1390,6 +1425,7 @@ class LIGHTHOUSE_PT_world(bpy.types.Panel):
         )
         if setup.state == 'CUSTOM':
             self.layout.label(text="Custom world setup, edit in Shader Editor")
+            draw_load_hdri(self.layout, world)
         else:
             col = self.layout.column()
             col.enabled = not is_read_only(world)
@@ -1399,6 +1435,15 @@ class LIGHTHOUSE_PT_world(bpy.types.Panel):
                 col.prop(setup.mapping.inputs["Rotation"], "default_value", index=2, text="Rotation")
             elif setup.rotation == 'ADDABLE':
                 col.operator(LIGHTHOUSE_OT_add_world_rotation.bl_idname, text="Add Rotation")
+            draw_load_hdri(col, world)
+
+
+def draw_load_hdri(layout, world):
+    """Load HDRI…, only for a world with exactly one Environment Texture (any setup)."""
+    if hdri_target(world) is not None:
+        row = layout.row()
+        row.enabled = not is_read_only(world)
+        row.operator(LIGHTHOUSE_OT_load_hdri.bl_idname, text="Load HDRI…", icon='FILE_IMAGE')
 
 
 class LIGHTHOUSE_PT_intensity(bpy.types.Panel):
@@ -1884,6 +1929,7 @@ classes = (
     LIGHTHOUSE_OT_add_world_rotation,
     LIGHTHOUSE_OT_mute_world,
     LIGHTHOUSE_OT_solo_world,
+    LIGHTHOUSE_OT_load_hdri,
     LIGHTHOUSE_OT_link_receivers,
     LIGHTHOUSE_OT_remove_receiver,
     LIGHTHOUSE_OT_clear_receivers,

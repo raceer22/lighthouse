@@ -91,17 +91,22 @@ def drawn_world(setup_code):
     """))
 
 
+# The world in these tests has one Environment Texture, so the panel also offers Load HDRI (v6 task 11).
+LOAD_HDRI = ["operator", "lighthouse.load_hdri", "Load HDRI…"]
+
+
 def test_panel_draws_the_slider_for_a_mapping():
     log = drawn_world("add_world_rotation(tree, env)")
 
-    assert log == [["label", "World"], ["operator", "lighthouse.mute_world", ""], ["operator", "lighthouse.solo_world", ""], ["prop", "default_value"], ["prop", "default_value"]]
+    assert log == [["label", "World"], ["operator", "lighthouse.mute_world", ""], ["operator", "lighthouse.solo_world", ""], ["prop", "default_value"], ["prop", "default_value"],
+                   LOAD_HDRI]
 
 
 def test_panel_draws_add_rotation_when_addable():
     log = drawn_world("")
 
     assert log == [["label", "World"], ["operator", "lighthouse.mute_world", ""], ["operator", "lighthouse.solo_world", ""], ["prop", "default_value"],
-                   ["operator", "lighthouse.add_world_rotation", "Add Rotation"]]
+                   ["operator", "lighthouse.add_world_rotation", "Add Rotation"], LOAD_HDRI]
 
 
 def test_panel_draws_no_rotation_for_a_custom_vector():
@@ -109,4 +114,5 @@ def test_panel_draws_no_rotation_for_a_custom_vector():
         tree.links.new(tree.nodes.new('ShaderNodeTexCoord').outputs["Generated"], env.inputs["Vector"])
     """)
 
-    assert log == [["label", "World"], ["operator", "lighthouse.mute_world", ""], ["operator", "lighthouse.solo_world", ""], ["prop", "default_value"]]
+    assert log == [["label", "World"], ["operator", "lighthouse.mute_world", ""], ["operator", "lighthouse.solo_world", ""], ["prop", "default_value"],
+                   LOAD_HDRI]

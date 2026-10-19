@@ -698,6 +698,18 @@ def world_setup(scene):
     return WorldSetup('SIMPLE', source, source, environment, None, 'CUSTOM')
 
 
+def environment_textures(world):
+    """The Environment Texture nodes in the world's node tree (not inside node groups)."""
+    tree = world.node_tree if world is not None and world.use_nodes else None
+    return [node for node in tree.nodes if node.bl_idname == 'ShaderNodeTexEnvironment'] if tree else []
+
+
+def hdri_target(world):
+    """The Environment Texture Load HDRI swaps the image of: the world's only one, or None when it
+    has none or several (Load HDRI never guesses, and never adds nodes here)."""
+    textures = environment_textures(world)
+    return textures[0] if len(textures) == 1 else None
+
 def add_world_rotation(node_tree, environment):
     """Texture Coordinate (Generated) > Mapping > the environment's Vector, placed left of the texture.
     Returns the Mapping node."""

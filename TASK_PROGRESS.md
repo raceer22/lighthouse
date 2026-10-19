@@ -212,3 +212,8 @@
 - `LIGHTHOUSE_PG_solo_object.muted` is set or cleared by `update_snapshot()`, so every Mute path is covered. `_solo()` keeps flagged lights hidden whenever the targets change, even inside a soloed group.
 - Un-solo is unchanged. A new solo starts with the flags cleared, since the snapshot items are rebuilt.
 - 4 tests in `tests/test_solo_mutes.py`, plus an ARCHITECTURE.md entry. `make test`: 5.2.2 308 pass, 1 skip; 4.2.23 295 pass, 14 skip. Not done yet: the manual GUI check.
+
+## v6 task 11: Load HDRI… swaps the image
+- New `hdri_target()` (the world's only Environment Texture, or None) and `lighthouse.load_hdri` (file browser filtered to images, `images.load(check_existing=True)`, never adds nodes). It cancels for a read-only world or with none or several textures.
+- The World panel shows "Load HDRI…" for any setup with exactly one Environment Texture (under Strength/Rotation, or under the custom-setup note). The old image is left to Blender (one user fewer, no fake user). The three World-panel draw tests in `test_world_rotation.py` now expect the button.
+- 5 tests in `tests/test_load_hdri.py` (the HDR file is written by the test), plus a smoke step and an ARCHITECTURE.md entry. `make test`: 5.2.2 313 pass, 1 skip; 4.2.23 300 pass, 14 skip. Not done yet: the manual GUI render check.

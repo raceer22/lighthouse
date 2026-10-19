@@ -562,3 +562,8 @@ Checked on Blender 4.2.23 LTS (portable build) against 5.2.2 LTS. The add-on cod
 - `LIGHTHOUSE_PG_solo_object.muted`: `update_snapshot()` sets it on mute and clears it on unmute, along with the restore flags. Every Mute (the row, the Active Light panel, the right-click menu) goes through it.
 - `_solo()` hides every light that is either outside the targets' union or has `muted` set. So adding, removing or replacing targets never re-shows a light muted during the solo, even one inside a soloed group.
 - Un-solo is unchanged (it restores the snapshot flags, which already say muted). The snapshot items are cleared at un-solo, so a new solo starts with every `muted` flag cleared.
+
+## v6 task 11: Load HDRI
+- `hdri_target(world)` (`lights.py`) is the world's only Environment Texture node (from `environment_textures()`, top-level nodes only, linked anywhere or not), or None when it has none or several. `LIGHTHOUSE_OT_load_hdri` opens Blender's file browser (`fileselect_add`, `filter_image`) and sets `bpy.data.images.load(filepath, check_existing=True)` on that node. It never adds nodes (that's task 12). It cancels with a warning for a read-only world or when there isn't exactly one Environment Texture.
+- The World panel's `draw_load_hdri()` draws "Load HDRI…" for any setup with exactly one Environment Texture: under Strength and Rotation for a simple setup, and under the "Custom world setup" note for a custom one (a Mix Shader with one texture still gets it). It's disabled for a read-only world.
+- The previous image is left alone: it loses the node's user and Blender drops it when the file is saved with no users left. No fake user, no removal.

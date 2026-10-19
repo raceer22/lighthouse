@@ -149,6 +149,13 @@ for engine in ('CYCLES', eevee):
     if lights.world_setup(bpy.context.scene).rotation == 'ADDABLE':
         assert bpy.ops.lighthouse.add_world_rotation() == {'FINISHED'}
     assert lights.world_setup(bpy.context.scene).rotation == 'MAPPING'
+    # Load HDRI swaps the image of the world's one Environment Texture (a file written here).
+    import tempfile
+    sky = bpy.data.images.new("Smoke Sky", 4, 2, float_buffer=True)
+    sky.filepath_raw = tempfile.mkdtemp() + "/smoke_sky.hdr"
+    sky.file_format = 'HDR'
+    sky.save()
+    assert bpy.ops.lighthouse.load_hdri(filepath=sky.filepath_raw) == {'FINISHED'}
     for _ in range(2):
         assert bpy.ops.lighthouse.mute_world() == {'FINISHED'}
     assert not lights.world_muted(lights.world_setup(bpy.context.scene))
