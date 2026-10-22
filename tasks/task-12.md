@@ -1,26 +1,24 @@
-# Task 12: Light linking engine note
+# Task 12: Load HDRI… on a Background-only world
 
-**Depends on:** task-09
-**Group:** Light linking · **Source:** `.notes/new-features-decisions.md` item 24
+**Depends on:** task-11
+**Group:** Load HDRI · **Source:** `.notes/v6-decisions.md` item 24
 
 ## Goal
-Under a render engine that doesn't render light linking, the Light Linking section stays visible and editable, with a note such as "Not rendered in EEVEE, Cycles only". The links are saved and take effect when you switch engines.
-
-## Verify first
-Which engines and versions render light linking? Render a tiny image of a plane under one light linked to exclude it, on 4.2 and 5.2, in Cycles, EEVEE and Workbench, and check whether the plane goes dark. Record the result as a table in ARCHITECTURE.md. If the check runs in a few seconds, keep it as a test.
+A simple world with only a Background node (a plain color, like a new scene's world) also gets **Load HDRI…**. It adds an Environment Texture in front of the Background and loads the image into it. Adding nodes is only safe where the panel fully understands the tree, so this applies to simple setups only.
 
 ## Scope
-- `lighthouse/lights.py`: `light_linking_note(engine)` returns the note for engines that the verify step shows don't render light linking (with the engine's display name), or `None` for engines that do. Version differences, if any, use `blender_version`-style checks in the add-on (`bpy.app.version`).
-- `lighthouse/__init__.py`: `draw_details()` draws the note with an `INFO` icon at the top of the Light Linking section. Buttons and rows stay enabled.
-
-## Open questions
-Not decided: third-party engines. Default: show "Not rendered in <engine>, Cycles only" for any engine not known to render light linking.
+- `lighthouse/lights.py`: a helper that adds an Environment Texture node with the image, linked to the Background's Color and placed to its left (like `add_world_rotation()` places its nodes).
+- `load_hdri`: in a `SIMPLE` setup with no Environment Texture, add the node, then load the image. Custom setups with no Environment Texture still get no button (task 11).
+- It leaves Rotation alone. The existing **Add Rotation** button then offers it.
+- **Verify**: the new node gives a `world_setup()` result of `SIMPLE` with `environment` set and `rotation == 'ADDABLE'`, so the panel shows Strength and Add Rotation, and Add Rotation works on it. Also check that World mute and World solo still act on the Background.
 
 ## Done when (testable)
-- Test: `light_linking_note()` for `CYCLES`, the EEVEE id (`EEVEE` from the prelude), `BLENDER_WORKBENCH` and an unknown id matches the verified table.
-- Test (Recorder): the note is drawn under an engine without light linking and not under Cycles. Link Selected is still enabled in both.
-- `make test` passes on 5.2 and on 4.2.
-- Manual (GUI): switch the engine with the details open, and the note appears and disappears while the links stay.
+- Test: on a world whose Surface is only a Background, `load_hdri` adds one Environment Texture linked to the Background's Color, with the image set.
+- Test: afterwards `world_setup()` is `SIMPLE`, `environment` is the new node, and `rotation` is `'ADDABLE'`. `add_world_rotation` then gives `'MAPPING'`.
+- Test: the button is drawn for a Background-only world and not for a custom setup with no Environment Texture.
+- Test: Background-only with a linked Color input (some other node) counts as having no Environment Texture: no button, or a cancel. Pick one and pin it with a test.
+- `make test` passes, and task 11's tests still pass.
+- Manual (GUI): in a new file, Load HDRI, then Add Rotation, then turn Rotation and see the HDRI turn.
 
 ## Afterwards
-Append a `## v5 task 12: engine note` entry to ARCHITECTURE.md with the verify table. Add the engine support to the README's requirements line.
+Update the `v6 task 11` entry in ARCHITECTURE.md with the added node and the Verify result.

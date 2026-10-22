@@ -78,7 +78,8 @@ Settled while reviewing `suggested-features.md` (item numbers there are given in
 
 ## Alt+drag [8]
 
-26. **Alt+drag already works** on the row's power, color and Kelvin fields (checked). Mention it in those fields' tooltips and in the README.
+26. **Alt+drag already works** on the row's power, color and Kelvin fields (checked). Mention it in the README.
+    - Why not the tooltips: those fields are Blender's own Light properties drawn with `layout.prop`, which can't take a custom tooltip.
 
 ## Delivery
 

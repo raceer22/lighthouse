@@ -1,40 +1,27 @@
-# Task 05: World panel with Strength
+# Task 05: Right-click a light's name: Rename, Frame, Solo
 
 **Depends on:** none
-**Group:** World · **Source:** `.notes/new-features-decisions.md` items 12, 13 (Strength), 14, 18
+**Group:** Right-click menu · **Source:** `.notes/v6-decisions.md` items 10, 11, 15
 
 ## Goal
-A World panel sits right after Lights, open by default, so the order is Lights, World, Intensity, Presets. For a simple setup, where *World Output → Surface* reaches a Background node directly, it shows that Background's Strength. Any other setup shows "Custom world setup, edit in Shader Editor". A scene with no world shows a short message.
+Right-clicking a light's name in the list opens Blender's context menu with Lighthouse entries at the top, the same way as the group menu (v5 decision 1). This task adds the menu and its three single-light entries: **Rename**, **Frame** and **Solo**. Tasks 06, 07 and 09 add the rest.
 
 ## Scope
-- `lighthouse/lights.py`:
-  - `WorldSetup(state, source, background, environment)` NamedTuple. `state` is `'NONE'` (no world), `'CUSTOM'` or `'SIMPLE'`. `source` is the node linked to the active World Output's Surface (`node_tree.get_output_node('ALL')`), or `None`. `background` is that node when it is a Background node. `environment` is the Environment Texture linked to the Background's Color input, if any. Task 06 adds rotation and task 07 uses `source`.
-  - `world_setup(scene)` builds it.
-- `lighthouse/__init__.py`:
-  - `LIGHTHOUSE_PT_world` (`bl_label = "World"`, same space, region and category as the other panels).
-    - `SIMPLE`: `prop(background.inputs["Strength"], "default_value", text="Strength")`.
-    - `CUSTOM`: the "Custom world setup, edit in Shader Editor" label.
-    - `NONE`: "No world in this scene".
-    - The controls are disabled for a read-only (library) world.
-  - Register in this order: `LIGHTHOUSE_PT_lights`, `LIGHTHOUSE_PT_world`, `LIGHTHOUSE_PT_intensity`, `LIGHTHOUSE_PT_presets`. With no `bl_order`, registration order is the default panel order, so for new layouts Lights moves above Intensity and Presets. Layouts where the user dragged the panels keep their order.
-- Update `tests/test_panels.py` (`PANELS` and the order).
-
-## Open questions
-Not decided:
-- A Background whose Strength input is linked to another node. Default: treat it as `CUSTOM`, because the slider would do nothing.
-- A world with `use_nodes` off (4.x). Default: `CUSTOM`.
-
-## Out of scope
-Rotation (task 06), Mute (task 07), Solo (task 08).
+- `lighthouse/__init__.py`: a draw function prepended to `UI_MT_button_context_menu`, like `draw_group_menu()`. It only draws when `context.button_operator` is `LIGHTHOUSE_OT_select_light`, finds the light by `name` and `library`, and ends with a separator. It is registered and removed alongside the group menu.
+- Entries in their final positions, so later tasks fill the gaps: **Rename, Frame**, (Duplicate, Duplicate Linked, Delete, Apply Preset ▸, Mute — later tasks), **Solo**, (Add to Solo — task 09).
+- These three act only on the clicked light:
+  - **Rename**: a small popup with a name field (`invoke_props_dialog`), like F2. It renames only the object, never the light data. Reuse `select_light`'s `RENAME` action if its dialog fits.
+  - **Frame**: select only that light and frame it, as with `select_light`'s `FRAME` action (Alt+click).
+  - **Solo**: `solo_light` for the clicked light, with its label showing whether it is already soloed ("Solo" / "Exit Solo").
+- Read-only lights: Rename is disabled. Frame and Solo still work, since they don't edit the light (same as the row's buttons).
 
 ## Done when (testable)
-- Test: the factory-startup world is `SIMPLE` with its Background and no environment. Adding an Environment Texture into Color gives `environment`.
-- Test: a Mix Shader feeding the output, a node group feeding it, and a linked Strength each give `CUSTOM`. `scene.world = None` gives `NONE`. An output with nothing linked to Surface gives `CUSTOM` with `source = None`.
-- Test (Recorder): the panel draws the Strength prop for `SIMPLE`, the custom label for `CUSTOM`, and the no-world label for `NONE`.
-- Test: the four panels register in the order Lights, World, Intensity, Presets, all top-level in the Lights tab.
-- Test (item 18): `scale_lights` with scope All and `step_exposure` with scope All leave the World strength unchanged.
-- `make test` passes on 5.2 and on 4.2.
-- Manual (GUI): the panel order is right in a fresh layout, dragging Strength updates the viewport, and Ctrl+Z reverts it.
+- Test: the menu draw adds the entries only when the button operator is `select_light`, and nothing for other buttons (the group menu still works).
+- Test: Rename changes `obj.name` and leaves `obj.data.name` unchanged, also for light data shared by two objects.
+- Test: Solo from the menu solos the clicked light, and running it again ends the solo.
+- Test: Rename is disabled for a library light.
+- `make test` passes.
+- Manual (GUI): right-click a light's name and check that the three entries sit above Blender's own entries. Rename one light and frame another.
 
 ## Afterwards
-Append a `## v5 task 05: World panel` entry to ARCHITECTURE.md (detection rule and panel order). Add a `world_setup()` call on the factory world to `tests/smoke_engines.py`.
+Append a `## v6 task 05: Light right-click menu` entry to ARCHITECTURE.md (how the menu finds the light, the final entry order). Add the menu's operators to `tests/smoke_engines.py`.

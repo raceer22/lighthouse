@@ -1,36 +1,28 @@
-# Task 03: Color/Kelvin toggle for new lights
+# Task 03: Active Light panel
 
 **Depends on:** task-02
-**Group:** Color/Kelvin · **Source:** `.notes/new-features-decisions.md` items 7, 9, 10, 11 (header)
+**Group:** Active Light panel · **Source:** `.notes/v6-decisions.md` items 3–6, 9
 
 ## Goal
-An icon toggle in the header, in the slot task 02 freed, sets whether lights that Lighthouse creates start in Color or in Kelvin. In Kelvin mode a new light starts at Blender's default temperature with a white color. The setting is saved with the file. Flipping back to the default (Color for now; task 04 makes it a preference) stores nothing. Shift+A, duplicates and appends are left alone.
+A new **Active Light** panel always shows the active light's controls and details, so you don't have to find its row in a long list. Rows still expand as before, so several lights can still be compared side by side.
 
 ## Scope
-- `lighthouse/lights.py`, as pure functions so they can be tested without the UI:
-  - `new_light_mode(scene_value, default)`: the mode in effect, `'COLOR'` or `'KELVIN'`. `'FOLLOW'` means the default applies.
-  - `toggled_mode(scene_value, default)`: the scene value after one flip. It flips the mode in effect and returns `'FOLLOW'` when the result matches the default, so a file only pins a value that differs from it.
-  - `supports_temperature()`: `True` when `bpy.types.Light` has `use_temperature` (Blender 5.0+).
-- `lighthouse/__init__.py`:
-  - `Scene.lighthouse_new_lights`: an EnumProperty with `FOLLOW`, `COLOR` and `KELVIN`, default `FOLLOW`. It is registered and removed next to `lighthouse_solo`, and saved with the .blend.
-  - `default_new_light_mode(context)` returns `'COLOR'` in this task. Task 04 makes it read the add-on preferences.
-  - `lighthouse.toggle_new_light_mode` (`REGISTER`, `UNDO`). It needs `UNDO` because it changes file data: without an undo step, undoing something else would revert it. Its `description()` names the current mode and whether the file follows the default, for example "New lights start in Kelvin (this file)".
-  - Header: when `supports_temperature()`, draw the operator in the freed slot, pressed in Kelvin mode, with an icon for each mode (for example `COLOR` and `LIGHT_SUN`). On 4.x, draw nothing in that slot.
-  - `add_light`: after creating the light data, if `supports_temperature()` and the mode is `KELVIN`, set `use_temperature = True`, `temperature` to the RNA default (`bpy.types.Light.bl_rna.properties["temperature"].default`, not hardcoded) and `color` to white. Color mode changes nothing, so Blender's default color stays.
-
-## Out of scope
-The Preferences default (task 04). A configurable starting temperature.
+- Prefactor first (no behavior change): pull a light row's controls and `draw_details()` out of `LIGHTHOUSE_PT_lights` into functions that take a layout, so both panels draw the same thing. The existing tests must still pass unchanged.
+- `lighthouse/__init__.py`, new `LIGHTHOUSE_PT_active_light` (`bl_label = "Active Light"`, same space, region and category as the others):
+  - Active object is a light: its name, type, power, color or Kelvin, mute and solo, then the same details and light linking as an expanded row.
+  - Active object isn't a light, or nothing is active: a short *"Select a light"* label. The panel is not hidden through `poll`, so panels below don't jump as you click between meshes and lights.
+  - Read-only lights (library or system override) are greyed out with the same `state.read_only` rule as rows. A muted or hidden light is dimmed as its row is.
+  - Mute and solo use the same operators as the row, so solo state and snapshots stay shared.
+- Following the viewport selection in the list is not built (item 9). The Reveal button stays as it is.
+- Panel order is task 04. Register the panel so it draws, without changing the order yet.
 
 ## Done when (testable)
-- Test: `toggled_mode()` and `new_light_mode()` truth table for both defaults: `FOLLOW` → pinned opposite → `FOLLOW`.
-- Test (5.0+): in a fresh file the scene value is `FOLLOW`, and `add_light` makes a light with `use_temperature` off and the RNA default color.
-- Test (5.0+): after one toggle the scene value is `KELVIN`, and `add_light` makes a light with `use_temperature` on, the RNA default temperature and color `(1, 1, 1)`. The group-menu path (`use_active=False`) does the same.
-- Test (5.0+): a second toggle sets the scene value back to `FOLLOW`, not `COLOR`.
-- Test (5.0+): with `KELVIN` pinned, `bpy.ops.object.light_add()` and `bpy.ops.object.duplicate()` of a Color light both give `use_temperature` off.
-- Test: the scene value survives `save_as_mainfile` and `open_mainfile`.
-- Test (4.2): with the scene value set to `KELVIN`, `add_light` still works and sets no temperature properties. The Recorder header draws no toggle.
-- `make test` passes on 5.2 and on 4.2.
-- Manual (GUI): the toggle fills the freed slot without shifting the header, its tooltip reads correctly in both modes, and a new light's row shows the Kelvin field in Kelvin mode.
+- Test: with a light active, the panel's draw goes through the shared row and details functions for that light (stub layout or whatever the suite uses for draw checks).
+- Test: with a mesh active, and with nothing active, the panel draws the "Select a light" label and `poll` is not defined or returns True.
+- Test: a library light that is active is drawn with its controls disabled.
+- `make test` passes, and the existing row and details tests still pass unchanged.
+- `make bench` still runs. Record the new number next to the baseline in TASK_PROGRESS.md.
+- Manual (GUI): click between a mesh and a few lights. The panel follows the active light, and the panels below don't move. Edit power in the panel and see the row change.
 
 ## Afterwards
-Append a `## v5 task 03: Color/Kelvin toggle` entry to ARCHITECTURE.md, including why there is no depsgraph handler (item 9). Add `toggle_new_light_mode` followed by `add_light` to `tests/smoke_engines.py`.
+Append a `## v6 task 03: Active Light panel` entry to ARCHITECTURE.md (the shared draw functions, why the panel never hides). Add a draw of the panel to `tests/smoke_engines.py` if the smoke run covers drawing.

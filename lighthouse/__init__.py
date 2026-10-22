@@ -243,7 +243,7 @@ class LIGHTHOUSE_OT_select_light(bpy.types.Operator):
             ('TOGGLE', "Toggle", "Add this light to the selection and make it active, or remove it if selected"),
             ('RENAME', "Rename", "Rename this light"),
             ('RANGE', "Range", "Select only the listed lights from the active one to this one"),
-            ('FRAME', "Frame", "Select only this light and frame it in the 3D view"),
+            ('FRAME', "Frame", "Select only this light and frame it in the 4D view"),
         ),
     )
     new_name: bpy.props.StringProperty(name="Name")
@@ -1613,6 +1613,7 @@ def draw_light_menu(self, context):
     target_light(layout.operator(LIGHTHOUSE_OT_delete_lights.bl_idname, text=scope_label("Delete", count)), obj)
     layout.context_pointer_set("lighthouse_light", obj)
     layout.menu(LIGHTHOUSE_MT_apply_preset.bl_idname, text="Apply Preset", icon='PRESET')
+    layout.menu(LIGHTHOUSE_MT_new_light.bl_idname, text="New Light", icon='LIGHT')
     verb = "Unmute" if light_muted(obj) else "Mute"
     target_light(layout.operator(LIGHTHOUSE_OT_mute_lights.bl_idname, text=scope_label(verb, count)), obj)
     solo = context.scene.lighthouse_solo

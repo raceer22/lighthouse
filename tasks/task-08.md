@@ -1,37 +1,25 @@
-# Task 08: World in solo
+# Task 08: Prefactor: solo holds a list of targets
 
-**Depends on:** task-07
-**Group:** World · **Source:** `.notes/new-features-decisions.md` item 17
+**Depends on:** none
+**Group:** Additive solo · **Source:** `.notes/v6-decisions.md` items 16, 23
 
 ## Goal
-The World can be soloed: this darkens every lamp and un-mutes the World if it was muted. Soloing a lamp or a group leaves the World alone; for a full solo the user mutes the World themselves. Only one thing is soloed at a time, and the header's Exit Solo button also ends a World solo, restoring the World's mute together with the lights.
+Solo stores what is soloed as a list of targets (each a light or a group) instead of one `light` or one `group`. Nothing changes for the user: a list with one item behaves exactly like today. This makes task 09's Shift+click a small change. It also answers how files saved in the middle of a solo with the old layout load.
 
 ## Scope
-- `lighthouse/__init__.py`, `LIGHTHOUSE_PG_solo` gains:
-  - `world_soloed`: the World is the solo target.
-  - The World's snapshot: `world` (a PointerProperty to `bpy.types.World`), `world_node` (the muted node's name) and `world_muted` (its `mute` before solo), plus a flag saying whether the snapshot was taken. Only World solo takes it.
-- `lighthouse/lights.py`:
-  - `_solo()` (lamp and group solo) does not touch the World.
-  - `toggle_solo_world(solo, view_layer, scene)` hides every light (snapshotting them like `_solo()`), snapshots the World node and un-mutes it. A scene with no world, or no node to mute, only hides the lights. Pressing it while the World is soloed calls `unsolo()`.
-  - Switching between lamp, group and World solo keeps the existing light snapshot, as switching between lamps does today. Switching from World solo to a lamp or group solo restores the World node's `mute` from the snapshot right away and clears the World snapshot.
-  - `unsolo()` restores the World node's `mute` when a World snapshot exists and the world and the node still exist, then clears the snapshot and `world_soloed`.
-  - `update_snapshot()` also handles the World: `mute_world` during a World solo writes the new flag into the snapshot, so un-solo keeps it. Without a World snapshot (e.g. during a lamp solo) `mute_world` is a plain mute.
-  - `solo_label()` returns "World" for a World solo.
-- `lighthouse/__init__.py`:
-  - `lighthouse.solo_world` (`REGISTER`, `UNDO`).
-  - The World panel's top row gets Solo next to Mute (`SOLO_ON`/`SOLO_OFF`, pressed while the World is soloed).
-  - `mute_world` calls `update_snapshot()`.
+- `lighthouse/__init__.py`, `LIGHTHOUSE_PG_solo`: a `targets` CollectionProperty whose items hold either an object or a collection, in place of the `light` and `group` pointers. The visibility snapshot (`objects`, `collections`) and the World fields stay unchanged.
+- `lighthouse/lights.py`: `toggle_solo_light`, `toggle_solo_group`, `group_soloed`, `row_state` (its `soloed`), `_solo`, `unsolo` and `solo_label` read and write the list. The behavior is the same as now: a click replaces the target, and clicking the only target ends solo.
+- **Verify first**: save a file during a lamp solo and a group solo with the current add-on, then load it with this change. Decide from what happens:
+  - If the old `light` / `group` values are still readable, move them into `targets` on load (a `load_post` handler), then drop the old properties.
+  - If not, the solo still ends cleanly: `exit_solo` restores the snapshot (which hasn't changed) and the label falls back to "deleted".
+  - Keep a small `.blend` from the old version as a test fixture if the suite can load one, otherwise describe the manual check.
 
 ## Done when (testable)
-- Test: soloing a lamp leaves the World's Background `mute` unchanged (both muted and unmuted), and un-solo leaves it unchanged too.
-- Test: `solo_world` hides every light and leaves the World unmuted, also when it was muted before. Pressing it again restores every light's and the World's flags.
-- Test: `solo_world` on a muted World, then soloing a lamp, re-mutes the World immediately. `exit_solo` then restores the lights and leaves the World muted.
-- Test: `solo_world`, then `mute_world`, then un-solo leaves the World muted. `mute_world` during a lamp solo, then un-solo, leaves the World in the state chosen.
-- Test: `solo_world` with `scene.world = None` hides the lights and un-solo restores them.
-- Test: after deleting the World node during a World solo, un-solo still restores the lights.
-- Test: `solo_label()` is "World" during a World solo, and `exit_solo`'s description says so.
-- `make test` passes. The existing tests in `tests/test_mute_solo.py` and `tests/test_exit_solo.py` still pass unchanged.
-- Manual (GUI): solo a lamp and the HDRI stays lit. Mute the World and solo it: only the HDRI lights the scene. Exit Solo brings everything back, with the World muted again.
+- `tests/test_mute_solo.py`, `tests/test_exit_solo.py`, `tests/test_world_solo.py` and every other existing solo test pass unchanged.
+- Test: after soloing a light, `targets` holds one item pointing at it. After soloing a group, one item pointing at the collection.
+- Test: soloing a second light replaces the target, and the list still has one item.
+- The Verify result is written down, with a test or a manual check showing that an old mid-solo file can be un-soloed.
+- `make test` passes.
 
 ## Afterwards
-Append a `## v5 task 08: World in solo` entry to ARCHITECTURE.md and update the solo data-flow notes. Add `solo_world` and a lamp solo with a world (World left unchanged) to `tests/smoke_engines.py`.
+Update the solo data-flow notes in ARCHITECTURE.md and append a `## v6 task 08: Solo targets` entry with the Verify result.

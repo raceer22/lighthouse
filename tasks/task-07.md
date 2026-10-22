@@ -1,32 +1,25 @@
-# Task 07: World mute
+# Task 07: Mute and Apply Preset ▸ on the selection
 
-**Depends on:** task-05
-**Group:** World · **Source:** `.notes/new-features-decisions.md` items 13 (Mute), 16
+**Depends on:** task-06
+**Group:** Right-click menu · **Source:** `.notes/v6-decisions.md` items 11, 14
 
 ## Goal
-A Mute toggle in the World panel turns off the World's light by muting the node that feeds *World Output → Surface* (`node.mute`). Strength stays untouched. Like a muted lamp, the mute shows in the Shader Editor and is saved with the file. If the verify step allows, this also works for custom setups.
-
-## Verify first
-Does a muted Mix Shader or node group feeding World Output render black, or does it pass its first input through? Render a tiny image (for example 8×8 px, 1 sample, camera only) of a world with a Mix Shader of two bright Backgrounds, muted, in Cycles and EEVEE on 4.2 and 5.2, and read back the pixels. Do the same for a muted Background node.
-- If both render black: mute `source` for every setup.
-- Otherwise (the fallback in item 16): mute the detected Background for `SIMPLE` setups only, and grey out Mute for `CUSTOM` ones.
-
-Record the result in ARCHITECTURE.md. If the render check runs in a few seconds, keep it as a test.
+The light right-click menu can mute and apply a preset to several lights at once, using the same selection rule as task 06.
 
 ## Scope
-- `lighthouse/lights.py`: `world_mute_node(setup)` returns the node Mute acts on, following the verified rule, or `None`. `world_muted(setup)` reports its `mute`.
-- `lighthouse/__init__.py`:
-  - `lighthouse.mute_world` (`REGISTER`, `UNDO`) flips `mute` on that node. It cancels when there is no node to mute or the world is read-only.
-  - Panel: a top row with the world's name and Mute (`HIDE_ON`/`HIDE_OFF`, pressed when muted, like a light row). While muted, the panel's controls are drawn inactive. The row leaves room for task 08's Solo.
+- **Mute** acts on the lights given by task 06's rule. On a mixed selection it follows the clicked light: if that light is unmuted, every light in scope is muted, and if it is muted, they're all unmuted (like Ctrl+click on the Outliner's eye). The label says which: "Mute 3 Lights" / "Unmute 3 Lights", and plain "Mute" / "Unmute" for one.
+  - Each light changed goes through `update_snapshot()`, exactly like the row's mute, so un-solo keeps the choice.
+- **Apply Preset ▸**: a submenu listing the presets. Picking one applies it to the lights given by the rule. Today `apply_preset` acts on the selection only. Give it a way to take the menu's lights instead (e.g. a target light plus the rule) while the Presets panel keeps acting on the selection. Skipped lights are reported as now.
+- Read-only lights in scope are skipped and reported, as in task 06.
 
 ## Done when (testable)
-- Test: on the factory world, `mute_world` sets the Background's `mute` and leaves Strength unchanged. A second call clears it.
-- Test: for a Mix Shader setup, `mute_world` mutes the Mix Shader, or cancels and changes nothing if the fallback was chosen.
-- Test: with no world, or nothing linked to Surface, it cancels.
-- Test: the mute survives `save_as_mainfile` and `open_mainfile`.
-- Test (Recorder): the panel draws Mute pressed when muted. Strength is still drawn, inactive.
+- Test: two muted lights and one unmuted, clicked on the unmuted one: all three end up muted. Clicked on a muted one instead: all three end up unmuted.
+- Test: the Mute label reads "Mute 3 Lights" or "Unmute 3 Lights" to match.
+- Test: Mute from the menu during a solo, then `exit_solo`, keeps those lights muted.
+- Test: Apply Preset from the menu on an unselected light changes only that light. On a selected light it changes the whole selection.
+- Test: the Presets panel's Apply still acts on the selection, unchanged.
 - `make test` passes.
-- Manual (GUI): Mute darkens the viewport in Rendered shading, the muted node shows red in the Shader Editor, and Ctrl+Z restores it.
+- Manual (GUI): with a mixed selection, right-click a muted light and an unmuted one in turn, and check the labels. Apply a preset to an unselected light from its menu.
 
 ## Afterwards
-Append a `## v5 task 07: World mute` entry to ARCHITECTURE.md with the verify result. Add `mute_world` (twice) to `tests/smoke_engines.py`.
+Update the `v6 task 05` entry in ARCHITECTURE.md (or add a `v6 task 07` entry) with the Mute rule and how Apply Preset gets its lights.

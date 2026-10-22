@@ -1,31 +1,28 @@
-# Task 11: Light linking icon on the row
+# Task 11: Load HDRI… swaps the image
 
-**Depends on:** task-10
-**Group:** Light linking · **Source:** `.notes/new-features-decisions.md` item 23
+**Depends on:** none
+**Group:** Load HDRI · **Source:** `.notes/v6-decisions.md` items 24, 25
 
 ## Goal
-A light whose receiver collection isn't empty shows a link icon after its name, next to ⓘ. Like ⓘ, it is drawn only when needed and the name button shrinks to make room, so the columns don't shift. Its tooltip summarizes the linking, for example "Lights only 3 objects, excludes 1". Clicking it opens the light's details.
+A **Load HDRI…** button in the World panel opens Blender's image browser and puts the chosen image into the world's Environment Texture node. This task covers every world where that is only an image swap: any setup, simple or custom, with exactly one Environment Texture node. Task 12 adds the case where a node has to be added.
 
 ## Scope
-- `lighthouse/lights.py`: `linking_tooltip(included, excluded)` builds the summary:
-  - Includes only: "Lights only 3 objects".
-  - Both: "Lights only 3 objects, excludes 1".
-  - Excludes only: "Excludes 2 objects".
-  - Neither: "", and no icon is drawn.
-  Counts come from `receivers()`.
-- `lighthouse/__init__.py`:
-  - `lighthouse.light_linking_info` (`INTERNAL`): `name`, `library`, `included` and `excluded`. Its `description()` returns `linking_tooltip()`. `invoke` opens the light's details, closing others unless Shift is held, as `toggle_details` does. If they are already open it leaves them open, so it never closes them.
-  - `draw_light()`: right after the ⓘ button, draw it with a link icon (for example `LINKED`) and no emboss, only when the tooltip isn't "".
-
-## Open questions
-Not decided: how child collections are counted in the tooltip. Default: name them separately when there are any, for example "Lights only 2 objects and 1 collection, excludes 1".
+- `lighthouse/lights.py`: a helper that finds the world's Environment Texture nodes and says whether Load HDRI can swap (exactly one) or not.
+- `lighthouse/__init__.py`, a new `lighthouse.load_hdri` operator (`REGISTER`, `UNDO`):
+  - `invoke` opens the file browser (`fileselect_add`) filtered to images, with a `filepath` property.
+  - `execute` loads the image (`bpy.data.images.load`, reusing an already loaded one with `check_existing=True`) and sets it on the single Environment Texture. It never adds nodes.
+  - Cancels with a warning for a read-only world, or when the world no longer has exactly one Environment Texture.
+- World panel: the button shows for any setup with exactly one Environment Texture node. Custom setups with none or several get no button. Its place in the panel is near Strength and Rotation, also under the "Custom world setup" note for custom setups.
+- The previous image is left to Blender: it loses a user and is dropped when the file is saved and reopened. Lighthouse doesn't remove it or give it a fake user.
 
 ## Done when (testable)
-- Test: `linking_tooltip()` for (3, 0), (3, 1), (0, 2), (1, 0) and (0, 0), including the singular wording.
-- Test: `light_linking_info` on a light with closed details opens them and closes other lights' details. On a light whose details are already open, they stay open.
-- Test (Recorder): a light with receivers draws the link button after `INFO` (when ⓘ is drawn) and before power. A light with no receiver collection, or an empty one, draws none.
+- Test: a simple setup with an Environment Texture: `load_hdri(filepath=...)` sets that node's image to the file. No node is added.
+- Test: a custom setup (e.g. a Mix Shader) with exactly one Environment Texture: the image is swapped and the node count is unchanged.
+- Test: a custom setup with two Environment Textures, or none: the button isn't drawn, and the operator cancels.
+- Test: the previous image keeps no fake user and has one user fewer.
+- Use a small image file checked into `tests/` (or written by the test) so nothing depends on downloads.
 - `make test` passes.
-- Manual (GUI): the icon appears without shifting the power, color and toggle columns. The tooltip reads correctly, and clicking it opens the details at the Light Linking section.
+- Manual (GUI): load an HDRI into a world that already has one, then render and see the new one.
 
 ## Afterwards
-Append a `## v5 task 11: linking row icon` entry to ARCHITECTURE.md. Add `light_linking_info` to `tests/smoke_engines.py`.
+Append a `## v6 task 11: Load HDRI` entry to ARCHITECTURE.md (which setups get the button, what happens to the old image). Add `load_hdri` to `tests/smoke_engines.py`.

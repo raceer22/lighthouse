@@ -24,7 +24,6 @@
 - dublicate object
     - middle mouse click
 - add menu for custom bindings
-- focus on a collection
 - change light linking collection
 - reflection of a light settings
 - bringing as many as possible settings from across the blender to the detailed menu of the light in the addon

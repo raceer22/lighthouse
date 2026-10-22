@@ -1,27 +1,27 @@
-# Task 06: World rotation
+# Task 06: Delete, Duplicate, Duplicate Linked on the selection
 
 **Depends on:** task-05
-**Group:** World · **Source:** `.notes/new-features-decisions.md` items 13 (Rotation), 15
+**Group:** Right-click menu · **Source:** `.notes/v6-decisions.md` items 11–13
 
 ## Goal
-When the simple setup has an Environment Texture, the World panel offers Rotation. If a Mapping node feeds the texture's Vector input, a slider drives its Z rotation. With nothing connected to Vector, an **Add Rotation** button inserts *Texture Coordinate (Generated) → Mapping*, and the slider appears in its place. When Vector is wired to anything else, rotation is hidden.
+The light right-click menu can delete and duplicate lights, which the list had no way to do. These entries act on the selection the way the Outliner does: every selected light when the clicked light is selected, otherwise only the clicked light.
 
 ## Scope
-- `lighthouse/lights.py`:
-  - `WorldSetup` gains `mapping` (the Mapping node linked to the Environment Texture's Vector input, or `None`) and `rotation`: `'MAPPING'`, `'ADDABLE'` (Vector not linked), `'CUSTOM'` (Vector linked to a node that isn't a Mapping node) or `None` (no environment).
-  - `add_world_rotation(node_tree, environment)` creates a Texture Coordinate and a Mapping node placed to the left of the texture, links Generated → Mapping Vector → Environment Vector, and returns the Mapping node.
-- `lighthouse/__init__.py`:
-  - `lighthouse.add_world_rotation` (`REGISTER`, `UNDO`). It refuses unless the scene's world is `SIMPLE` with `rotation == 'ADDABLE'` and not read-only.
-  - Panel: for `MAPPING`, draw `prop(mapping.inputs["Rotation"], "default_value", index=2, text="Rotation")`. The socket is an Euler, so it shows in degrees. For `ADDABLE`, draw the Add Rotation button. For `CUSTOM` and `None`, draw nothing.
+- A helper for the Outliner rule (clicked light plus its selection, or just the clicked light), used by these entries and again by task 07. Labels show the count: "Delete 3 Lights", and plain "Delete" for one.
+- **Duplicate**: a full copy of the object and its light data (like Shift+D). **Duplicate Linked**: a new object sharing the light data (like Alt+D). Each copy goes into the same collection(s) as its original, with no move or grab afterward. The copies become the selection, with the clicked light's copy as the active object. Shared data already shows in the row's ⓘ tooltip, so nothing else is needed.
+- **Delete**: removes the objects right away, with no confirmation. Ctrl+Z brings them back. Only the objects are removed, and light data left with no users is cleaned up by Blender, as with the Outliner's Delete.
+- Read-only lights in scope are skipped and reported, the same way as other bulk actions. When every light in scope is read-only, the operator cancels with a warning.
+- A light that is part of the current solo: deleting it leaves solo working (its snapshot item points at nothing, and `unsolo` already skips those). A duplicate made during solo is shown, since it's a new light the user just asked for.
 
 ## Done when (testable)
-- Test: an Environment Texture with Vector unlinked gives `ADDABLE`. After `add_world_rotation` the tree has exactly one new Texture Coordinate and one new Mapping node, with Generated → Vector → Vector linked, and `world_setup()` gives `MAPPING`.
-- Test: setting the Mapping node's Rotation Z changes only Z, and `world_setup().mapping` is that node.
-- Test: Vector linked straight from a Texture Coordinate node (no Mapping) gives `CUSTOM`, and the operator refuses and adds no nodes.
-- Test: a Background without an environment gives `rotation = None`.
-- Test (Recorder): the panel draws the slider, the button or nothing for the matching cases.
+- Test: with 3 lights selected and the clicked one among them, Delete removes all 3, and the label says "Delete 3 Lights".
+- Test: with 3 lights selected and the clicked one not among them, Delete removes only the clicked light.
+- Test: Duplicate gives a new object with new light data in the same collection. Duplicate Linked gives a new object with the same `data`.
+- Test: deleting a light whose data is shared leaves the other object and its data alone.
+- Test: deleting a soloed light, then `exit_solo`, restores the other lights without errors.
+- Test: a library light in the selection is skipped and reported.
 - `make test` passes.
-- Manual (GUI): Add Rotation once, then drag the slider and the HDRI turns in the viewport. The new nodes sit tidily left of the texture in the Shader Editor. One Ctrl+Z removes both nodes.
+- Manual (GUI): select three lights, right-click one of them, then Delete and Ctrl+Z. Duplicate Linked a light and check the ⓘ tooltip on both rows.
 
 ## Afterwards
-Append a `## v5 task 06: World rotation` entry to ARCHITECTURE.md. Add `add_world_rotation` on a world with an Environment Texture to `tests/smoke_engines.py`.
+Append a `## v6 task 06: Delete and duplicate` entry to ARCHITECTURE.md (the selection rule, what Delete removes). Add the new operators to `tests/smoke_engines.py`.
