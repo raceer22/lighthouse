@@ -4,6 +4,7 @@ import zlib
 from pathlib import Path
 
 import bpy
+from bpy.app.handlers import persistent
 
 from .lights import (
     DETAIL_LABELS,
@@ -146,6 +147,25 @@ SCOPE_ITEMS = (
     ('SELECTED', "Selected Lights", "Only selected lights"),
 )
 
+def _is_light(self, obj):
+    return obj.type == 'LIGHT'
+
+@persistent
+def _track_last_light(scene, depsgraph):
+    obj = bpy.context.view_layer.objects.active
+    if obj is not None and obj.type == 'LIGHT' and scene.lighthouse_last_light is not obj:
+        scene.lighthouse_last_light = obj
+
+def register_last_light():
+    bpy.types.Scene.lighthouse_last_light = bpy.props.PointerProperty(
+        type=bpy.types.Object, poll=_is_light)
+    if _track_last_light not in bpy.app.handlers.depsgraph_update_post:
+        bpy.app.handlers.depsgraph_update_post.append(_track_last_light)
+
+def unregister_last_light():
+    if _track_last_light in bpy.app.handlers.depsgraph_update_post:
+        bpy.app.handlers.depsgraph_update_post.remove(_track_last_light)
+    del bpy.types.Scene.lighthouse_last_light
 
 class LIGHTHOUSE_PG_expanded(bpy.types.PropertyGroup):
     obj: bpy.props.PointerProperty(type=bpy.types.Object)
@@ -1873,6 +1893,8 @@ class LIGHTHOUSE_PT_active_light(bpy.types.Panel):
     def draw(self, context):
         obj = context.view_layer.objects.active
         if obj is None or obj.type != 'LIGHT':
+            obj = context.scene.lighthouse_last_light
+        if obj is None:
             self.layout.label(text="Select a light")
             return
         state = row_state(obj, context.view_layer, context.scene)
@@ -1976,6 +1998,7 @@ def register():
     bpy.types.UI_MT_button_context_menu.prepend(draw_group_menu)
     bpy.app.handlers.load_post.append(migrate_solo_targets)
     bpy.types.UI_MT_button_context_menu.prepend(draw_light_menu)
+    register_last_light()
 
 
 def unregister():
@@ -1989,3 +2012,4 @@ def unregister():
     del bpy.types.WindowManager.lighthouse
     for cls in reversed(classes):
         bpy.utils.unregister_class(cls)
+    unregister_last_light()
