@@ -1,4 +1,6 @@
 # Features
+- linked objects are folded initially
+    - persistent space allocation for all lights (with or without links)
 - right click on group opens a pop-up with:
     - new light menu + new collection
     - removing them from header menu
