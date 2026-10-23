@@ -1,6 +1,8 @@
 from collections import Counter
 from typing import NamedTuple
 
+import bpy
+
 
 class RowState(NamedTuple):
     dimmed: bool
@@ -24,14 +26,12 @@ def _lookup(ids, name, library):
 
 def find_object(view_layer, name, library=""):
     """The object with this name from this library ("" for local, see _lookup), only if it is in the view layer."""
-    import bpy
     obj = _lookup(bpy.data.objects, name, library)
     return obj if obj is not None and obj in view_layer.objects[:] else None
 
 
 def find_collection(name, library=""):
     """The collection with this name from this library ("" for local, see _lookup)."""
-    import bpy
     return _lookup(bpy.data.collections, name, library)
 
 
@@ -341,7 +341,6 @@ def scope_label(verb, count):
 def delete_lights(objects):
     """Remove the objects, skipping read-only ones. Light data left with no users is purged by
     Blender, as with the Outliner's Delete. Returns how many were deleted and how many skipped."""
-    import bpy
     deletable = [obj for obj in objects if not is_read_only(obj)]
     for obj in deletable:
         bpy.data.objects.remove(obj)
@@ -657,7 +656,6 @@ def toggled_mode(scene_value, default):
 
 def supports_temperature():
     """Whether lights have a color temperature (Blender 5.0+)."""
-    import bpy
     return "use_temperature" in bpy.types.Light.bl_rna.properties
 
 
@@ -778,7 +776,6 @@ def link_receivers(light_obj, ids, state):
     """Link each object or collection into the light's receiver collection (created like Blender's,
     "Light Linking for <light>", when missing) and set its link state. The light itself is skipped.
     Returns (added, updated)."""
-    import bpy
     collection = light_obj.light_linking.receiver_collection
     if collection is None:
         collection = bpy.data.collections.new(f"Light Linking for {light_obj.name}")
@@ -801,7 +798,6 @@ def link_receivers(light_obj, ids, state):
 
 def remove_receiver(light_obj, id):
     """Unlink one object or child collection from the light's receiver collection."""
-    import bpy
     collection = light_obj.light_linking.receiver_collection
     if collection is None:
         return
@@ -824,7 +820,6 @@ def clear_receivers(light_obj):
 
 def receiver_users(collection):
     """The light objects using this collection as their receiver collection, sorted by name."""
-    import bpy
     return sorted((obj for obj in bpy.data.objects
                    if obj.type == 'LIGHT' and obj.light_linking.receiver_collection == collection),
                   key=lambda obj: obj.name)
@@ -888,7 +883,6 @@ ENGINE_NAMES = {"CYCLES": "Cycles", "BLENDER_EEVEE": "EEVEE", "BLENDER_EEVEE_NEX
 def engine_name(engine):
     """Display name of a render engine id: built-ins from ENGINE_NAMES (RenderSettings' engine enum
     only lists some of them headless), others from their registered RenderEngine's bl_label."""
-    import bpy
     if engine in ENGINE_NAMES:
         return ENGINE_NAMES[engine]
     registered = {getattr(cls, "bl_idname", None): getattr(cls, "bl_label", None)
@@ -899,7 +893,6 @@ def engine_name(engine):
 def light_linking_note(engine):
     """"Not rendered in <engine>, Cycles only" for a render engine that doesn't render light linking,
     or None for one that does. Unknown (third-party) engines get the note."""
-    import bpy
     renders = ["CYCLES"]
     if bpy.app.version >= EEVEE_LIGHT_LINKING:
         renders.append("BLENDER_EEVEE")
