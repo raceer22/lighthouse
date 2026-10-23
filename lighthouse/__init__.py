@@ -1837,16 +1837,18 @@ def draw_light_controls(row, context, obj, state, other_collections):
         op.other_users = light.users - 1
         op.other_collections = other_collections
     counts = linking_counts(obj)
-    if linking_tooltip(*counts):
-        op = row.operator(LIGHTHOUSE_OT_light_linking_info.bl_idname, text="", icon='LINKED', emboss=False)
-        target(op, obj)
-        op.included, op.excluded, op.included_collections, op.excluded_collections = counts
     controls = row.row(align=True)
     controls.enabled = not state.read_only
     controls.prop(light, "energy", text="")
     unit = controls.row(align=True)
-    unit.ui_units_x = UNIT_WIDTH
-    unit.operator(LIGHTHOUSE_OT_power_unit.bl_idname, text="W", emboss=False).unit = power_unit(light)
+    unit.alignment = "CENTER"
+    unit.ui_units_x = UNIT_WIDTH + 0.4
+    if linking_tooltip(*counts):
+        op = unit.operator(LIGHTHOUSE_OT_light_linking_info.bl_idname, text="", icon='LINKED', emboss=False)
+        target(op, obj)
+        op.included, op.excluded, op.included_collections, op.excluded_collections = counts
+    else:
+        unit.operator(LIGHTHOUSE_OT_power_unit.bl_idname, text="W", emboss=False).unit = power_unit(light)
     swatch = controls.row(align=True)
     swatch.ui_units_x = SWATCH_WIDTH
     swatch.prop(light, color_control(light), text="")
