@@ -17,11 +17,12 @@ class Preset(NamedTuple):
     temperature: float = 6500.0
 
 
-# Written into the presets folder once (see seed_default_presets); after that they are plain files.
 DEFAULT_PRESETS = (
-    Preset("Candle", frozenset({'POINT', 'SPOT', 'AREA'}), 1.0, (1.0, 0.58, 0.16), 0.01, use_temperature=True, temperature=1850.0),
-    Preset("60W Bulb", frozenset({'POINT', 'SPOT', 'AREA'}), 60.0, (1.0, 0.71, 0.42), 0.03, use_temperature=True, temperature=2700.0),
-    Preset("Daylight", frozenset({'SUN'}), 4.0, (1.0, 0.96, 0.9), 0.0093, use_temperature=True, temperature=5500.0),
+    Preset("Studio Softbox", frozenset({'AREA'}), 250.0, (1.0, 0.98, 0.95), 0.50, use_temperature=True, temperature=5600.0),
+    Preset("Warm Interior Bulb", frozenset({'POINT', 'SPOT', 'AREA'}), 40.0, (1.0, 0.73, 0.45), 0.035, use_temperature=True, temperature=2700.0),
+    Preset("Midday Sun", frozenset({'SUN'}), 4.5, (1.0, 0.97, 0.92), 0.0093, use_temperature=True, temperature=5500.0),
+    Preset("Golden Hour Sun", frozenset({'SUN'}), 2.0, (1.0, 0.65, 0.35), 0.018, use_temperature=True, temperature=2800.0),
+    Preset("Moonlight", frozenset({'SUN'}), 0.05, (0.82, 0.90, 1.0), 0.0093, use_temperature=True, temperature=4100.0),
 )
 
 
