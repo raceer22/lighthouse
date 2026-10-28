@@ -43,16 +43,18 @@ def test_default_presets_set_only_the_rgb_color_on_a_light_without_temperature()
         from lighthouse.presets import DEFAULT_PRESETS, apply_preset
         empty_scene()
         lights = {}
-        for preset, light_type in zip(DEFAULT_PRESETS, ('POINT', 'SPOT', 'SUN')):
+        for preset, light_type in zip(DEFAULT_PRESETS, ('AREA', 'POINT', 'SUN', 'SUN', 'SUN')):
             data = add_light(preset.label, light_type).data
             stub = type("Object", (), {"data": OlderLight(data)})()
             apply_preset([stub], preset)
-            lights[preset.label] = [data.energy, [round(c, 3) for c in data.color], getattr(data, "use_temperature", False)]
+            lights[preset.label] = [round(data.energy, 3), [round(c, 3) for c in data.color], getattr(data, "use_temperature", False)]
         report(lights)
     """)
 
     assert lights == {
-        "Candle": [1, [1.0, 0.58, 0.16], False],
-        "60W Bulb": [60, [1.0, 0.71, 0.42], False],
-        "Daylight": [4, [1.0, 0.96, 0.9], False],
+        "Studio Softbox": [250, [1.0, 0.98, 0.95], False],
+        "Warm Interior Bulb": [40, [1.0, 0.73, 0.45], False],
+        "Midday Sun": [4.5, [1.0, 0.97, 0.92], False],
+        "Golden Hour Sun": [2, [1.0, 0.65, 0.35], False],
+        "Moonlight": [0.05, [0.82, 0.9, 1.0], False],
     }

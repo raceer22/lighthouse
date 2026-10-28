@@ -66,6 +66,7 @@ def test_a_light_name_button_gets_rename_frame_and_solo_above_a_separator():
             ["operator", "lighthouse.delete_lights", "Delete", {"name": "Key", "library": ""}],
             ["context_pointer_set", "lighthouse_light", "Key"],
             ["menu", "LIGHTHOUSE_MT_apply_preset", "Apply Preset", "PRESET"],
+            ["menu", "LIGHTHOUSE_MT_new_light", "New Light", "LIGHT"],
             ["operator", "lighthouse.mute_lights", "Mute", {"name": "Key", "library": ""}],
             ["operator", "lighthouse.solo_light", "Solo", {"name": "Key", "library": ""}],
             ["operator", "lighthouse.solo_light", "Add to Solo", {"name": "Key", "library": "", "extend": True}],

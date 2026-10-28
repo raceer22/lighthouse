@@ -88,24 +88,24 @@ def run_presets(snippet, user_dir, setup=""):
 
 def test_apply_preset_from_the_menu_follows_the_selection_rule(tmp_path):
     result = run_presets("""
-        bpy.ops.lighthouse.apply_preset(preset='USER:60W Bulb', name="Point", library="")
+        bpy.ops.lighthouse.apply_preset(preset='USER:Warm Interior Bulb', name="Point", library="")
         unselected = powers()
         for obj in (point, other, third):
             obj.data.energy = 7
-        bpy.ops.lighthouse.apply_preset(preset='USER:60W Bulb', name="Other", library="")
+        bpy.ops.lighthouse.apply_preset(preset='USER:Warm Interior Bulb', name="Other", library="")
         report({"unselected": unselected, "selected": powers()})
     """, tmp_path)
 
-    assert result == {"unselected": [60, 7, 7], "selected": [7, 60, 60]}
+    assert result == {"unselected": [40, 7, 7], "selected": [7, 40, 40]}
 
 
 def test_the_presets_panel_apply_still_acts_on_the_selection(tmp_path):
     result = run_presets("""
-        bpy.ops.lighthouse.apply_preset(preset='USER:60W Bulb')
+        bpy.ops.lighthouse.apply_preset(preset='USER:Warm Interior Bulb')
         report(powers())
     """, tmp_path)
 
-    assert result == [7, 60, 60]
+    assert result == [7, 40, 40]
 
 
 def test_the_apply_preset_submenu_lists_presets_aimed_at_the_clicked_light(tmp_path):
@@ -113,8 +113,8 @@ def test_the_apply_preset_submenu_lists_presets_aimed_at_the_clicked_light(tmp_p
         import sys
         lighthouse = sys.modules["bl_ext.user_default.lighthouse"]
         entries = drawn(lighthouse.LIGHTHOUSE_MT_apply_preset.draw, FakeContext(lighthouse_light=point))
-        report([entry for entry in entries if entry[2] == "60W Bulb"])
+        report([entry for entry in entries if entry[2] == "Warm Interior Bulb"])
     """, tmp_path, RECORDER)
 
-    assert result == [["operator", "lighthouse.apply_preset", "60W Bulb",
-                       {"preset": "USER:60W Bulb", "name": "Point", "library": ""}]]
+    assert result == [["operator", "lighthouse.apply_preset", "Warm Interior Bulb",
+                       {"preset": "USER:Warm Interior Bulb", "name": "Point", "library": ""}]]

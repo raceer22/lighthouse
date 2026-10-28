@@ -24,7 +24,7 @@ def test_preferences_offer_restore_with_a_hint(tmp_path):
 
 def test_presets_panel_offers_save_and_delete_but_not_restore(tmp_path):
     log = run_installed(RECORDER + textwrap.dedent("""
-        bpy.context.window_manager.lighthouse.preset = "USER:Candle"
+        bpy.context.window_manager.lighthouse.preset = "USER:Moonlight"
         report(drawn(bpy.types.LIGHTHOUSE_PT_presets.draw))
     """), tmp_path / "config")[0]
 

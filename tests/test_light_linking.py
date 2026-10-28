@@ -229,7 +229,7 @@ def test_linking_info_opens_the_details_closing_others_and_never_closes_them():
     assert result == [[["FINISHED"], [True, False]], [["FINISHED"], [True, False]]]
 
 
-def test_rows_draw_the_link_button_after_info_and_before_power_only_with_receivers():
+def test_rows_draw_the_link_button_in_place_of_the_power_unit_only_with_receivers():
     result = run(prelude=RECORDER, snippet="""
         rim, fill = add_light("Rim"), add_light("Fill")
         twin = bpy.data.objects.new("Twin", key.data)
@@ -248,17 +248,22 @@ def test_rows_draw_the_link_button_after_info_and_before_power_only_with_receive
             start = next(i for i, e in enumerate(entries) if e[1:3] == ["lighthouse.select_light", name])
             end = next(i for i, e in enumerate(entries) if i > start and e[:2] == ["prop", "energy"])
             return [[e[1]] + e[3:] for e in entries[start + 1:end]]
-        report({name: between_name_and_power(name) for name in ("Key", "Rim", "Fill", "Twin")})
+        def after_power(name):
+            start = next(i for i, e in enumerate(entries) if e[1:3] == ["lighthouse.select_light", name])
+            end = next(i for i, e in enumerate(entries) if i > start and e[:2] == ["prop", "energy"])
+            entry = entries[end + 1]
+            return [entry[1]] + (entry[3:] if entry[1] == "lighthouse.light_linking_info" else [])
+        report({name: [between_name_and_power(name), after_power(name)] for name in ("Key", "Rim", "Fill", "Twin")})
     """)
 
     link = {"name": "Key", "library": "", "included": 1, "excluded": 0,
             "included_collections": 0, "excluded_collections": 0}
     assert result == {
-        "Key": [["lighthouse.light_info", {"other_users": 1, "other_collections": 0}],
+        "Key": [[["lighthouse.light_info", {"other_users": 1, "other_collections": 0}]],
                 ["lighthouse.light_linking_info", link]],
-        "Rim": [["lighthouse.light_linking_info", dict(link, name="Rim", included=0, excluded=2)]],
-        "Fill": [],
-        "Twin": [["lighthouse.light_info", {"other_users": 1, "other_collections": 0}]],
+        "Rim": [[], ["lighthouse.light_linking_info", dict(link, name="Rim", included=0, excluded=2)]],
+        "Fill": [[], ["lighthouse.power_unit"]],
+        "Twin": [[["lighthouse.light_info", {"other_users": 1, "other_collections": 0}]], ["lighthouse.power_unit"]],
     }
 
 

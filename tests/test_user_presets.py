@@ -27,7 +27,8 @@ def test_a_preset_saved_from_a_light_in_one_file_applies_after_restarting_with_a
     """, tmp_path / "config")[0]
 
     assert [[name, icon] for _, name, icon in items] == [
-        ["60W Bulb", "NONE"], ["Candle", "NONE"], ["Daylight", "NONE"], ["My Key", "NONE"]]
+        ["Golden Hour Sun", "NONE"], ["Midday Sun", "NONE"], ["Moonlight", "NONE"], ["My Key", "NONE"],
+        ["Studio Softbox", "NONE"], ["Warm Interior Bulb", "NONE"]]
     assert light == [250, approx([0.9, 0.8, 0.7]), approx(0.2)]
 
 
@@ -46,7 +47,7 @@ def test_corrupt_user_preset_files_are_skipped_with_a_warning(tmp_path):
         report([name for _, name, _ in preset_items()])
     """, tmp_path / "config")
 
-    assert items == ["60W Bulb", "Candle", "Daylight", "Good"]
+    assert items == ["Golden Hour Sun", "Good", "Midday Sun", "Moonlight", "Studio Softbox", "Warm Interior Bulb"]
     assert "Skipped user preset Broken.json" in output
     assert "Skipped user preset Incomplete.json" in output
 
@@ -66,7 +67,7 @@ def test_a_deleted_user_preset_is_gone_after_restarting(tmp_path):
         report([name for _, name, _ in preset_items()])
     """, tmp_path / "config")[0]
 
-    assert items == ["60W Bulb", "Candle", "Daylight", "Keep"]
+    assert items == ["Golden Hour Sun", "Keep", "Midday Sun", "Moonlight", "Studio Softbox", "Warm Interior Bulb"]
 
 
 @needs_blender(5, 0, "Light.use_temperature")
@@ -149,7 +150,7 @@ def test_deleting_the_selected_preset_selects_the_next_one(tmp_path):
     """, tmp_path / "config")[0]
 
     assert after_alpha == "USER:Beta"
-    assert after_last == "USER:Candle"
+    assert after_last == "USER:Golden Hour Sun"
 
 
 def test_saving_over_an_existing_preset_needs_overwrite(tmp_path):
@@ -206,5 +207,5 @@ def test_user_presets_are_parsed_once_until_a_save(tmp_path):
     """, tmp_path / "config")[0]
 
     assert counts[0] <= 2
-    # One re-read of the folder: the three saved presets and the three defaults.
-    assert counts[1] == counts[0] + 6
+    # One re-read of the folder: the three saved presets and the five defaults.
+    assert counts[1] == counts[0] + 8

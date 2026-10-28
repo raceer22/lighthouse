@@ -55,25 +55,24 @@ Run 2026-10-09: `STATUS Installed "lighthouse"`, exit code 0, both engines OK.
 Start Blender from a terminal with the extension installed. Each step should leave no Lighthouse warnings or errors in the console. Under EEVEE, then Cycles, use one light of each type (point, sun, spot, area), some of them in nested collections.
 
 **Panels and intensity**
-- [ ] **AC 1**: the Lights tab shows Intensity, Presets and Lights as three panels. Each collapses and can be dragged to reorder. With Presets collapsed, its header dropdown and Apply still work.
-- [ ] **AC 2**: the factor field is a plain number (no bar) showing 1.0. The six EV buttons read −1, −½, −¼, +¼, +½, +1.
-- [ ] **AC 7 (v1)**: scale by 0.5, then press Ctrl+Z once and every value comes back. Do the same with +¼ EV.
+- [x] **AC 1**: the Lights tab shows Intensity, Presets, Active Light, World and Lights as five panels. Each collapses and can be dragged to reorder.
+- [x] **AC 2**: the factor field is a plain number (no bar) showing 1.0. The six EV buttons read −1, −½, −¼, +¼, +½, +1.
+- [x] **AC 7 (v1)**: scale by 0.5, then press Ctrl+Z once and every value comes back. Do the same with +¼ EV.
 
 **List and groups**
 - [ ] **AC 3–5**: grouped view nests as in the outliner. Typing a search goes flat, and clearing it goes back. A light in two collections shows under both with an info icon whose tooltip explains why.
-- [ ] **AC 7**: click a group's select button, then Shift+click another group's. The first selection is kept.
-- [ ] **AC 9**: hide a group. Its lights are drawn dimmed, and unhiding it leaves a pre-muted light muted.
+- [x] **AC 9**: hide a group. Its lights are drawn dimmed, and unhiding it leaves a pre-muted light muted.
 - [ ] **AC 13**: collapse a group and press Ctrl+Z. The group stays collapsed (no undo step). Save, reopen, and it is still collapsed.
 
 **Rows**
-- [ ] **AC 14**: open one light's details, then another's. The first closes. Shift+click a third, and both stay open. Ctrl+Z doesn't change them.
-- [ ] **AC 15**: on a name, a click selects, Shift+click selects a range, Ctrl+Shift+click toggles, Ctrl+click opens Rename, and Alt+click frames the light. Selected and active rows are highlighted. Note which modifier clicks Blender passes through to the button.
-- [ ] **AC 16**: change a row's type from the dropdown, then press Ctrl+Z once and it reverts. On a library light the dropdown is disabled.
-- [ ] **AC 17**: power runs straight into the color swatch with no gap, and the W or W/m² label is visible. Widen and narrow the sidebar.
-- [ ] **AC 18**: turn on Use Temperature for a light. Its row shows a Kelvin field (e.g. "6500 K") in place of the swatch, readable in full at the default sidebar width. Its details show Exposure, Use Temperature and Temperature.
-- [ ] **AC 19**: apply Candle to a point light. The row shows 1850 K, and Properties › Light shows the color white. Save a preset from it, restart Blender, apply it to another light, and Kelvin and exposure come back.
-- [ ] **AC 20**: `+` › New Light › each type adds a light at the 3D cursor in the active collection, selected and active.
-- [ ] **AC 21**: every step above, under both engines, leaves the console free of Lighthouse errors.
+- [x] **AC 14**: open one light's details, then another's. The first closes. Shift+click a third, and both stay open. Ctrl+Z doesn't change them.
+- [x] **AC 15**: on a name, a click selects, Shift+click selects a range, Ctrl+Shift+click toggles, Ctrl+click opens Rename, and Alt+click frames the light. Selected and active rows are highlighted. Note which modifier clicks Blender passes through to the button.
+- [x] **AC 16**: change a row's type from the dropdown, then press Ctrl+Z once and it reverts. On a library light the dropdown is disabled.
+- [x] **AC 17**: power runs straight into the color swatch with no gap, and the W label is visible. Widen and narrow the sidebar.
+- [x] **AC 18**: turn on Use Temperature for a light. Its row shows a Kelvin field (e.g. "6500 K") in place of the swatch, readable in full at the default sidebar width. Its details show Exposure, Use Temperature and Temperature in addition to the other details.
+- [x] **AC 19**: apply Candle to a point light. The row shows 1850 K, and Properties › Light shows the color white. Save a preset from it, restart Blender, apply it to another light, and Kelvin and exposure come back.
+- [x] **AC 20**: `+` › New Light › each type adds a light at the 3D cursor in the active collection, selected and active.
+- [x] **AC 21**: every step above, under both engines, leaves the console free of Lighthouse errors.
 
 # v5 release (1.3.0)
 
