@@ -4,7 +4,8 @@
 - presets
     - categories
     - export (backup & easy modification in a text format) / import
-    - disable all built-ins
+    - disable all built-ins -button
+- select light shape in its details
 
 # Out of scope (atm)
 - batch rename selected objects

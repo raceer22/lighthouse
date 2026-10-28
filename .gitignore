@@ -3,3 +3,6 @@ __pycache__/
 .pytest_cache/
 dist/
 branding/
+tmp/
+.coverage
+htmlcov/
