@@ -76,7 +76,7 @@ Start Blender from a terminal with the extension installed. Each step should lea
 
 # v5 release (1.3.0)
 
-Automated evidence and the engine smoke run for this release are in [ARCHITECTURE.md](../docs/ARCHITECTURE.md) (`## v5 release`). Every v5 operator runs in `tests/smoke_engines.py` under Cycles and EEVEE. The items below need the GUI. Do each on 5.2, and on 4.2 unless marked 5.0+.
+Automated evidence and the engine smoke run for this release are in [ARCHITECTURE.md](../docs/ARCHITECTURE.md#release-checks) (Release checks, 1.3.0). Every v5 operator runs in `tests/smoke_engines.py` under Cycles and EEVEE. The items below need the GUI. Do each on 5.2, and on 4.2 unless marked 5.0+.
 
 **Header and adding**
 - [ ] **v5 01**: right-clicking a header shows the Lighthouse entries above Copy Python Command and Assign Shortcut, with a separator between them. New Light ▸ Area adds an Area light to that collection and its header becomes pressed. The Scene Collection row works the same way. A library collection shows both entries greyed out. Right-clicking a light row or the search field shows no Lighthouse entries. Click still activates and Ctrl+click still renames.
@@ -98,12 +98,12 @@ Automated evidence and the engine smoke run for this release are in [ARCHITECTUR
 
 # v6 release (1.4.0)
 
-Automated evidence for this release is in [ARCHITECTURE.md](../docs/ARCHITECTURE.md) (`## v6 release`). Every v6 operator runs in `tests/smoke_engines.py` under Cycles and EEVEE (2026-10-19: exit 0 on 5.2.2 and 4.2.23, installed from `dist/lighthouse-1.4.0.zip` into a fresh `BLENDER_USER_RESOURCES`). The items below need the GUI. Do each on 5.2, and on 4.2 unless marked 5.0+.
+Automated evidence for this release is in [ARCHITECTURE.md](../docs/ARCHITECTURE.md#release-checks) (Release checks, 1.4.0). Every v6 operator runs in `tests/smoke_engines.py` under Cycles and EEVEE (2026-10-19: exit 0 on 5.2.2 and 4.2.23, installed from `dist/lighthouse-1.4.0.zip` into a fresh `BLENDER_USER_RESOURCES`). The items below need the GUI. Do each on 5.2, and on 4.2 unless marked 5.0+.
 
 **New lights and panels**
 - [ ] **v6 01**: add an Area and a Sun from Lighthouse and from Shift+A, and the Light properties match (Sun strength 1.0, Area size 1 m).
 - [ ] **v6 03**: click between a mesh and lights. The Active Light panel shows "Select a light" or the light, and the panels below don't move. Editing power in it changes the light's row.
-- [ ] **v6 04**: a fresh file shows Active Light, World, Intensity, Presets (closed), Lights. Open a 1.3.x file with dragged panels and note whether it keeps its order (docs/ARCHITECTURE.md, v6 task 04, waits on this).
+- [ ] **v6 04**: a fresh file shows Active Light, World, Intensity, Presets (closed), Lights. Open a 1.3.x file with dragged panels and note whether it keeps its order (listed under Known limits in docs/ARCHITECTURE.md until this is checked).
 
 **Light right-click menu**
 - [ ] **v6 05**: right-click a light's name, and the Lighthouse entries sit above Blender's own, with a separator. Rename one light (its data name stays) and Frame another.

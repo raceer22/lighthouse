@@ -742,7 +742,7 @@ def add_world_rotation(node_tree, environment):
 def world_mute_node(setup):
     """The node World mute acts on: the Background of a SIMPLE setup, else None.
     Muting a Mix Shader passes its first shader through instead of turning the world off
-    (checked by rendering, see docs/ARCHITECTURE.md), so CUSTOM setups can't be muted."""
+    (checked by rendering, see docs/ARCHITECTURE.md, Rendering), so CUSTOM setups can't be muted."""
     return setup.background if setup.state == 'SIMPLE' else None
 
 
@@ -871,7 +871,7 @@ def linking_counts(obj):
                                      ('COLLECTION', 'INCLUDE'), ('COLLECTION', 'EXCLUDE')))
 
 
-# Render probe (docs/ARCHITECTURE.md, v5 task 12): EEVEE renders light linking on 5.2.2 but not on 4.2.23.
+# Render probe (docs/ARCHITECTURE.md, Rendering): EEVEE renders light linking on 5.2.2 but not on 4.2.23.
 # Versions in between weren't checked, so EEVEE counts from 5.0.
 EEVEE_LIGHT_LINKING = (5, 0)
 
