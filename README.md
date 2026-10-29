@@ -15,7 +15,7 @@ Blender's light workflow gets slow once a scene has more than a few lights:
 
 ## Features
 
-**Lighthouse** is a Blender extension that adds a **Lights** tab to the 3D Viewport sidebar (N), with five panels, in this order (Presets starts closed).
+**Lighthouse** is a Blender extension that adds a **Lights** tab to the 3D Viewport sidebar (N), with five panels, in the following order (Presets starts closed):
 
 ### Active Light
 
