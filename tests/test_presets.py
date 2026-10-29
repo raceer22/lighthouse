@@ -113,7 +113,7 @@ def test_a_library_light_is_skipped_as_read_only_and_reported(tmp_path):
         local.select_set(True)
         bpy.data.objects["Library"].select_set(True)
         from importlib import import_module
-        presets = import_module(bpy.types.LIGHTHOUSE_OT_apply_preset.__module__ + ".presets")
+        presets = import_module("bl_ext.user_default.lighthouse.presets")
         counts = presets.apply_preset([local, bpy.data.objects["Library"]], presets.DEFAULT_PRESETS[1])
         local.data.energy = 7
         bpy.ops.lighthouse.apply_preset(preset='USER:Warm Interior Bulb')

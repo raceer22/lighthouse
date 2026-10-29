@@ -125,9 +125,9 @@ def test_selected_preset_stays_selected_when_a_preset_sorting_before_it_is_saved
         settings = bpy.context.window_manager.lighthouse
         settings.preset = "USER:Beta"
         # Added without the operator (which selects what it saves), as another Blender instance would.
-        addon = __import__("sys").modules[bpy.types.LIGHTHOUSE_OT_save_preset.__module__]
-        presets = __import__("sys").modules[addon.__name__ + ".presets"]
-        addon.save_user_preset(addon.presets_folder(), presets.DEFAULT_PRESETS[0]._replace(label="Aardvark"))
+        common = __import__("sys").modules["bl_ext.user_default.lighthouse.common"]
+        presets = __import__("sys").modules["bl_ext.user_default.lighthouse.presets"]
+        presets.save_user_preset(common.presets_folder(), presets.DEFAULT_PRESETS[0]._replace(label="Aardvark"))
         report(settings.preset)
     """, tmp_path / "config")[0]
 
@@ -167,7 +167,7 @@ def test_saving_over_an_existing_preset_needs_overwrite(tmp_path):
         key.data.energy = 321
         results += [save(name="My Key"), save(name="My Key", overwrite=True)]
         results += [save(name="Key_Fill"), save(name="Key/Fill"), save(name="Key/Fill", overwrite=True)]
-        results.append([p.power for p in __import__("sys").modules[bpy.types.LIGHTHOUSE_OT_save_preset.__module__].all_presets().values()
+        results.append([p.power for p in __import__("sys").modules["bl_ext.user_default.lighthouse.common"].all_presets().values()
                         if p.label == "My Key"])
         report(results)
     """, tmp_path / "config")[0]
@@ -192,17 +192,17 @@ def test_user_presets_are_parsed_once_until_a_save(tmp_path):
         bpy.context.view_layer.objects.active = add_light("Key")
         bpy.ops.lighthouse.save_preset(name="One")
         bpy.ops.lighthouse.save_preset(name="Two")
-        addon = __import__("sys").modules[bpy.types.LIGHTHOUSE_OT_save_preset.__module__]
-        presets = __import__("sys").modules[addon.__name__ + ".presets"]
+        common = __import__("sys").modules["bl_ext.user_default.lighthouse.common"]
+        presets = __import__("sys").modules["bl_ext.user_default.lighthouse.presets"]
         parsed = []
         real_loads = presets.json.loads
         presets.json = type("Json", (), {"loads": staticmethod(lambda text: parsed.append(1) or real_loads(text)),
                                           "dumps": staticmethod(presets.json.dumps)})
-        addon.all_presets()
-        addon.all_presets()
+        common.all_presets()
+        common.all_presets()
         counts = [len(parsed)]
         bpy.ops.lighthouse.save_preset(name="Three")
-        addon.all_presets()
+        common.all_presets()
         report(counts + [len(parsed)])
     """, tmp_path / "config")[0]
 

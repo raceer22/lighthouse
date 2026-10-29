@@ -1,11 +1,8 @@
 # Copyright (C) 2026 raceer22
 # Licensed under the GNU General Public License v3 or later (GPL-3.0-or-later)
-import zlib
-from pathlib import Path
-
 import bpy
-from bpy.app.handlers import persistent
 
+from . import properties
 from .lights import (
     DETAIL_LABELS,
     find_collection,
@@ -20,7 +17,6 @@ from .lights import (
     link_receivers,
     receivers,
     remove_receiver,
-    new_light_mode,
     id_key,
     GroupEntry,
     color_control,
@@ -34,9 +30,7 @@ from .lights import (
     hdri_addable,
     hdri_target,
     is_solo_target,
-    set_solo_target,
     indent_level,
-    is_collapsed,
     is_lights_folded,
     is_read_only,
     light_info_tooltip,
@@ -81,167 +75,32 @@ from .presets import (
     preset_summary,
     restore_default_presets,
     save_user_preset,
-    seed_default_presets,
     USER_PREFIX,
-    user_presets,
 )
-
-
-_seeded = False
-
-
-def presets_folder():
-    """The presets folder, with the default presets written into it on the first call of the
-    session if they never were."""
-    global _seeded
-    folder = Path(bpy.utils.extension_path_user(__package__, create=True))
-    if not _seeded:
-        seed_default_presets(folder)
-        _seeded = True
-    return folder
-
-
-_user_presets_cache = {}
-
-
-def cached_user_presets():
-    """user_presets() of the presets folder, read again only when the folder's mtime changes
-    (a file added, removed or renamed) or after clear_user_presets_cache(). A file edited in
-    place outside Blender is picked up after a restart."""
-    folder = presets_folder()
-    stamp = folder.stat().st_mtime_ns
-    if _user_presets_cache.get("stamp") != stamp:
-        _user_presets_cache.update(stamp=stamp, presets=user_presets(folder))
-    return _user_presets_cache["presets"]
-
-
-def clear_user_presets_cache():
-    _user_presets_cache.clear()
-
-
-def all_presets():
-    return cached_user_presets()
-
-
-_preset_items = []
-
-
-def preset_items(self, context):
-    """Every preset in the folder, sorted by label ignoring case. Each item's number comes from
-    its key, so the stored value follows the preset when others are added or deleted."""
-    _preset_items[:] = [
-        (key, preset.label, "", 'NONE', zlib.crc32(key.encode()) & 0x7FFFFFFF)
-        for key, preset in all_presets().items()
-    ]
-    return _preset_items
-
-LIGHT_TYPES = (
-    ('POINT', "Point", "Point lights", 'LIGHT_POINT', 1),
-    ('SUN', "Sun", "Sun lights", 'LIGHT_SUN', 2),
-    ('SPOT', "Spot", "Spot lights", 'LIGHT_SPOT', 3),
-    ('AREA', "Area", "Area lights", 'LIGHT_AREA', 4),
+from .common import (
+    presets_folder,
+    cached_user_presets,
+    clear_user_presets_cache,
+    all_presets,
+    preset_items,
+    LIGHT_TYPES,
+    SCOPE_ITEMS,
+    scene_or_collection,
+    target_layer_collection,
+    target,
+    NEW_LIGHT_MODES,
+    default_new_light_mode,
+    current_new_light_mode,
+    SHIFT_A_VALUES,
+    light_muted,
+    all_collapsed,
+    _lights_in_scope,
+    POWER_UNIT_NAMES,
+    EV_STEPS,
+    target_collection,
 )
-
-SCOPE_ITEMS = (
-    ('ALL', "All Lights", "Every light in the view layer, whatever the list filters show"),
-    ('SELECTED', "Selected Lights", "Only selected lights"),
-)
-
-def _is_light(self, obj):
-    return obj.type == 'LIGHT'
-
-@persistent
-def _track_last_light(scene, depsgraph):
-    obj = bpy.context.view_layer.objects.active
-    if obj is not None and obj.type == 'LIGHT' and scene.lighthouse_last_light is not obj:
-        scene.lighthouse_last_light = obj
-
-def register_last_light():
-    bpy.types.Scene.lighthouse_last_light = bpy.props.PointerProperty(
-        type=bpy.types.Object, poll=_is_light)
-    if _track_last_light not in bpy.app.handlers.depsgraph_update_post:
-        bpy.app.handlers.depsgraph_update_post.append(_track_last_light)
-
-def unregister_last_light():
-    if _track_last_light in bpy.app.handlers.depsgraph_update_post:
-        bpy.app.handlers.depsgraph_update_post.remove(_track_last_light)
-    del bpy.types.Scene.lighthouse_last_light
-
-class LIGHTHOUSE_PG_expanded(bpy.types.PropertyGroup):
-    obj: bpy.props.PointerProperty(type=bpy.types.Object)
-
-
-class LIGHTHOUSE_PG_settings(bpy.types.PropertyGroup):
-    name_filter: bpy.props.StringProperty(
-        name="Search",
-        description="Only list lights whose name contains this text",
-        options={'TEXTEDIT_UPDATE'},
-    )
-    type_filter: bpy.props.EnumProperty(
-        name="Type",
-        description="Only list lights of this type",
-        items=(('ALL', "All", "Every light type"),) + LIGHT_TYPES,
-    )
-    grouped: bpy.props.BoolProperty(
-        name="Group by Collection",
-        description="Nest lights under their collections, as in the outliner. The list is flat while searching",
-        default=True,
-    )
-    show_empty: bpy.props.BoolProperty(
-        name="Show Empty Collections",
-        description="List collections without (matching) lights too, so you can make them active or move lights into them",
-        default=True,
-    )
-    scale_factor: bpy.props.FloatProperty(
-        name="Factor",
-        description="Multiply light power by this value",
-        default=1.0,
-        min=0.0,
-    )
-    scale_scope: bpy.props.EnumProperty(name="Scope", description="Which lights to scale", items=SCOPE_ITEMS,
-                                       default='SELECTED')
-    preset: bpy.props.EnumProperty(name="Preset", description="Light setup to apply to selected lights", items=preset_items)
-    # Lights whose details are open. Panel state: not saved, not undoable, kept on rename.
-    expanded: bpy.props.CollectionProperty(type=LIGHTHOUSE_PG_expanded)
-
-
-class LIGHTHOUSE_PG_solo_object(bpy.types.PropertyGroup):
-    object: bpy.props.PointerProperty(type=bpy.types.Object)
-    hide_render: bpy.props.BoolProperty()
-    hide_viewport: bpy.props.BoolProperty()
-    # Muted during this solo: kept hidden when the solo's targets change, even inside a target
-    muted: bpy.props.BoolProperty()
-
-
-class LIGHTHOUSE_PG_solo_collection(bpy.types.PropertyGroup):
-    collection: bpy.props.PointerProperty(type=bpy.types.Collection)
-    hide_render: bpy.props.BoolProperty()
-    hide_viewport: bpy.props.BoolProperty()
-
-
-class LIGHTHOUSE_PG_solo_target(bpy.types.PropertyGroup):
-    """One soloed light (object) or group (collection); the other pointer is empty."""
-    object: bpy.props.PointerProperty(type=bpy.types.Object)
-    collection: bpy.props.PointerProperty(type=bpy.types.Collection)
-
-
-class LIGHTHOUSE_PG_solo(bpy.types.PropertyGroup):
-    """The scene's solo targets and the visibility flags to restore on un-solo."""
-    active: bpy.props.BoolProperty()
-    targets: bpy.props.CollectionProperty(type=LIGHTHOUSE_PG_solo_target)
-
-    @property
-    def light(self):
-        """The first soloed light, or None: the read side of the 1.3 "light" pointer."""
-        return next((target.object for target in self.targets if target.object), None)
-    objects: bpy.props.CollectionProperty(type=LIGHTHOUSE_PG_solo_object)
-    collections: bpy.props.CollectionProperty(type=LIGHTHOUSE_PG_solo_collection)
-    world_soloed: bpy.props.BoolProperty()
-    # The World snapshot, taken only by World solo: the node muted and its mute before solo
-    world_saved: bpy.props.BoolProperty()
-    world: bpy.props.PointerProperty(type=bpy.types.World)
-    world_node: bpy.props.StringProperty()
-    world_muted: bpy.props.BoolProperty()
+from .handlers import register_last_light, unregister_last_light, migrate_solo_targets
+from .properties import LIGHTHOUSE_PG_settings, LIGHTHOUSE_PG_solo
 
 
 class LIGHTHOUSE_OT_select_light(bpy.types.Operator):
@@ -426,27 +285,6 @@ class LIGHTHOUSE_OT_duplicate_lights(bpy.types.Operator):
         return {'FINISHED'}
 
 
-def scene_or_collection(context, name, library):
-    """The collection a header button targets: name "" (no ID has an empty name) is the scene's
-    master collection, which is not in bpy.data.collections."""
-    return context.scene.collection if name == "" else find_collection(name, library)
-
-
-def target_layer_collection(context, name, library):
-    """The view layer's layer collection for a header button's target (name "" is the Scene
-    Collection), or None when the collection doesn't exist or is excluded."""
-    root = context.view_layer.layer_collection
-    if name == "":
-        return root
-    collection = find_collection(name, library)
-    return collection and find_layer_collection(root, collection)
-
-
-def target(op, id):
-    """Point a row or header button's operator at this exact light or collection."""
-    op.name, op.library = id_key(id)
-
-
 def draw_linking(box, obj, engine):
     """The Light Linking section at the end of a light's details, with a note (still editable)
     under an engine that doesn't render light linking."""
@@ -493,24 +331,6 @@ def frame_selected(context):
             return
 
 
-NEW_LIGHT_MODES = (
-    ('FOLLOW', "Follow Default", "Use the default mode for new lights"),
-    ('COLOR', "Color", "New lights start with a plain color"),
-    ('KELVIN', "Kelvin", "New lights start at Blender's default temperature, with a white color"),
-)
-
-
-def default_new_light_mode(context):
-    """The mode new lights start in when the file follows the default: the add-on preference when
-    Lighthouse is installed, otherwise Color (as when tests import and register it directly)."""
-    addon = context.preferences.addons.get(__package__)
-    return addon.preferences.new_light_mode if addon and addon.preferences else 'COLOR'
-
-
-def current_new_light_mode(context):
-    return new_light_mode(context.scene.lighthouse_new_lights, default_new_light_mode(context))
-
-
 class LIGHTHOUSE_OT_toggle_new_light_mode(bpy.types.Operator):
     """Switch whether lights added by Lighthouse start in Color or in Kelvin"""
     bl_idname = "lighthouse.toggle_new_light_mode"
@@ -528,14 +348,6 @@ class LIGHTHOUSE_OT_toggle_new_light_mode(bpy.types.Operator):
         scene = context.scene
         scene.lighthouse_new_lights = toggled_mode(scene.lighthouse_new_lights, default_new_light_mode(context))
         return {'FINISHED'}
-
-
-# Where Shift+A (object.light_add) starts a light differently from bpy.data.lights.new() (checked in 5.2.2).
-# Point and Spot already match.
-SHIFT_A_VALUES = {
-    'SUN': {"energy": 1.0},
-    'AREA': {"size": 1.0, "size_y": 1.0},
-}
 
 
 class LIGHTHOUSE_OT_add_light(bpy.types.Operator):
@@ -659,11 +471,6 @@ class LIGHTHOUSE_OT_mute_lights(bpy.types.Operator):
             update_snapshot(context.scene.lighthouse_solo, light, hide)
         self.report({'INFO'}, scope_summary("Muted" if hide else "Unmuted", len(editable), len(lights) - len(editable)))
         return {'FINISHED'}
-
-
-def light_muted(obj):
-    """True when a light is muted: hidden in both the viewport and renders, as the row's mute sets it."""
-    return obj.hide_render and obj.hide_viewport
 
 
 class LIGHTHOUSE_OT_solo_light(bpy.types.Operator):
@@ -858,13 +665,6 @@ class LIGHTHOUSE_OT_clear_filters(bpy.types.Operator):
         return {'FINISHED'}
 
 
-def all_collapsed(view_layer, filters):
-    """True when every listed collection with a triangle is collapsed (also when there are none).
-    Only collections count: a folded lights row, or an empty collection with nothing to fold, never decides it."""
-    groups = listed_groups(view_layer, filters.type_filter, filters.show_empty, foldable_only=True)
-    return all(is_collapsed(collection) for collection in groups)
-
-
 class LIGHTHOUSE_OT_toggle_all_groups(bpy.types.Operator):
     """Expand every collection and lights row when all collections are collapsed,
     otherwise collapse every collection"""
@@ -989,15 +789,6 @@ class LIGHTHOUSE_OT_solo_group(bpy.types.Operator):
             return {'CANCELLED'}
         toggle_solo_group(context.scene.lighthouse_solo, context.view_layer, collection, self.extend)
         return {'FINISHED'}
-
-
-def _lights_in_scope(context, scope):
-    """The view layer's lights for scope ALL, or the selected ones for SELECTED,
-    and the warning to report if there are none."""
-    lights = light_objects(context.view_layer)
-    if scope == 'SELECTED':
-        return [obj for obj in lights if obj.select_get()], "No lights selected"
-    return lights, "No lights in the view layer"
 
 
 class LIGHTHOUSE_OT_scale_lights(bpy.types.Operator):
@@ -1229,9 +1020,6 @@ class LIGHTHOUSE_OT_light_linking_info(bpy.types.Operator):
         return {'FINISHED'}
 
 
-POWER_UNIT_NAMES = {"W": "watts", "W/m²": "watts per square metre"}
-
-
 class LIGHTHOUSE_OT_power_unit(bpy.types.Operator):
     """Unit of the light's power"""
     bl_idname = "lighthouse.power_unit"
@@ -1246,9 +1034,6 @@ class LIGHTHOUSE_OT_power_unit(bpy.types.Operator):
 
     def execute(self, context):
         return {'CANCELLED'}
-
-
-EV_STEPS = ((-1.0, "−1"), (-0.5, "−½"), (-0.25, "−¼"), (0.25, "+¼"), (0.5, "+½"), (1.0, "+1"))
 
 
 class LIGHTHOUSE_OT_add_world_rotation(bpy.types.Operator):
@@ -1542,12 +1327,6 @@ class LIGHTHOUSE_AP_preferences(bpy.types.AddonPreferences):
             row.prop(self, "new_light_mode", expand=True)
         self.layout.operator(LIGHTHOUSE_OT_restore_default_presets.bl_idname, text="Restore Default Presets")
         self.layout.label(text="Brings back deleted defaults. Defaults you edited are kept.")
-
-
-def target_collection(op, context, collection):
-    """Point an add_light or new_collection button at this collection instead of the active one."""
-    op.name, op.library = ("", "") if collection == context.scene.collection else id_key(collection)
-    op.use_active = False
 
 
 class LIGHTHOUSE_MT_new_light(bpy.types.Menu):
@@ -1907,27 +1686,7 @@ class LIGHTHOUSE_PT_active_light(bpy.types.Panel):
         draw_light_details(self.layout, obj, state, context.scene.render.engine)
 
 
-@bpy.app.handlers.persistent
-def migrate_solo_targets(_):
-    """Files saved mid-solo by 1.3 or older keep the soloed light or group in the "light" or "group"
-    pointer that targets replaced. Their ID properties still load, so move them into targets."""
-    for scene in bpy.data.scenes:
-        solo = scene.lighthouse_solo
-        for key in ("light", "group"):
-            old = solo.get(key)
-            if old is not None:
-                del solo[key]
-                if solo.active and not len(solo.targets):
-                    set_solo_target(solo, old)
-
-
-classes = (
-    LIGHTHOUSE_PG_expanded,
-    LIGHTHOUSE_PG_settings,
-    LIGHTHOUSE_PG_solo_object,
-    LIGHTHOUSE_PG_solo_target,
-    LIGHTHOUSE_PG_solo_collection,
-    LIGHTHOUSE_PG_solo,
+classes = properties.classes + (
     LIGHTHOUSE_OT_select_light,
     LIGHTHOUSE_OT_rename_light,
     LIGHTHOUSE_OT_delete_lights,

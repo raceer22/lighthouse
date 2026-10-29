@@ -16,8 +16,8 @@ def test_restore_brings_back_a_deleted_default_and_keeps_an_edited_one(tmp_path)
         bpy.ops.lighthouse.delete_preset(preset="USER:Moonlight")
         bpy.ops.lighthouse.save_preset(name="Midday Sun", overwrite=True)
         bpy.ops.lighthouse.restore_default_presets()
-        addon = __import__("sys").modules[bpy.types.LIGHTHOUSE_OT_save_preset.__module__]
-        found = addon.all_presets()
+        common = __import__("sys").modules["bl_ext.user_default.lighthouse.common"]
+        found = common.all_presets()
         report({key: [p.power, p.radius] for key, p in found.items()})
     """, tmp_path / "config")
 

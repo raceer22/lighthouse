@@ -52,8 +52,8 @@ def test_saving_as_moonlight_needs_overwrite_like_any_other_preset(tmp_path):
         except RuntimeError:
             refused = True
         bpy.ops.lighthouse.save_preset(name="Moonlight", overwrite=True)
-        addon = __import__("sys").modules[bpy.types.LIGHTHOUSE_OT_save_preset.__module__]
-        report([refused, addon.all_presets()["USER:Moonlight"].power])
+        common = __import__("sys").modules["bl_ext.user_default.lighthouse.common"]
+        report([refused, common.all_presets()["USER:Moonlight"].power])
     """, tmp_path / "config")
 
     assert refused
