@@ -30,7 +30,7 @@ def load(path):
     return sorted(bpy.ops.lighthouse.load_hdri(filepath=path))
 
 def hdri_button():
-    return [e for e in drawn(lighthouse.LIGHTHOUSE_PT_world.draw) if e[1:3] == ["lighthouse.load_hdri", "Load HDRI…"]]
+    return [e for e in drawn(bpy.types.LIGHTHOUSE_PT_world.draw) if e[1:3] == ["lighthouse.load_hdri", "Load HDRI…"]]
 """
 
 

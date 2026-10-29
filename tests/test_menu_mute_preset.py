@@ -110,9 +110,7 @@ def test_the_presets_panel_apply_still_acts_on_the_selection(tmp_path):
 
 def test_the_apply_preset_submenu_lists_presets_aimed_at_the_clicked_light(tmp_path):
     result = run_presets("""
-        import sys
-        lighthouse = sys.modules["bl_ext.user_default.lighthouse"]
-        entries = drawn(lighthouse.LIGHTHOUSE_MT_apply_preset.draw, FakeContext(lighthouse_light=point))
+        entries = drawn(bpy.types.LIGHTHOUSE_MT_apply_preset.draw, FakeContext(lighthouse_light=point))
         report([entry for entry in entries if entry[2] == "Warm Interior Bulb"])
     """, tmp_path, RECORDER)
 

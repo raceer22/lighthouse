@@ -131,7 +131,7 @@ def test_open_details_are_panel_state_outside_undo_and_the_object():
         import lighthouse
         lighthouse.register()
         report({
-            "undo": "UNDO" in lighthouse.LIGHTHOUSE_OT_toggle_details.bl_options,
+            "undo": "UNDO" in bpy.types.LIGHTHOUSE_OT_toggle_details.bl_options,
             "on_window_manager": "expanded" in bpy.context.window_manager.lighthouse.bl_rna.properties,
             "on_object": hasattr(bpy.types.Object, "lighthouse_expanded"),
         })

@@ -48,8 +48,9 @@ def test_panels_are_ordered_active_light_world_intensity_presets_lights():
 def test_presets_starts_closed_and_intensity_open():
     options = run_in_blender("""
         import lighthouse
-        report(["DEFAULT_CLOSED" in getattr(lighthouse.LIGHTHOUSE_PT_presets, "bl_options", set()),
-                "DEFAULT_CLOSED" in getattr(lighthouse.LIGHTHOUSE_PT_intensity, "bl_options", set())])
+        lighthouse.register()
+        report(["DEFAULT_CLOSED" in getattr(bpy.types.LIGHTHOUSE_PT_presets, "bl_options", set()),
+                "DEFAULT_CLOSED" in getattr(bpy.types.LIGHTHOUSE_PT_intensity, "bl_options", set())])
     """)
 
     assert options == [True, False]
