@@ -74,7 +74,7 @@ def test_extend_with_a_group_shows_its_lights_and_unhides_its_parents():
         solo_light("A")
         bpy.ops.lighthouse.solo_group(name="Group", library="", extend=True)
         report({"shown": shown(), "parent hidden": [parent.hide_viewport, parent.hide_render],
-                "soloed": soloed(), "group pressed": lighthouse.group_soloed(scene, group)})
+                "soloed": soloed(), "group pressed": lighthouse.lights.group_soloed(scene, group)})
     """)
 
     assert result == {"shown": ["A", "G1", "G2"], "parent hidden": [False, False],

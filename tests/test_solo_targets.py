@@ -78,7 +78,7 @@ def test_an_old_mid_solo_file_moves_its_target_into_the_list_and_exits_cleanly()
         name: open_old_file(name, """
             loaded = {"targets": [[t.object.name if t.object else None, t.collection.name if t.collection else None]
                                   for t in solo.targets],
-                      "label": lighthouse.solo_label(solo), "hidden": hidden()}
+                      "label": lighthouse.lights.solo_label(solo), "hidden": hidden()}
             bpy.ops.lighthouse.exit_solo()
             report(loaded | {"after exit": hidden()})
         """)
