@@ -1,3 +1,4 @@
+<img width="1920" height="1080" alt="Image" src="https://github.com/user-attachments/assets/7734f020-498f-4692-bfb2-450799e814ff" />
 # Lighthouse
 
 Every light in the scene in one panel in the 3D Viewport, with bulk intensity, solo and mute, and presets.
@@ -13,7 +14,7 @@ Blender's light workflow gets slow once a scene has more than a few lights:
 
 ## Features
 
-A Blender extension that adds a **Lights** tab to the 3D Viewport sidebar (N), with five panels, in this order (Presets starts closed):
+**Lighthouse** is a Blender extension that adds a **Lights** tab to the 3D Viewport sidebar (N), with five panels, in this order (Presets starts closed):
 
 - **Active Light**: the active object's row (type, name, power, color or Kelvin, mute, solo) and its details, so you can edit it without scrolling the list. With no light active it says "Select a light" and keeps its place.
 - **World**: the world's Strength, when the world is *simple*: World Output › Surface comes from a Background node whose Strength isn't driven by another node. Anything else (a Mix Shader, a node group, nodes off) is shown as custom and left alone. With an Environment Texture, **Add Rotation** inserts a Mapping node and then shows its Z rotation. **Mute** mutes the Background node (red in the Shader Editor, saved with the file). **Solo** darkens every light and un-mutes the World, so only the HDRI lights the scene; lamp and group solo leave the World alone, and Exit Solo restores everything. **Load HDRI…** opens the file browser and puts the image in the world's Environment Texture. It works on any world with exactly one Environment Texture node (simple or custom). A simple world with only a Background (like a new file's) gets an Environment Texture added in front of it; Add Rotation then offers rotation. Custom worlds with no or several Environment Textures, and a Background whose Color comes from another node, get no button. The previous image is left to Blender, which drops it on save once nothing uses it.
