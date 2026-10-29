@@ -6,3 +6,6 @@ branding/
 tmp/
 .coverage
 htmlcov/
+lighthouse/.claude
+.notes/
+.claude/
