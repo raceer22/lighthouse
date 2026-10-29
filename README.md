@@ -1,5 +1,18 @@
 # Lighthouse
 
+Every light in the scene in one panel in the 3D Viewport, with bulk intensity, solo and mute, and presets.
+
+## Why Lighthouse
+
+Blender's light workflow gets slow once a scene has more than a few lights:
+
+- Each light's power, color and visibility sit in the Properties editor, one light at a time, reached by selecting it first.
+- Changing the overall lighting means clicking through the lights one by one.
+- There's no quick way to solo a light or a group, or to apply a known setup such as a 60W bulb.
+- Interiors, lookdev and cinematic setups, where lighting is tuned over and over, feel it most.
+
+## Features
+
 A Blender extension that adds a **Lights** tab to the 3D Viewport sidebar (N), with five panels, in this order (Presets starts closed):
 
 - **Active Light**: the active object's row (type, name, power, color or Kelvin, mute, solo) and its details, so you can edit it without scrolling the list. With no light active it says "Select a light" and keeps its place.
@@ -14,7 +27,7 @@ A Blender extension that adds a **Lights** tab to the 3D Viewport sidebar (N), w
   - **Additive solo**: Shift+click a light's or a group's solo star to add it to the current solo, or to take it out if it's soloed. Lights and groups mix, and taking out the last one ends solo. A plain click solos only that item. Lights you mute during a solo stay dark when you add or remove targets. The World's solo is always on its own: Shift+click on it works like a click, and soloing a lamp or group leaves it. Exit Solo's tooltip names up to three soloed items.
   - **Alt+drag** (or Alt+Enter) on a row's power, color or Kelvin field changes every selected light, as anywhere in Blender. The field tooltips can't say so, because they are Blender's own.
 
-Light linking by engine (render probe, see ARCHITECTURE.md):
+Light linking by engine (render probe, see [ARCHITECTURE.md](docs/ARCHITECTURE.md)):
 
 | Blender | Cycles | EEVEE | Workbench |
 |---|---|---|---|
@@ -51,7 +64,7 @@ make build                # same as ./build.sh
 make bench                # time the Lights panel's draw with 500 lights (prints only)
 ```
 
-`tests/acceptance.md` walks every PRD-v2 acceptance criterion, with a manual GUI checklist. `tests/smoke_engines.py` runs every operator under Cycles and EEVEE against an installed copy. `ARCHITECTURE.md` describes the components and the Blender API quirks.
+`tests/acceptance.md` walks every [PRD-v2](docs/history/PRD-v2.md) acceptance criterion, with a manual GUI checklist. `tests/smoke_engines.py` runs every operator under Cycles and EEVEE against an installed copy. [ARCHITECTURE.md](docs/ARCHITECTURE.md) describes the components and the Blender API quirks.
 
 ## Permissions
 
