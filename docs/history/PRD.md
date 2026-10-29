@@ -1,5 +1,7 @@
 # Lighthouse: PRD
 
+> Requirements as of v1, kept as a record. Later versions changed some of them; see [ARCHITECTURE.md](../ARCHITECTURE.md) for current behavior.
+
 ## Problem
 
 Managing lights in a Blender scene is slow. Each light's power, color and visibility sit in a separate Properties editor tab, reached by selecting the light first. Adjusting overall lighting means clicking through lights one by one. Power in Watts is also hard to tune by hand, and there is no quick way to solo a light or apply a known setup such as "60W bulb".

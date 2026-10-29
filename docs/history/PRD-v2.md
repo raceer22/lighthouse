@@ -1,5 +1,7 @@
 # Lighthouse: PRD v2
 
+> Requirements as of v2, kept as a record. Later versions changed some of them; see [ARCHITECTURE.md](../ARCHITECTURE.md) for current behavior.
+
 Follow-up to [PRD.md](PRD.md). Everything there still holds unless this document changes it. The changes are listed under [Changes to PRD.md](#changes-to-prdmd).
 
 ## Problem
