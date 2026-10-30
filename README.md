@@ -66,11 +66,20 @@ Under an engine that doesn't render it, the Light Linking section shows a note a
 
 ## Install
 
-```sh
-./build.sh                # validates the manifest, then writes dist/lighthouse-<version>.zip
-```
+Requires Blender 4.2+.
 
-In Blender, go to Edit › Preferences › Get Extensions › ▾ › Install from Disk… and pick the zip. Or run `make install`.
+1. Click **Code › Download ZIP** on this page. Keep the file zipped.
+2. In Blender, open **Edit › Preferences › Get Extensions › ▾ › Install from Disk…** and pick the zip.
+3. In the 3D Viewport, press **N** and open the **Lights** tab.
+
+To update, install a newer zip the same way.
+
+From a clone (needs `blender` on your `PATH`):
+
+```sh
+git clone https://github.com/raceer22/lighthouse.git && cd lighthouse
+make install              # builds dist/lighthouse-<version>.zip, then installs and enables it
+```
 
 ## Develop
 
